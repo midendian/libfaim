@@ -7,8 +7,11 @@
  * user information structure.  Its close enough to run
  * through aim_extractuserinfo() however.
  *
+ * Although the offgoing notification contains no information,
+ * it is still in a format parsable by extractuserinfo.
+ *
  */
-static int oncoming(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+static int buddychange(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
   struct aim_userinfo_s userinfo;
   rxcallback_t userfunc;
@@ -17,24 +20,6 @@ static int oncoming(struct aim_session_t *sess, aim_module_t *mod, struct comman
 
   if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
     return userfunc(sess, rx, &userinfo);
-
-  return 0;
-}
-
-/*
- * Offgoing Buddy notifications contain no useful
- * information other than the name it applies to.
- *
- */
-static int offgoing(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
-{
-  char sn[MAXSNLEN+1];
-  rxcallback_t userfunc;
-
-  strncpy(sn, (char *)data+1, (int)*data);
-
-  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-    return userfunc(sess, rx, sn);
 
   return 0;
 }
@@ -80,10 +65,8 @@ static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct com
 
   if (snac->subtype == 0x0003)
     return rights(sess, mod, rx, snac, data, datalen);
-  else if (snac->subtype == 0x000b)
-    return oncoming(sess, mod, rx, snac, data, datalen);
-  else if (snac->subtype == 0x000c)
-    return offgoing(sess, mod, rx, snac, data, datalen);
+  else if ((snac->subtype == 0x000b) || (snac->subtype == 0x000c))
+    return buddychange(sess, mod, rx, snac, data, datalen);
 
   return 0;
 }

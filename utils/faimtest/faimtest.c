@@ -1472,15 +1472,25 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
 
 int faimtest_parse_offgoing(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  char *sn;
+  struct aim_userinfo_s *userinfo;
+   
   va_list ap;
-  
   va_start(ap, command);
-  sn = va_arg(ap, char *);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
   va_end(ap);
 
-  dvprintf("\n%s has left\n", sn);
-
+  dvprintf("%ld  %s is now offline (flags: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+	 time(NULL),
+	 userinfo->sn, userinfo->flags,
+	 (userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
+	 (userinfo->flags&AIM_FLAG_ADMINISTRATOR)?" ADMINISTRATOR":"",
+	 (userinfo->flags&AIM_FLAG_AOL)?" AOL":"",
+	 (userinfo->flags&AIM_FLAG_OSCAR_PAY)?" OSCAR_PAY":"",
+	 (userinfo->flags&AIM_FLAG_FREE)?" FREE":"",
+	 (userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
+	 (userinfo->flags&AIM_FLAG_UNKNOWN40)?" UNKNOWN40":"",
+	 (userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
+	 userinfo->capabilities);
   return 1;
 }
 

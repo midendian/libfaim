@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ -  Mon Mar 26 16:08:45 PST 2001
+  - Why didn't anyone tell me buddy-offgoing wasn't working?
+    - *** REQUIRES CLIENT CHANGES... buddy-offgoing now passes a userinfo
+          struct (its now identical to buddy-oncoming)
+
  - Mon Mar 26 15:57:41 PST 2001
   - Hrmph.
   - Debuglevel wasn't getting set properly by aim_session_init
