@@ -4,7 +4,7 @@
 
 #define FAIM_INTERNAL_FT
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 #ifndef _WIN32
 #include <netdb.h>

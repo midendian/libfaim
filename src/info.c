@@ -7,7 +7,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 struct aim_priv_inforeq {
   char sn[MAXSNLEN+1];

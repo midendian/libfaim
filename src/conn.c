@@ -7,7 +7,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h> 
+#include <aim.h> 
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -815,3 +815,18 @@ faim_export int aim_conn_completeconnect(struct aim_session_t *sess, struct aim_
 
   return 0;
 }
+
+/*
+ * aim_logoff()
+ *
+ * Closes -ALL- open connections.
+ *
+ */
+faim_export int aim_logoff(struct aim_session_t *sess)
+{
+  aim_connrst(sess);  /* in case we want to connect again */
+
+  return 0;
+
+}
+

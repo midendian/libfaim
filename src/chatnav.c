@@ -8,7 +8,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 /*
  * conn must be a chatnav connection!

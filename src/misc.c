@@ -12,7 +12,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h> 
+#include <aim.h> 
 
 /*
  * aim_bos_setidle()

@@ -6,7 +6,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 #ifndef _WIN32
 #include <sys/socket.h>

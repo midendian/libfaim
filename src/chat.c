@@ -6,7 +6,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h> 
+#include <aim.h> 
 
 faim_export char *aim_chat_getname(struct aim_conn_t *conn)
 {

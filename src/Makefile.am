@@ -1,0 +1,27 @@
+
+lib_LTLIBRARIES = libfaim.la
+
+libfaim_la_SOURCES =	adverts.c	\
+			auth.c 		\
+			buddylist.c	\
+			chat.c		\
+			chatnav.c	\
+			conn.c		\
+			ft.c		\
+			im.c		\
+			info.c		\
+			login.c		\
+			meta.c		\
+			misc.c		\
+			msgcookie.c	\
+			rxhandlers.c	\
+			rxqueue.c	\
+			search.c	\
+			snac.c		\
+			tlv.c		\
+			txqueue.c	\
+			util.c		\
+			md5.c
+
+CFLAGS += -I../include -DAIM_BUILDDATE=\"`date +%Y%m%d`\" -DAIM_BUILDTIME=\"`date +%H%M%S`\"
+

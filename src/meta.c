@@ -4,7 +4,7 @@
  *  
  */
 
-#include <faim/aim.h>
+#include <aim.h>
 
 faim_export char *aim_getbuilddate(void)
 {

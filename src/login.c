@@ -6,7 +6,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 #include "md5.h"
 

@@ -8,7 +8,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 /*
  * Bleck functions get called when there's no non-bleck functions

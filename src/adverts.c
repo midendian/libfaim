@@ -4,7 +4,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 faim_export unsigned long aim_ads_clientready(struct aim_session_t *sess,
 					      struct aim_conn_t *conn)

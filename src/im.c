@@ -6,7 +6,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 /*
  * Send an ICBM (instant message).  

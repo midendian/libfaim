@@ -6,7 +6,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h> 
+#include <aim.h> 
 
 /* this just pushes the passed cookie onto the passed connection -- NO SNAC! */
 faim_export int aim_auth_sendcookie(struct aim_session_t *sess, 

@@ -13,7 +13,7 @@
  */
 
 #define FAIM_INTERNAL
-#include <faim/aim.h>
+#include <aim.h>
 
 /*
  * Called from aim_session_init() to initialize the hash.
