@@ -552,7 +552,18 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        * The rest of the handling depends on what type it is.
        */
       if (reqclass & AIM_CAPS_BUDDYICON) {
-	printf("faim: rend: buddy icon!\n");
+
+	/*
+	 * Call client.
+	 */
+	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	if (userfunc || (i = 0))
+	  i = userfunc(sess, 
+		       command, 
+		       channel, 
+		       reqclass,
+		       &userinfo);
+
       } else if (reqclass & AIM_CAPS_VOICE) {
 	struct aim_msgcookie_t cachedcook;
 
@@ -601,6 +612,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	       userinfo.sn,
 	       ip);
 
+#if 0
 	{
 	  struct aim_conn_t *newconn;
 	  
@@ -618,6 +630,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	    printf("faim: connected to peer (fd = %d)\n", newconn->fd);
 	  }
 	}
+#endif
 	
 #if 0
 	memcpy(cachedcook.cookie, cookie, 8);
@@ -633,6 +646,16 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	  printf("faim: ERROR caching message cookie\n");
 #endif	
 
+	/*
+	 * Call client.
+	 */
+	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	if (userfunc || (i = 0))
+	  i = userfunc(sess, 
+		       command, 
+		       channel, 
+		       reqclass,
+		       &userinfo);
 
       } else if (reqclass & AIM_CAPS_CHAT) {
 	struct aim_tlv_t *miscinfo;
@@ -659,7 +682,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	  i = userfunc(sess, 
 		       command, 
 		       channel, 
-		       reqclass, /* == roominfo->exchange */
+		       reqclass,
 		       &userinfo, 
 		       &roominfo, 
 		       msg, 
@@ -670,8 +693,30 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	  free(encoding);
 	  free(lang);
       } else if (reqclass & AIM_CAPS_GETFILE) {
-	printf("faim: rend: getfile!\n");
+
+	/*
+	 * Call client.
+	 */
+	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	if (userfunc || (i = 0))
+	  i = userfunc(sess, 
+		       command, 
+		       channel, 
+		       reqclass,
+		       &userinfo);
+
       } else if (reqclass & AIM_CAPS_SENDFILE) {
+	/*
+	 * Call client.
+	 */
+	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	if (userfunc || (i = 0))
+	  i = userfunc(sess, 
+		       command, 
+		       channel, 
+		       reqclass,
+		       &userinfo);
+#if 0
 	char ip[30];
 	char *desc = NULL;
 	struct aim_msgcookie_t cachedcook;
@@ -722,7 +767,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	aim_accepttransfer(sess, command->conn, ft->sender, cookie, AIM_CAPS_SENDFILE);
 
 	free(desc);
-	
+#endif	
 	i = 1;
       } else {
 	printf("faim: rend: unknown rendezvous 0x%04x\n", reqclass);
