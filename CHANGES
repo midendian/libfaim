@@ -1,6 +1,15 @@
 
 No release numbers
 ------------------
+ - Fri Sep  7 21:18:51 PDT 2001
+  - Make icon field names uniform
+  - Add AIM_IMFLAGS_CUSTOMFEATURES.  This allows the client to send/recieve
+     the field in IMs that show client information.
+    - This can be used to identify other open source OSCAR clients, if any
+        one is interested.
+  - Increase the size of args->icbmflags to 32bits
+  - Make sure that extended-only flags are not set for aim_send_im()
+
  - Fri Sep  7 19:59:43 PDT 2001
   - Fix buddyicons. Yay! (checksums are 32bits all the time. duh.)
 

@@ -980,6 +980,20 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
 
 		aim_send_im_ext(sess, conn, &args);
 
+	} else if (strstr(tmpstr, "havefeat")) {
+		struct aim_sendimext_args args;
+		static const char featmsg[] = {"I have nifty features."};
+		fu8_t features[] = {0x01, 0x01, 0x01, 0x02, 0x42, 0x43, 0x44, 0x45};
+
+		args.destsn = userinfo->sn;
+		args.flags = AIM_IMFLAGS_CUSTOMFEATURES;
+		args.msg = featmsg;
+		args.msglen = strlen(featmsg);
+		args.features = features;
+		args.featureslen = sizeof(features);
+
+		aim_send_im_ext(sess, conn, &args);
+
 	} else if (strstr(tmpstr, "sendicon") && priv->buddyicon) {
 
 		aim_send_icon(sess, conn, userinfo->sn, priv->buddyicon, priv->buddyiconlen, priv->buddyiconstamp, priv->buddyiconsum);
@@ -1114,7 +1128,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	args = va_arg(ap, struct aim_incomingim_ch1_args *);
 	va_end(ap);
 
-	clienttype = aim_fingerprintclient(args->fingerprint, args->finlen);
+	clienttype = aim_fingerprintclient(args->features, args->featureslen);
 
 	dvprintf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
 	dvprintf("faimtest: icbm: probable client type: %d\n", clienttype);

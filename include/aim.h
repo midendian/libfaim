@@ -664,37 +664,55 @@ struct aim_chat_roominfo {
 	unsigned short instance;
 };
 
-#define AIM_IMFLAGS_AWAY 0x01 /* mark as an autoreply */
-#define AIM_IMFLAGS_ACK  0x02 /* request a receipt notice */
-#define AIM_IMFLAGS_UNICODE    0x04
-#define AIM_IMFLAGS_ISO_8859_1 0x08
-#define AIM_IMFLAGS_BUDDYREQ   0x10 /* buddy icon requested */
-#define AIM_IMFLAGS_HASICON    0x20 /* already has icon (timestamp included) */
-#define AIM_IMFLAGS_SUBENC_MACINTOSH	0x40 /* damn that Steve Jobs! */
+#define AIM_IMFLAGS_AWAY		0x0001 /* mark as an autoreply */
+#define AIM_IMFLAGS_ACK			0x0002 /* request a receipt notice */
+#define AIM_IMFLAGS_UNICODE		0x0004
+#define AIM_IMFLAGS_ISO_8859_1		0x0008
+#define AIM_IMFLAGS_BUDDYREQ		0x0010 /* buddy icon requested */
+#define AIM_IMFLAGS_HASICON		0x0020 /* already has icon */
+#define AIM_IMFLAGS_SUBENC_MACINTOSH	0x0040 /* damn that Steve Jobs! */
+#define AIM_IMFLAGS_CUSTOMFEATURES 	0x0080 /* features field present */
+#define AIM_IMFLAGS_EXTDATA		0x0100
 
 struct aim_sendimext_args {
+
+	/* These are _required_ */
 	const char *destsn;
-	unsigned short flags;
+	fu32_t flags;
 	const char *msg;
 	int msglen;
-	int iconlen;
+
+	/* Only used if AIM_IMFLAGS_HASICON is set */
+	fu32_t iconlen;
 	time_t iconstamp;
-	unsigned short iconsum;
+	fu32_t iconsum;
+
+	/* Only used if AIM_IMFLAGS_CUSTOMFEATURES is set */
+	fu8_t *features;
+	fu8_t featureslen;
 };
 
 struct aim_incomingim_ch1_args {
+
+	/* Always provided */
 	char *msg;
 	int msglen;
-	unsigned long icbmflags;
-	unsigned short flag1;
-	unsigned short flag2;
-	int finlen;
-	unsigned char fingerprint[10];
+	fu32_t icbmflags;
+	fu16_t flag1;
+	fu16_t flag2;
+
+	/* Only provided if AIM_IMFLAGS_HASICON is set */
 	time_t iconstamp;
-	unsigned long iconlength;
-	unsigned long iconchecksum;  
-	int extdatalen;
-	unsigned char *extdata;
+	fu32_t iconlen;
+	fu32_t iconsum;
+
+	/* Only provided if AIM_IMFLAGS_CUSTOMFEATURES is set */
+	fu8_t *features;
+	fu8_t featureslen;
+
+	/* Only provided if AIM_IMFLAGS_EXTDATA is set */
+	fu8_t extdatalen;
+	fu8_t *extdata;
 };
 
 struct aim_incomingim_ch2_args {

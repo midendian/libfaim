@@ -143,7 +143,10 @@ faim_export fu32_t aim_iconsum(const fu8_t *buf, int buflen)
  */
 faim_export int aim_send_im_ext(aim_session_t *sess, aim_conn_t *conn, struct aim_sendimext_args *args)
 {
-	int i;
+	static const fu8_t deffeatures[] = {
+		0x01, 0x01, 0x01, 0x02, 0x42,
+	};
+	int i, msgtlvlen;
 	aim_frame_t *fr;
 	aim_snacid_t snacid;
 
@@ -156,6 +159,12 @@ faim_export int aim_send_im_ext(aim_session_t *sess, aim_conn_t *conn, struct ai
 	if (args->msglen >= MAXMSGLEN)
 		return -E2BIG;
 
+	msgtlvlen = 12 + args->msglen;
+	if (args->flags & AIM_IMFLAGS_CUSTOMFEATURES)
+		msgtlvlen += args->featureslen;
+	else
+		msgtlvlen += sizeof(deffeatures);
+		
 	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, args->msglen+512)))
 		return -ENOMEM;
 
@@ -190,23 +199,22 @@ faim_export int aim_send_im_ext(aim_session_t *sess, aim_conn_t *conn, struct ai
 	 * metaTLV start.
 	 */
 	aimbs_put16(&fr->data, 0x0002);
-	aimbs_put16(&fr->data, args->msglen + 0x10);
+	aimbs_put16(&fr->data, msgtlvlen);
 
 	/*
-	 * Flag data / ICBM Parameters?
-	 *
-	 * I don't know what these are...
+	 * Features 
 	 *
 	 */
 	aimbs_put8(&fr->data, 0x05);
 	aimbs_put8(&fr->data, 0x01);
 
-	/* number of bytes to follow */
-	aimbs_put16(&fr->data, 0x0004);
-	aimbs_put8(&fr->data, 0x01);
-	aimbs_put8(&fr->data, 0x01);
-	aimbs_put8(&fr->data, 0x01);
-	aimbs_put8(&fr->data, 0x02);
+	if (args->flags & AIM_IMFLAGS_CUSTOMFEATURES) {
+		aimbs_put16(&fr->data, args->featureslen);
+		aimbs_putraw(&fr->data, args->features, args->featureslen);
+	} else {
+		aimbs_put16(&fr->data, sizeof(deffeatures));
+		aimbs_putraw(&fr->data, deffeatures, sizeof(deffeatures));
+	}
 
 	aimbs_put16(&fr->data, 0x0101);
 
@@ -294,6 +302,9 @@ faim_export int aim_send_im(aim_session_t *sess, aim_conn_t *conn, const char *d
 	args.flags = flags;
 	args.msg = msg;
 	args.msglen = strlen(msg);
+
+	/* Make these don't get set by accident -- they need aim_send_im_ext */
+	args.flags &= ~(AIM_IMFLAGS_CUSTOMFEATURES | AIM_IMFLAGS_HASICON);
 
 	return aim_send_im_ext(sess, conn, &args);
 }
@@ -492,8 +503,6 @@ static int incomingim_ch1(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 		endpos = aim_bstream_curpos(bs) + length;
 
 		if (type == 0x0002) { /* Message Block */
-			fu16_t featureslen;
-			int z;
 
 			/*
 			 * This TLV consists of the following:
@@ -506,16 +515,13 @@ static int incomingim_ch1(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 
 			aimbs_get8(bs); /* 05 */
 			aimbs_get8(bs); /* 01 */
-			featureslen = aimbs_get16(bs);
-			for (z = 0, args.finlen = 0; z < featureslen; z++) {
-				fu8_t tmp;
 
-				tmp = aimbs_get8(bs);
-				if (z < sizeof(args.fingerprint)) {
-					args.fingerprint[z] = tmp;
-					args.finlen++;
-				}
-			}
+			args.featureslen = aimbs_get16(bs);
+			/* XXX XXX this is all evil! */
+			args.features = bs->data + bs->offset;
+			aim_bstream_advance(bs, args.featureslen);
+			args.icbmflags |= AIM_IMFLAGS_CUSTOMFEATURES;
+
 			aimbs_get8(bs); /* 01 */
 			aimbs_get8(bs); /* 01 */
 
@@ -579,8 +585,8 @@ static int incomingim_ch1(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 
 		} else if (type == 0x0008) { /* I-HAVE-A-REALLY-PURTY-ICON Flag */
 
-			args.iconchecksum = aimbs_get32(bs);
-			args.iconlength = aimbs_get32(bs);
+			args.iconsum = aimbs_get32(bs);
+			args.iconlen = aimbs_get32(bs);
 			args.iconstamp = aimbs_get32(bs);
 			args.icbmflags |= AIM_IMFLAGS_HASICON;
 
