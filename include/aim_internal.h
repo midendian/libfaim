@@ -45,6 +45,7 @@ faim_internal int locate_modfirst(struct aim_session_t *sess, aim_module_t *mod)
 faim_internal int general_modfirst(struct aim_session_t *sess, aim_module_t *mod);
 
 faim_internal unsigned long aim_genericreq_n(struct aim_session_t *, struct aim_conn_t *conn, u_short family, u_short subtype);
+faim_internal unsigned long aim_genericreq_n_snacid(struct aim_session_t *, struct aim_conn_t *conn, u_short family, u_short subtype);
 faim_internal unsigned long aim_genericreq_l(struct aim_session_t *, struct aim_conn_t *conn, u_short family, u_short subtype, u_long *);
 faim_internal unsigned long aim_genericreq_s(struct aim_session_t *, struct aim_conn_t *conn, u_short family, u_short subtype, u_short *);
 

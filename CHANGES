@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Mon Jun  4 12:57:46 PDT 2001
+  - Fix chatnav.  Whoops.
+
  - Mon Jun  4 12:45:18 PDT 2001
   - Don't use snacid's for generic requests (gets around recent blocks)
   - If they start doing snacid-based blocks again, an audit will have
