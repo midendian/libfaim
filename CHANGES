@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Wed May 23 18:05:46 PDT 2001
+  - I upgraded libtool.  Which broke the faimtest makefile.
+  - Parse locate rights
+  - You shouldn't ask so many questions, Eric.
+
  - Wed May 16 12:48:13 PDT 2001
   - Thanks Rob and Eric
 

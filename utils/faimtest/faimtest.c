@@ -663,6 +663,20 @@ int faimtest_bosrights(struct aim_session_t *sess, struct command_rx_struct *com
   return 1;
 }
 
+int faimtest_locrights(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  unsigned short maxsiglen;
+  va_list ap;
+
+  va_start(ap, command);
+  maxsiglen = va_arg(ap, int);
+  va_end(ap);
+
+  dvprintf("faimtest: locate rights: max signature length = %d\n", maxsiglen);
+
+  return 1;
+}
+
 int faimtest_parse_unknown(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   int i = 0;
@@ -1073,6 +1087,7 @@ static int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx
   aim_conn_addhandler(sess, bosconn, 0x000a, 0x0003, faimtest_parse_searchreply, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_msgerr, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_RIGHTSINFO, faimtest_locrights, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
 
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
