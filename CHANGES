@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Sun Mar 11 06:02:19 UTC 2001
+  - Banish socklen_t.
+
  - Sun Mar 11 05:51:45 UTC 2001 (jbm)
   - Split off aim_internal.h 
   - Add aim_tx_cleanqueue()
