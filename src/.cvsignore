@@ -27,3 +27,9 @@ util.lo
 md5.lo
 .libs
 libfaim.la
+icq.lo
+invite.lo
+popups.lo
+ssi.lo
+translate.lo
+service.lo
