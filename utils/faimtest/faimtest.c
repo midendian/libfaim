@@ -56,6 +56,7 @@ int faimtest_handleredirect(struct aim_session_t *, struct command_rx_struct *co
 int faimtest_authsvrready(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_pwdchngdone(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_serverready(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_hostversions(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_msgack(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_motd(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -117,6 +118,7 @@ static char *msgerrreasons[] = {
 static int msgerrreasonslen = 25;
 
 static char *screenname,*password,*server=NULL;
+static int connected = 0;
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -336,7 +338,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
   switch(command->conn->type) {
   case AIM_CONN_TYPE_BOS: {
     /* this is the new buddy list */
-    char buddies[] = "Buddy1&Buddy2&ThisHereIsAName2&";
+    char buddies[] = "Buddy1&Buddy2&ThisHereIsAName2&midendian&ewarmenhoven&";
     /* this is the new profile */
     char profile[] = "Hello";  
 
@@ -369,43 +371,79 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
   return 1;
 }
 
+int faimtest_hostversions(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  int vercount, i;
+  unsigned char *versions;
+  va_list ap;
+
+  va_start(ap, command);
+  vercount = va_arg(ap, int); /* number of family/version pairs */
+  versions = va_arg(ap, unsigned char *);
+  va_end(ap);
+
+  printf("faimtest: SNAC versions supported by this host: ");
+  for (i = 0; i < vercount*4; i += 4)
+    printf("0x%04x:0x%04x ", 
+	   aimutil_get16(versions+i),  /* SNAC family */
+	   aimutil_get16(versions+i+2) /* Version number */);
+  printf("\n");
+
+  return 1;
+}
+
 int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  switch (command->conn->type)
-    {
-    case AIM_CONN_TYPE_BOS:
+  int famcount, i;
+  unsigned short *families;
+  va_list ap;
 
-      aim_setversions(sess, command->conn);
-      aim_bos_reqrate(sess, command->conn); /* request rate info */
+  va_start(ap, command);
+  famcount = va_arg(ap, int);
+  families = va_arg(ap, unsigned short *);
+  va_end(ap);
 
-      fprintf(stderr, "faimtest: done with BOS ServerReady\n");
-      break;
+  printf("faimtest: SNAC families supported by this host (type %d): ", command->conn->type);
+  for (i = 0; i < famcount; i++)
+    printf("0x%04x ", families[i]);
+  printf("\n");
 
-    case AIM_CONN_TYPE_CHATNAV:
-      fprintf(stderr, "faimtest: chatnav: got server ready\n");
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CTN, AIM_CB_CTN_INFO, faimtest_chatnav_info, 0);
-      aim_bos_reqrate(sess, command->conn);
-      aim_bos_ackrateresp(sess, command->conn);
-      aim_chatnav_clientready(sess, command->conn);
-      aim_chatnav_reqrights(sess, command->conn);
+  switch (command->conn->type) {
+  case AIM_CONN_TYPE_BOS:
 
-      break;
-    case AIM_CONN_TYPE_CHAT:
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN, faimtest_chat_join, 0);
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE, faimtest_chat_leave, 0);
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE, faimtest_chat_infoupdate, 0);
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG, faimtest_chat_incomingmsg, 0);
-      aim_bos_reqrate(sess, command->conn);
-      aim_bos_ackrateresp(sess, command->conn);
-      aim_chat_clientready(sess, command->conn);
-      break;
+    aim_setversions(sess, command->conn);
+    aim_bos_reqrate(sess, command->conn); /* request rate info */
 
-    case AIM_CONN_TYPE_RENDEZVOUS: /* empty */
-      break;
+    fprintf(stderr, "faimtest: done with BOS ServerReady\n");
+    break;
 
-    default:
-      fprintf(stderr, "faimtest: unknown connection type on Server Ready\n");
-    }
+  case AIM_CONN_TYPE_CHATNAV:
+    fprintf(stderr, "faimtest: chatnav: got server ready\n");
+    aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CTN, AIM_CB_CTN_INFO, faimtest_chatnav_info, 0);
+    aim_bos_reqrate(sess, command->conn);
+    aim_bos_ackrateresp(sess, command->conn);
+    aim_chatnav_clientready(sess, command->conn);
+    aim_chatnav_reqrights(sess, command->conn);
+
+    break;
+
+  case AIM_CONN_TYPE_CHAT:
+    aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN, faimtest_chat_join, 0);
+    aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE, faimtest_chat_leave, 0);
+    aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE, faimtest_chat_infoupdate, 0);
+    aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG, faimtest_chat_incomingmsg, 0);
+    aim_bos_reqrate(sess, command->conn);
+    aim_bos_ackrateresp(sess, command->conn);
+    aim_chat_clientready(sess, command->conn);
+    break;
+
+  case AIM_CONN_TYPE_RENDEZVOUS: /* empty */
+    break;
+
+  default:
+    fprintf(stderr, "faimtest: unknown connection type on Server Ready\n");
+  }
+
   return 1;
 }
 
@@ -480,6 +518,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR) )
 	  fprintf(stderr, "faimtest: unable to reconnect with authorizer\n");
 	else {
+	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	  /* Send the cookie to the Auth */
 	  aim_auth_sendcookie(sess, tstconn, cookie);
@@ -614,6 +653,7 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
   aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
@@ -813,6 +853,10 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       } else if (!strncmp(tmpstr, "open directim", 13)) {
 	struct aim_conn_t *newconn;
 	newconn = aim_directim_initiate(sess, command->conn, NULL, userinfo->sn);
+      } else if (!strncmp(tmpstr, "openauth", 8)) {
+	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_AUTH);
+      } else if (!strncmp(tmpstr, "auth", 4)) {
+	aim_genericreq_n(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), 0x0007, 0x0002);
       } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 	aim_send_im(sess, command->conn, "vaxherder", 0, "sendmsg 7900");
       } else if (!strncmp(tmpstr, "sendmsg", 7)) {
@@ -1108,7 +1152,8 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   va_end(ap);
 
-  printf("\n%s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+  printf("%ld  %s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+	 time(NULL),
 	 userinfo->sn, userinfo->flags,
 	 (userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
 	 (userinfo->flags&AIM_FLAG_ADMINISTRATOR)?" ADMINISTRATOR":"",
@@ -1157,6 +1202,9 @@ int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *co
 
   printf("faimtest: motd: %s (%d / %s)\n", msg, id, 
 	 (id < codeslen)?codes[id]:"unknown");
+
+  if (!connected)
+    connected++;
 
   return 1;
 }
