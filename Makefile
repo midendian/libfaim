@@ -21,11 +21,15 @@ LIBFAIM_OBJECTS = \
 	aim_conn.o \
 	aim_chat.o \
 	aim_chatnav.o \
-	aim_util.o
+	aim_util.o \
+	aim_meta.o
 
 all: libfaim allutils
 
-libfaim: $(LIBFAIM_OBJECTS)
+mkbuildinfo:
+	@mkbuildinfo.sh
+
+libfaim: mkbuildinfo $(LIBFAIM_OBJECTS)
 	$(AR) cru libfaim.a $(LIBFAIM_OBJECTS)
 	$(RANLIB) libfaim.a
 	ld -o $(SONAME) $(LIBFAIM_OBJECTS) -shared -soname $(SONAME)

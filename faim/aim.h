@@ -6,6 +6,10 @@
 #ifndef __AIM_H__
 #define __AIM_H__
 
+#define FAIM_VERSION_MAJOR 0
+#define FAIM_VERSION_MINOR 99
+#define FAIM_VERSION_MINORMINOR 0
+
 #include <faim/faimconfig.h>
 #include <faim/aim_cbtypes.h>
 
@@ -523,6 +527,11 @@ char *aimutil_itemidx(char *toSearch, int index, char dl);
 
 int aim_snlen(const char *sn);
 int aim_sncmp(const char *sn1, const char *sn2);
+
+/* aim_meta.c */
+long long aim_getbuilddate(void);
+long long aim_getbuildtime(void);
+char *aim_getbuildstring(void);
 
 #endif /* __AIM_H__ */
 
