@@ -357,7 +357,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        * XXX: Will the msgblock always be the second 0x0002? 
        */
       msgblocktlv = aim_gettlv(tlvlist, 0x0002, 1);
-      if (!msgblocktlv)
+      if (!msgblocktlv || !msgblocktlv->value)
 	{
 	  printf("faim: icbm: major error! no message block TLV found!\n");
 	  aim_freetlvchain(&tlvlist);

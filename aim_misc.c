@@ -500,6 +500,22 @@ u_long aim_bos_reqservice(struct aim_session_t *sess,
 }
 
 /*
+ * aim_bos_nop()
+ *
+ * No-op.  WinAIM sends these every 4min or so to keep
+ * the connection alive.  With the recent changes
+ * in the OSCAR servers, it looks like we must do the
+ * same or be disconnected with a mysterious 'you logged
+ * on from another client' message.
+ *
+ */
+u_long aim_bos_nop(struct aim_session_t *sess,
+		   struct aim_conn_t *conn)
+{
+  return aim_genericreq_n(sess, conn, 0x0001, 0x0016);
+}
+
+/*
  * aim_bos_reqrights()
  *
  * Request BOS rights.

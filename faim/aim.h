@@ -437,6 +437,7 @@ void aim_session_init(struct aim_session_t *);
 #define AIM_VISIBILITYCHANGE_DENYADD      0x07
 #define AIM_VISIBILITYCHANGE_DENYREMOVE   0x08
 
+u_long aim_bos_nop(struct aim_session_t *, struct aim_conn_t *);
 u_long aim_bos_setidle(struct aim_session_t *, struct aim_conn_t *, u_long);
 u_long aim_bos_changevisibility(struct aim_session_t *, struct aim_conn_t *, int, char *);
 u_long aim_bos_setbuddylist(struct aim_session_t *, struct aim_conn_t *, char *);

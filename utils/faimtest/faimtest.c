@@ -66,6 +66,15 @@ int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *co
 int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
+int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  if (command->data) {
+    printf("aim: minimum report interval: %d (seconds?)\n", aimutil_get16(command->data+10));
+  } else
+    printf("aim: NULL minimum report interval!\n");
+  return 1;
+}
+
 static char *screenname,*password,*server=NULL;
 
 int main(void)
@@ -376,7 +385,7 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, NULL, 0);
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, faimtest_reportinterval, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);

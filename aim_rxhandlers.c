@@ -342,7 +342,9 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	if (head == 0x00000001) {
 	  faimdprintf(1, "got connection ack on auth line\n");
 	  workingPtr->handled = 1;
-	} else {
+	} else if (workingPtr->hdr.oscar.type == 0x0004) {
+	  workingPtr->handled = aim_authparse(sess, workingPtr);
+        } else {
 	  u_short family,subtype;
 	  
 	  family = aimutil_get16(workingPtr->data);
@@ -364,10 +366,7 @@ int aim_rxdispatch(struct aim_session_t *sess)
 #else	
 	    /* XXX: this isnt foolproof */
 	  case 0x0001:
-	    if (subtype == 0x0003)
-	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, workingPtr);
-	    else
-	      workingPtr->handled = aim_authparse(sess, workingPtr);
+	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, workingPtr);
 	    break;
 	  case 0x0007:
 	    if (subtype == 0x0005)

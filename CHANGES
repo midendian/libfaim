@@ -1,6 +1,12 @@
 
 No release numbers
 ------------------
+ - Fri Jun 23 22:38:47 UTC 2000
+   - Adds start of adverts support
+   - Adds aim_bos_nop().  You may want to send this occassionally
+   - Fixes aim_rxhandlers.c to work for people with three-letter
+       screen names
+
  - The week prior to Fri Jun 16 19:37:09 UTC 2000
    - Rethought the rendezvous stuff.  DEFINIT WORK IN PROGRESS
      - Do not bother trying to use this.  This will probably break
