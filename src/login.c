@@ -763,7 +763,7 @@ static void dumpbox(struct aim_session_t *sess, unsigned char *buf, int len)
   return;
 }
 
-faim_export int aim_sendmemblock(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned long offset, unsigned long len, const unsigned char *buf)
+faim_export int aim_sendmemblock(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned long offset, unsigned long len, const unsigned char *buf, unsigned char flag)
 {
   struct command_tx_struct *tx;
   int i = 0;
@@ -779,7 +779,13 @@ faim_export int aim_sendmemblock(struct aim_session_t *sess, struct aim_conn_t *
   i = aim_putsnac(tx->data, 0x0001, 0x0020, 0x0000, sess->snac_nextid++);
   i += aimutil_put16(tx->data+i, 0x0010); /* md5 is always 16 bytes */
 
-  if (buf && (len > 0)) { /* use input buffer */
+  if ((flag == AIM_SENDMEMBLOCK_FLAG_ISHASH) &&
+      buf && (len == 0x10)) { /* we're getting a hash */
+
+    memcpy(tx->data+i, buf, 0x10);
+    i += 0x10;
+
+  } else if (buf && (len > 0)) { /* use input buffer */
     md5_state_t state;
 
     md5_init(&state);	

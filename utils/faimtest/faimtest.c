@@ -881,13 +881,13 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
 
   if (aimbinarypath && (getaimdata(buf, len, offset, modname) == len)) {
 
-    aim_sendmemblock(sess, command->conn, offset, len, buf);
+    aim_sendmemblock(sess, command->conn, offset, len, buf, AIM_SENDMEMBLOCK_FLAG_ISREQUEST);
 
   } else {
 
     dvprintf("memrequest: unable to use AIM binary (\"%s/%s\"), sending defaults...\n", aimbinarypath, modname);
 
-    aim_sendmemblock(sess, command->conn, offset, len, NULL);
+    aim_sendmemblock(sess, command->conn, offset, len, NULL, AIM_SENDMEMBLOCK_FLAG_ISREQUEST);
 
   }
 
