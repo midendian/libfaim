@@ -13,8 +13,8 @@
 #include <faim/faimconfig.h>
 #include <faim/aim_cbtypes.h>
 
-#ifndef FAIM_USEPTHREADS
-#error pthreads are currently required.
+#if !defined(FAIM_USEPTHREADS) || !defined(FAIM_USEFAKELOCKS)
+#error pthreads or fakelocks are currently required.
 #endif
 
 #include <stdio.h>
@@ -31,6 +31,18 @@
 #define faim_mutex_init pthread_mutex_init
 #define faim_mutex_lock pthread_mutex_lock
 #define faim_mutex_unlock pthread_mutex_unlock
+#elif defined(FAIM_USEFAKELOCKS)
+/*
+ * For platforms without pthreads, we also assume
+ * we're not linking against a threaded app.  Which
+ * means we don't have to do real locking.  The 
+ * macros below do nothing really.  They're a joke.
+ * But they get it to compile.
+ */
+#define faim_mutex_t char
+#define faim_mutex_init(x, y) *x = 0
+#define faim_mutex_lock(x) *x = 1;
+#define faim_mutex_unlock(x) *x = 0;
 #endif
 
 #ifdef _WIN32
@@ -54,6 +66,11 @@
 
 #if defined(mach) && defined(__APPLE__)
 #define gethostbyname(x) gethostbyname2(x, AF_INET) 
+#endif
+
+#if !defined(MSG_WAITALL)
+#warning FIX YOUR LIBC! MSG_WAITALL is required!
+#define MSG_WAITALL 0x100
 #endif
 
 /* 

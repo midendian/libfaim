@@ -1,6 +1,12 @@
 
 No release numbers
 ------------------
+ - Sat Jun 24 02:14:07 UTC 2000
+   - Added fakelocks for platforms without pthreads or that have no
+      use for them.
+   - Added workaround for MSG_WAITALL for people with the very broken
+      libc that comes with earlier Red Hat's.
+
  - Sat Jun 24 00:44:24 UTC 2000
    - Support zero-type TLVs in aim_extractinfo()
      - AOL now ocassionally throws extra zeros in so in order to break
