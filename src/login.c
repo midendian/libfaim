@@ -518,6 +518,40 @@ static int redirect(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim
 	return ret;
 }
 
+/* 
+ *  Request Rate Information.
+ * 
+ */
+faim_export int aim_reqrates(aim_session_t *sess, aim_conn_t *conn)
+{
+	return aim_genericreq_n(sess, conn, 0x0001, 0x0006);
+}
+
+/* 
+ *  Rate Information Response Acknowledge.
+ *
+ */
+faim_export int aim_ratesack(aim_session_t *sess, aim_conn_t *conn)
+{
+	aim_conn_inside_t *ins = (aim_conn_inside_t *)conn->inside;
+	aim_frame_t *fr;	
+	aim_snacid_t snacid;
+	struct rateclass *rc;
+
+	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, 512)))
+		return -ENOMEM; 
+
+	snacid = aim_cachesnac(sess, 0x0001, 0x0008, 0x0000, NULL, 0);
+	aim_putsnac(&fr->data, 0x0001, 0x0008, 0x0000, snacid);
+
+	for (rc = ins->rates; rc; rc = rc->next)
+		aimbs_put16(&fr->data, rc->classid);
+
+	aim_tx_enqueue(sess, fr);
+
+	return 0;
+}
+
 /*
  * The Rate Limiting System, An Abridged Guide to Nonsense.
  *
@@ -568,10 +602,128 @@ static int redirect(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim
  * 
  */
 
-/* XXX parse this */
+static void rc_addclass(struct rateclass **head, struct rateclass *inrc)
+{
+	struct rateclass *rc, *rc2;
+
+	if (!(rc = malloc(sizeof(struct rateclass))))
+		return;
+
+	memcpy(rc, inrc, sizeof(struct rateclass));
+	rc->next = NULL;
+
+	for (rc2 = *head; rc2 && rc2->next; rc2 = rc2->next)
+		;
+
+	if (!rc2)
+		*head = rc;
+	else
+		rc2->next = rc;
+
+	return;
+}
+
+static struct rateclass *rc_findclass(struct rateclass **head, fu16_t id)
+{
+	struct rateclass *rc;
+
+	for (rc = *head; rc; rc = rc->next) {
+		if (rc->classid == id)
+			return rc;
+	}
+
+	return NULL;
+}
+
+static void rc_addpair(struct rateclass *rc, fu16_t group, fu16_t type)
+{
+	struct snacpair *sp, *sp2;
+
+	if (!(sp = malloc(sizeof(struct snacpair))))
+		return;
+	memset(sp, 0, sizeof(struct snacpair));
+
+	sp->group = group;
+	sp->subtype = type;
+	sp->next = NULL;
+
+	for (sp2 = rc->members; sp2 && sp2->next; sp2 = sp2->next)
+		;
+
+	if (!sp2)
+		rc->members = sp;
+	else
+		sp2->next = sp;
+
+	return;
+}
+
 static int rateresp(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
+	aim_conn_inside_t *ins = (aim_conn_inside_t *)rx->conn->inside;
 	aim_rxcallback_t userfunc;
+	fu16_t numclasses, i;
+
+	/*
+	 * First are the parameters for each rate class.
+	 */
+	numclasses = aimbs_get16(bs);
+	for (i = 0; i < numclasses; i++) {
+		struct rateclass rc;
+
+		memset(&rc, 0, sizeof(struct rateclass));
+
+		rc.classid = aimbs_get16(bs);
+		rc.windowsize = aimbs_get32(bs);
+		rc.clear = aimbs_get32(bs);
+		rc.alert = aimbs_get32(bs);
+		rc.limit = aimbs_get32(bs);
+		rc.disconnect = aimbs_get32(bs);
+		rc.current = aimbs_get32(bs);
+		rc.max = aimbs_get32(bs);
+
+		/*
+		 * The server will send an extra five bytes of parameters
+		 * depending on the version we advertised in 1/17.  If we
+		 * didn't send 1/17 (evil!), then this will crash and you
+		 * die, as it will default to the old version but we have 
+		 * the new version hardcoded here. 
+		 */
+		if (mod->version >= 3)
+			aimbs_getrawbuf(bs, rc.unknown, sizeof(rc.unknown));
+
+		rc_addclass(&ins->rates, &rc);
+	}
+
+	/*
+	 * Then the members of each class.
+	 */
+	for (i = 0; i < numclasses; i++) {
+		fu16_t classid, count;
+		struct rateclass *rc;
+		int j;
+
+		classid = aimbs_get16(bs);
+		count = aimbs_get16(bs);
+
+		rc = rc_findclass(&ins->rates, classid);
+
+		for (j = 0; j < count; j++) {
+			fu16_t group, subtype;
+
+			group = aimbs_get16(bs);
+			subtype = aimbs_get16(bs);
+
+			if (rc)
+				rc_addpair(rc, group, subtype);
+		}
+	}
+
+	/*
+	 * We don't pass the rate information up to the client, as it really
+	 * doesn't care.  The information is stored in the connection, however
+	 * so that we can do more fun stuff later (not really).
+	 */
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
 		return userfunc(sess, rx);

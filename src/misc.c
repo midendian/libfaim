@@ -253,43 +253,6 @@ faim_export int aim_clientready(aim_session_t *sess, aim_conn_t *conn)
 }
 
 /* 
- *  Request Rate Information.
- * 
- */
-faim_export int aim_reqrates(aim_session_t *sess, aim_conn_t *conn)
-{
-	return aim_genericreq_n(sess, conn, 0x0001, 0x0006);
-}
-
-/* 
- *  Rate Information Response Acknowledge.
- *
- */
-faim_export int aim_ratesack(aim_session_t *sess, aim_conn_t *conn)
-{
-	aim_frame_t *fr;	
-	aim_snacid_t snacid;
-
-	if(!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, 10+10)))
-		return -ENOMEM; 
-
-	snacid = aim_cachesnac(sess, 0x0001, 0x0008, 0x0000, NULL, 0);
-	
-	aim_putsnac(&fr->data, 0x0001, 0x0008, 0x0000, snacid);
-
-	/* XXX store the rate info in the inside struct, make this dynamic */
-	aimbs_put16(&fr->data, 0x0001); 
-	aimbs_put16(&fr->data, 0x0002);
-	aimbs_put16(&fr->data, 0x0003);
-	aimbs_put16(&fr->data, 0x0004);
-	aimbs_put16(&fr->data, 0x0005);
-
-	aim_tx_enqueue(sess, fr);
-
-	return 0;
-}
-
-/* 
  * aim_bos_setprivacyflags()
  *
  * Sets privacy flags. Normally 0x03.

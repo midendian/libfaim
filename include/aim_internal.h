@@ -144,6 +144,26 @@ struct snacgroup {
 	struct snacgroup *next;
 };
 
+struct snacpair {
+	fu16_t group;
+	fu16_t subtype;
+	struct snacpair *next;
+};
+
+struct rateclass {
+	fu16_t classid;
+	fu32_t windowsize;
+	fu32_t clear;
+	fu32_t alert;
+	fu32_t limit;
+	fu32_t disconnect;
+	fu32_t current;
+	fu32_t max;
+	fu8_t unknown[5]; /* only present in versions >= 3 */
+	struct snacpair *members;
+	struct rateclass *next;
+};
+
 /*
  * This is inside every connection.  But it is a void * to anything
  * outside of libfaim.  It should remain that way.  It's called data
@@ -153,6 +173,7 @@ struct snacgroup {
  */
 typedef struct aim_conn_inside_s {
 	struct snacgroup *groups;
+	struct rateclass *rates;
 } aim_conn_inside_t;
 
 faim_internal void aim_conn_addgroup(aim_conn_t *conn, fu16_t group);

@@ -212,8 +212,10 @@ static int chat_serverready(aim_session_t *sess, aim_frame_t *fr, ...)
 		dvinlineprintf("0x%04x ", families[i]);
 	dinlineprintf("\n");
 
+	aim_setversions(sess, fr->conn);
+
 	/*
-	 * Never send anything until we have rate info.
+	 * Never send anything (except versions) until we have rate info.
 	 */
 	aim_reqrates(sess, fr->conn);
 
