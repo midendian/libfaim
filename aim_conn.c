@@ -8,9 +8,11 @@
 
 #include <faim/aim.h> 
 
+#ifndef _WIN32
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#endif
 
 /*
  * Clears out connection list, killing remaining connections.

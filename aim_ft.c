@@ -707,7 +707,6 @@ faim_internal int aim_listenestablish(u_short portnum)
   }
 
   return listenfd;
-}
 #endif
 }
 
