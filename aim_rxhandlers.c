@@ -700,25 +700,22 @@ faim_internal int aim_parse_ratechange_middle(struct aim_session_t *sess, struct
 faim_internal int aim_parse_evilnotify_middle(struct aim_session_t *sess, struct command_rx_struct *command)
 {
   rxcallback_t userfunc = NULL;
-  int ret = 1, pos;
-  char *sn = NULL;
+  int ret = 1;
+  int i;
+  unsigned short newevil;
+  struct aim_userinfo_s userinfo;
 
-  if(command->commandlen < 12) /* a warning level dec sends this */
-    return 1;
+  i = 10;
+  newevil = aimutil_get16(command->data+10);
+  i += 2;
 
-  if ((pos = aimutil_get8(command->data+ 12)) > MAXSNLEN)
-    return 1;
-
-  if(!(sn = (char *)calloc(1, pos+1)))
-    return 1;
-
-  memcpy(sn, command->data+13, pos);
+  memset(&userinfo, 0, sizeof(struct aim_userinfo_s));
+  if (command->commandlen-i)
+    i += aim_extractuserinfo(command->data+i, &userinfo);
 
   if ((userfunc = aim_callhandler(command->conn, 0x0001, 0x0010)))
-    ret = userfunc(sess, command, sn);
+    ret = userfunc(sess, command, newevil, &userinfo);
   
-  free(sn);
-
   return ret;
 }
 

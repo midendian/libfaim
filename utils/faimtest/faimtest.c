@@ -1621,6 +1621,7 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
 
   /*
    * Known parameter ID's...
+   *   0x0001  Warnings
    *   0x0003  BOS (normal ICBMs, userinfo requests, etc)
    *   0x0005  Chat messages
    */
@@ -1690,13 +1691,23 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
-  char *sn;
+  int newevil;
+  struct aim_userinfo_s *userinfo;
 
   va_start(ap, command);
-  sn = va_arg(ap, char *);
+  newevil = va_arg(ap, int);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
   va_end(ap);
 
-  printf("faimtest: warning from: %s\n", sn);
+  /*
+   * Evil Notifications that are lacking userinfo->sn are anon-warns
+   * if they are an evil increases, but are not warnings at all if its
+   * a decrease (its the natural backoff happening).
+   *
+   * newevil is passed as an int representing the new evil value times
+   * ten.
+   */
+  printf("faimtest: evil level change: new value = %2.1f%% (caused by %s)\n", ((float)newevil)/10, (userinfo && strlen(userinfo->sn))?userinfo->sn:"anonymous");
 
   return 1;
 }

@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Fri Dec 15 21:51:32 UTC 2000
+  - Add more info to evilnotify callback
+  - Add a few values to aim_cbtypes.h
+
  - Fri Dec 15 20:41:15 UTC 2000
   - Revise README
   - Make aimdebugd compile
