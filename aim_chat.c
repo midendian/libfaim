@@ -25,6 +25,10 @@ faim_export struct aim_conn_t *aim_chat_getconn(struct aim_session_t *sess, char
   for (cur = sess->connlist; cur; cur = cur->next) {
     if (cur->type != AIM_CONN_TYPE_CHAT)
       continue;
+    if (!cur->priv) {
+      printf("faim: chat: chat connection with no name! (fd = %d)\n", cur->fd);
+      continue;
+    }
     if (strcmp((char *)cur->priv, name) == 0)
       break;
   }
@@ -38,8 +42,10 @@ faim_export int aim_chat_attachname(struct aim_conn_t *conn, char *roomname)
   if (!conn || !roomname)
     return -1;
 
-  conn->priv = malloc(strlen(roomname)+1);
-  strcpy(conn->priv, roomname);
+  if (conn->priv)
+    free(conn->priv);
+
+  conn->priv = strdup(roomname);
 
   return 0;
 }
@@ -552,7 +558,7 @@ faim_export int aim_chat_leaveroom(struct aim_session_t *sess, char *name)
   struct aim_conn_t *conn;
 
   if ((conn = aim_chat_getconn(sess, name)))
-    aim_conn_kill(sess, &conn);
+    aim_conn_close(conn);
 
   if (!conn)
     return -1;
@@ -574,7 +580,10 @@ faim_export unsigned long aim_chat_invite(struct aim_session_t *sess,
   int i,curbyte=0;
 
   if (!sess || !conn || !sn || !msg || !roomname)
-    return 0;
+    return -1;
+
+  if (conn->type != AIM_CONN_TYPE_BOS)
+    return -1;
 
   if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 1152+strlen(sn)+strlen(roomname)+strlen(msg))))
     return -1;
