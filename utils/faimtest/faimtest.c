@@ -43,7 +43,7 @@
 
  */
 
-#include <faim/aim.h> 
+#include <aim.h> 
 
 static char *dprintf_ctime(void)
 {
