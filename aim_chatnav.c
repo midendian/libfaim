@@ -215,7 +215,8 @@ int aim_chatnav_parse_info(struct aim_session_t *sess, struct command_rx_struct 
 		exchanges[curexchange-1].lang2 = aim_gettlv_str(innerlist, 0x00d9, 1);
 	      else
 		exchanges[curexchange-1].lang2 = NULL;
-
+	      
+	      aim_freetlvchain(&innerlist);
 	    }
 	  
 	  /*
@@ -245,7 +246,6 @@ int aim_chatnav_parse_info(struct aim_session_t *sess, struct command_rx_struct 
 	      curexchange--;
 	    }
 	  free(exchanges);
-	  aim_freetlvchain(&innerlist);
 	  aim_freetlvchain(&tlvlist);
 	  return ret;
       }
