@@ -619,7 +619,7 @@ static int incomingim_ch2(struct aim_session_t *sess, aim_module_t *mod,  struct
 	/*
 	 * There's another block of TLVs embedded in the type 5 here. 
 	 */
-	if ((block1 = aim_gettlv(tlvlist, 0x0005, 1)) && block1->value) {
+	if (!(block1 = aim_gettlv(tlvlist, 0x0005, 1)) || !block1->value) {
 		faimdprintf(sess, 0, "no tlv 0x0005 in rendezvous transaction!\n");
 		return 0;
 	}
@@ -1055,17 +1055,26 @@ faim_export int aim_denytransfer(struct aim_session_t *sess,
 }
 
 /*
- * Not real sure what this does, nor does anyone I've talk to.
+ * aim_reqicbmparaminfo()
  *
- * Didn't use to send it.  But now I think it might be a good
- * idea. 
+ * Request ICBM parameter information.
  *
  */
-faim_export unsigned long aim_seticbmparam(struct aim_session_t *sess,
-						struct aim_conn_t *conn)
+faim_export unsigned long aim_reqicbmparams(struct aim_session_t *sess, struct aim_conn_t *conn)
+{
+	return aim_genericreq_n(sess, conn, 0x0004, 0x0004);
+}
+
+/*
+ *
+ */
+faim_export unsigned long aim_seticbmparam(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_icbmparameters *params)
 {
 	struct command_tx_struct *newpacket;
 	int curbyte;
+
+	if (!sess || !conn || !params)
+		return -EINVAL;
 
 	if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+16)))
 		return -ENOMEM;
@@ -1073,12 +1082,16 @@ faim_export unsigned long aim_seticbmparam(struct aim_session_t *sess,
 	newpacket->lock = 1;
 
 	curbyte = aim_putsnac(newpacket->data, 0x0004, 0x0002, 0x0000, sess->snac_nextid++);
-	curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000); /* max channel?? */
-	curbyte += aimutil_put32(newpacket->data+curbyte, 0x00000003); /* default flags?? */
-	curbyte += aimutil_put16(newpacket->data+curbyte,  0x1f40); /* max msg size */
-	curbyte += aimutil_put16(newpacket->data+curbyte,  0x03e7); /* maxsenderwarn */
-	curbyte += aimutil_put16(newpacket->data+curbyte,  0x03e7); /* max recver warn */
-	curbyte += aimutil_put32(newpacket->data+curbyte, 0x00000000); /* min msg interval */
+
+	/* This is read-only (in Parameter Reply). Must be set to zero here. */
+	curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+
+	/* These are all read-write */
+	curbyte += aimutil_put32(newpacket->data+curbyte, params->flags); 
+	curbyte += aimutil_put16(newpacket->data+curbyte, params->maxmsglen);
+	curbyte += aimutil_put16(newpacket->data+curbyte, params->maxsenderwarn); 
+	curbyte += aimutil_put16(newpacket->data+curbyte, params->maxrecverwarn); 
+	curbyte += aimutil_put32(newpacket->data+curbyte, params->minmsginterval);
 
 	newpacket->lock = 0;
 	aim_tx_enqueue(sess, newpacket);
@@ -1088,31 +1101,30 @@ faim_export unsigned long aim_seticbmparam(struct aim_session_t *sess,
 
 static int paraminfo(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
-	unsigned long defflags, minmsginterval;
-	unsigned short maxicbmlen, maxsenderwarn, maxrecverwarn, maxchannel;
+	struct aim_icbmparameters params;
 	aim_rxcallback_t userfunc;
 	int i = 0;
 
-	maxchannel = aimutil_get16(data+i);
+	params.maxchan = aimutil_get16(data+i);
 	i += 2;
 
-	defflags = aimutil_get32(data+i);
+	params.flags = aimutil_get32(data+i);
 	i += 4;
 
-	maxicbmlen = aimutil_get16(data+i);
+	params.maxmsglen = aimutil_get16(data+i);
 	i += 2;
 
-	maxsenderwarn = aimutil_get16(data+i);
+	params.maxsenderwarn = aimutil_get16(data+i);
 	i += 2;
 
-	maxrecverwarn = aimutil_get16(data+i);
+	params.maxrecverwarn = aimutil_get16(data+i);
 	i += 2;
 
-	minmsginterval = aimutil_get32(data+i);
+	params.minmsginterval = aimutil_get32(data+i);
 	i += 4;
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		return userfunc(sess, rx, maxchannel, defflags, maxicbmlen, maxsenderwarn, maxrecverwarn, minmsginterval);
+		return userfunc(sess, rx, &params);
 
 	return 0;
 }

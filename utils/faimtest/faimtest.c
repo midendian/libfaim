@@ -169,43 +169,57 @@ static unsigned short buddyiconsum = 0;
 static void faimtest_debugcb(struct aim_session_t *sess, int level, const char *format, va_list va)
 {
 
-  vfprintf(stderr, format, va);
+	vfprintf(stderr, format, va);
 
-  return;
+	return;
 }
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  unsigned short interval = 0;
+	va_list ap;
+	unsigned short interval = 0;
 
-  va_start(ap, command);
-  interval = va_arg(ap, int);
-  va_end(ap);
+	va_start(ap, command);
+	interval = va_arg(ap, int);
+	va_end(ap);
 
-  dvprintf("aim: minimum report interval: %d (seconds?)\n", interval);
+	dvprintf("aim: minimum report interval: %d (seconds?)\n", interval);
 
-  return 1;
+	if (!connected)
+		connected++;
+
+#if 0
+	aim_bos_reqservice(sess, command->conn, 0x0005); /* adverts */
+	aim_bos_reqservice(sess, command->conn, 0x000f); /* user directory */
+
+	/* Don't know what this does... */
+	/* XXX sess->sn should be normalized by the 0001/000f handler */
+	aim_0002_000b(sess, command->conn, sess->sn);
+#endif
+
+	aim_reqicbmparams(sess, command->conn);
+
+	return 1;
 }
 
 int faimtest_flapversion(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
 
-  dvprintf("faimtest: using FLAP version %u\n", aimutil_get32(command->data));
+	dvprintf("faimtest: using FLAP version %u\n", aimutil_get32(command->data));
 
 #if 0
-  /* 
-   * This is an alternate location for starting the login process.
-   */
-  /* XXX should do more checking to make sure its really the right AUTH conn */
-  if (command->conn->type == AIM_CONN_TYPE_AUTH) {
-    /* do NOT send a connack/flapversion, request_login will send it if needed */
-    aim_request_login(sess, command->conn, screenname);
-    dprintf("faimtest: login request sent\n");
-  }
+	/* 
+	 * This is an alternate location for starting the login process.
+	 */
+	/* XXX should do more checking to make sure its really the right AUTH conn */
+	if (command->conn->type == AIM_CONN_TYPE_AUTH) {
+		/* do NOT send a flapversion, request_login will send it if needed */
+		aim_request_login(sess, command->conn, screenname);
+		dprintf("faimtest: login request sent\n");
+	}
 #endif
 
-  return 1;
+	return 1;
 }
 
 /*
@@ -218,17 +232,17 @@ int faimtest_flapversion(struct aim_session_t *sess, struct command_rx_struct *c
  */
 int faimtest_conncomplete(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct aim_conn_t *conn;
+	va_list ap;
+	struct aim_conn_t *conn;
 
-  va_start(ap, command);
-  conn = va_arg(ap, struct aim_conn_t *);
-  va_end(ap);
-  
-  if (conn)
-    dvprintf("faimtest: connection on %d completed\n", conn->fd);
+	va_start(ap, command);
+	conn = va_arg(ap, struct aim_conn_t *);
+	va_end(ap);
 
-  return 1;
+	if (conn)
+		dvprintf("faimtest: connection on %d completed\n", conn->fd);
+
+	return 1;
 }
 
 #ifdef _WIN32
@@ -240,364 +254,366 @@ int faimtest_conncomplete(struct aim_session_t *sess, struct command_rx_struct *
  */
 int initwsa(void)
 {
-  WORD wVersionRequested;
-  WSADATA wsaData;
+	WORD wVersionRequested;
+	WSADATA wsaData;
 
-  wVersionRequested = MAKEWORD(2,2);
-  return WSAStartup(wVersionRequested, &wsaData);
+	wVersionRequested = MAKEWORD(2,2);
+	return WSAStartup(wVersionRequested, &wsaData);
 }
 #endif /* _WIN32 */
 
 int faimtest_init(void)
 {
-  struct aim_conn_t *stdinconn = NULL;
+	struct aim_conn_t *stdinconn = NULL;
 
-  if (!(stdinconn = aim_newconn(&aimsess, 0, NULL))) {
-    dprintf("unable to create connection for stdin!\n");
-    return -1;
-  }
+	if (!(stdinconn = aim_newconn(&aimsess, 0, NULL))) {
+		dprintf("unable to create connection for stdin!\n");
+		return -1;
+	}
 
-  stdinconn->fd = STDIN_FILENO;
+	stdinconn->fd = STDIN_FILENO;
 
-  return 0;
+	return 0;
 }
 
 int logout(void)
 {
 
-  if (ohcaptainmycaptain)
-    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...");
+	if (ohcaptainmycaptain)
+		aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...");
 
-  aim_session_kill(&aimsess);
+	aim_session_kill(&aimsess);
 
-  if (faimtest_init() == -1)
-    dprintf("faimtest_init failed\n");
+	if (faimtest_init() == -1)
+		dprintf("faimtest_init failed\n");
 
-  return 0;
+	return 0;
 }
 
 int login(const char *sn, const char *passwd)
 {
-  struct aim_conn_t *authconn;
+	struct aim_conn_t *authconn;
 
-  if (sn)
-    screenname = strdup(sn);
-  if (passwd)
-    password = strdup(passwd);
+	if (sn)
+		screenname = strdup(sn);
+	if (passwd)
+		password = strdup(passwd);
 
-  if (proxy)
-    aim_setupproxy(&aimsess, proxy, proxyusername, proxypass);
+	if (proxy)
+		aim_setupproxy(&aimsess, proxy, proxyusername, proxypass);
 
-  if (!screenname || !password) {
-    dprintf("need SN and password\n");
-    return -1;
-  }
+	if (!screenname || !password) {
+		dprintf("need SN and password\n");
+		return -1;
+	}
 
-  if (!(authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER))) {
-    dprintf("faimtest: internal connection error while in aim_login.  bailing out.\n");
-    return -1;
-  } else if (authconn->fd == -1) {
-    if (authconn->status & AIM_CONN_STATUS_RESOLVERR) {
-      dprintf("faimtest: could not resolve authorizer name\n");
-    } else if (authconn->status & AIM_CONN_STATUS_CONNERR) {
-      dprintf("faimtest: could not connect to authorizer\n");
-    }
-    aim_conn_kill(&aimsess, &authconn);
-    return -1;
-  }
+	if (!(authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER))) {
+		dprintf("faimtest: internal connection error while in aim_login.  bailing out.\n");
+		return -1;
+	} else if (authconn->fd == -1) {
+		if (authconn->status & AIM_CONN_STATUS_RESOLVERR) {
+			dprintf("faimtest: could not resolve authorizer name\n");
+		} else if (authconn->status & AIM_CONN_STATUS_CONNERR) {
+			dprintf("faimtest: could not connect to authorizer\n");
+		}
+		aim_conn_kill(&aimsess, &authconn);
+		return -1;
+	}
 
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
-  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);    
+	aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
+	aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+	aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
+	aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);    
 
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
+	aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
 
-  /* If the connection is in progress, this will just be queued */
-  aim_request_login(&aimsess, authconn, screenname);
-  dprintf("faimtest: login request sent\n");
+	/* If the connection is in progress, this will just be queued */
+	aim_request_login(&aimsess, authconn, screenname);
+	dprintf("faimtest: login request sent\n");
 
-  return 0;
+	return 0;
 }
 
 int main(int argc, char **argv)
 {
-  struct aim_conn_t *waitingconn = NULL;
-  int i;
-  int selstat = 0;
-  static int faimtest_mode = 0;
-  struct timeval tv;
-  time_t lastnop = 0;
-  const char *buddyiconpath = NULL;
+	struct aim_conn_t *waitingconn = NULL;
+	int i;
+	int selstat = 0;
+	static int faimtest_mode = 0;
+	struct timeval tv;
+	time_t lastnop = 0;
+	const char *buddyiconpath = NULL;
 
-  screenname = getenv("SCREENNAME");
-  password = getenv("PASSWORD");
-  server = getenv("AUTHSERVER");
-  proxy = getenv("SOCKSPROXY");
-  proxyusername = getenv("SOCKSNAME");
-  proxypass = getenv("SOCKSPASS");
+	screenname = getenv("SCREENNAME");
+	password = getenv("PASSWORD");
+	server = getenv("AUTHSERVER");
+	proxy = getenv("SOCKSPROXY");
+	proxyusername = getenv("SOCKSNAME");
+	proxypass = getenv("SOCKSPASS");
 
-  listingpath = getenv("LISTINGPATH");
+	listingpath = getenv("LISTINGPATH");
 
-  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoOb:i:")) != EOF) {
-    switch (i) {
-    case 'u': screenname = optarg; break;
-    case 'p': password = optarg; break;
-    case 'a': server = optarg; break;
-    case 'U': proxyusername = optarg; break;
-    case 'P': proxypass = optarg; break;
-    case 'A': proxy = optarg; break;
-    case 'l': listingpath = optarg; break;
-    case 'c': ohcaptainmycaptain = optarg; break;
-    case 'o': faimtest_mode = 1; break; /* half old interface */
-    case 'O': faimtest_mode = 2; break; /* full old interface */
-    case 'b': aimbinarypath = optarg; break;
-    case 'i': buddyiconpath = optarg; break;
-    case 'h':
-    default:
-      printf("faimtest\n");
-      printf(" Options: \n");
-      printf("    -u name       Screen name ($SCREENNAME)\n");
-      printf("    -p passwd     Password ($PASSWORD)\n");
-      printf("    -a host:port  Authorizer ($AUTHSERVER)\n");
-      printf("    -U name       Proxy user name ($SOCKSPROXY)\n");
-      printf("    -P passwd     Proxy password ($SOCKSNAME)\n");
-      printf("    -A host:port  Proxy host ($SOCKSPASS)\n");
-      printf("    -l path       Path to listing file ($LISTINGPATH)\n");
-      printf("    -c name       Screen name of owner\n");
-      printf("    -o            Login at startup, then prompt\n");
-      printf("    -O            Login, never give prompt\n");
-      printf("    -b path       Path to AIM 3.5.1670 binaries\n");
-      printf("    -i file       Buddy Icon to send\n");
-      exit(0);
-    }
-  }
+	while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoOb:i:")) != EOF) {
+		switch (i) {
+		case 'u': screenname = optarg; break;
+		case 'p': password = optarg; break;
+		case 'a': server = optarg; break;
+		case 'U': proxyusername = optarg; break;
+		case 'P': proxypass = optarg; break;
+		case 'A': proxy = optarg; break;
+		case 'l': listingpath = optarg; break;
+		case 'c': ohcaptainmycaptain = optarg; break;
+		case 'o': faimtest_mode = 1; break; /* half old interface */
+		case 'O': faimtest_mode = 2; break; /* full old interface */
+		case 'b': aimbinarypath = optarg; break;
+		case 'i': buddyiconpath = optarg; break;
+		case 'h':
+		default:
+			printf("faimtest\n");
+			printf(" Options: \n");
+			printf("    -u name       Screen name ($SCREENNAME)\n");
+			printf("    -p passwd     Password ($PASSWORD)\n");
+			printf("    -a host:port  Authorizer ($AUTHSERVER)\n");
+			printf("    -U name       Proxy user name ($SOCKSPROXY)\n");
+			printf("    -P passwd     Proxy password ($SOCKSNAME)\n");
+			printf("    -A host:port  Proxy host ($SOCKSPASS)\n");
+			printf("    -l path       Path to listing file ($LISTINGPATH)\n");
+			printf("    -c name       Screen name of owner\n");
+			printf("    -o            Login at startup, then prompt\n");
+			printf("    -O            Login, never give prompt\n");
+			printf("    -b path       Path to AIM 3.5.1670 binaries\n");
+			printf("    -i file       Buddy Icon to send\n");
+			exit(0);
+		}
+	}
 
 #ifdef _WIN32
-  if (initwsa() != 0) {
-    dprintf("faimtest: could not initialize windows sockets\n");
-    return -1;
-  }
+	if (initwsa() != 0) {
+		dprintf("faimtest: could not initialize windows sockets\n");
+		return -1;
+	}
 #endif /* _WIN32 */
 
-  /* Pass zero as flags if you want blocking connects */
-  aim_session_init(&aimsess, AIM_SESS_FLAGS_NONBLOCKCONNECT, 1);
-  aim_setdebuggingcb(&aimsess, faimtest_debugcb); /* still needed even if debuglevel = 0 ! */
+	/* Pass zero as flags if you want blocking connects */
+	aim_session_init(&aimsess, AIM_SESS_FLAGS_NONBLOCKCONNECT, 1);
+	aim_setdebuggingcb(&aimsess, faimtest_debugcb); /* still needed even if debuglevel = 0 ! */
 
-  if(listingpath) {
-    char *listingname;
-    if(!(listingname = (char *)calloc(1, strlen(listingpath)+strlen("/listing.txt")))) {
-      dperror("listingname calloc");
-      exit(-1);
-    }
-    sprintf(listingname, "%s/listing.txt", listingpath);
-    if( (listingfile = fopen(listingname, "r")) == NULL) {
-      dvprintf("Couldn't open %s... disabling that shit.\n", listingname);
-    }
+	if (listingpath) {
+		char *listingname;
+		
+		if (!(listingname = (char *)calloc(1, strlen(listingpath)+strlen("/listing.txt")))) {
+			dperror("listingname calloc");
+			exit(-1);
+		}
 
-    free(listingname);
-  }
+		sprintf(listingname, "%s/listing.txt", listingpath);
+		
+		if ((listingfile = fopen(listingname, "r")) == NULL)
+			dvprintf("Couldn't open %s... disabling that shit.\n", listingname);
 
-  if (buddyiconpath) {
-    struct stat st;
-    FILE *f;
-
-    if ((stat(buddyiconpath, &st) != -1) && (st.st_size <= MAXICONLEN) && (f = fopen(buddyiconpath, "r"))) {
-
-      buddyiconlen = st.st_size;
-      buddyiconstamp = st.st_mtime;
-      buddyicon = malloc(buddyiconlen);
-      fread(buddyicon, 1, st.st_size, f);
-
-      buddyiconsum = aim_iconsum(buddyicon, buddyiconlen);
-
-      dvprintf("read %d bytes of %s for buddy icon (sum 0x%08x)\n", buddyiconlen, buddyiconpath, buddyiconsum);
-
-      fclose(f);
-
-    } else
-      dvprintf("could not open buddy icon %s\n", buddyiconpath);
-
-  }
-
-  faimtest_init();
-
-  if (faimtest_mode < 2)
-    cmd_init();
-
-  if (faimtest_mode >= 1) {
-    if (login(screenname, password) == -1) {
-      if (faimtest_mode < 2)
-	cmd_uninit();
-      exit(-1);
-    }
-  }
-
-  while (keepgoing) {
-
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-
-    waitingconn = aim_select(&aimsess, &tv, &selstat);
-
-    if (connected && ((time(NULL) - lastnop) > 30)) {
-      lastnop = time(NULL);
-      aim_flap_nop(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS));
-    }
-
-    if (selstat == -1) { /* error */
-      keepgoing = 0; /* fall through */
-    } else if (selstat == 0) { /* no events pending */
-      ;
-    } else if (selstat == 1) { /* outgoing data pending */
-      aim_tx_flushqueue(&aimsess);
-    } else if (selstat == 2) { /* incoming data pending */
-      if ((faimtest_mode < 2) && (waitingconn->fd == STDIN_FILENO)) {
-	cmd_gotkey();
-      } else {
-	if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
-	  if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
-	    dprintf("connection error (rend out)\n");
-	    aim_conn_kill(&aimsess, &waitingconn);
-	  }
-	} else {
-	  if (aim_get_command(&aimsess, waitingconn) >= 0) {
-	    aim_rxdispatch(&aimsess);
-	  } else {
-	    dvprintf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
-	    /* we should have callbacks for all these, else the library will do the conn_kill for us. */
-	    if(waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
-	      dprintf("connection error: rendezvous connection. you forgot register a disconnect callback, right?\n");	  
-	      aim_conn_kill(&aimsess, &waitingconn);
-	    } else
-	      aim_conn_kill(&aimsess, &waitingconn);
-	    if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
-	      dprintf("major connection error\n");
-	      if (faimtest_mode == 2)
-		break;
-	    }
-	  }
+		free(listingname);
 	}
-      }
-    }
-  }
 
-  /* close up all connections, dead or no */
-  aim_session_kill(&aimsess); 
+	if (buddyiconpath) {
+		struct stat st;
+		FILE *f;
 
-  if (faimtest_mode < 2) {
-    printf("\n");
-    cmd_uninit();
-  }
+		if ((stat(buddyiconpath, &st) != -1) && (st.st_size <= MAXICONLEN) && (f = fopen(buddyiconpath, "r"))) {
 
-  free(buddyicon);
+			buddyiconlen = st.st_size;
+			buddyiconstamp = st.st_mtime;
+			buddyicon = malloc(buddyiconlen);
+			fread(buddyicon, 1, st.st_size, f);
 
-  /* Get out */
-  exit(0);
+			buddyiconsum = aim_iconsum(buddyicon, buddyiconlen);
+
+			dvprintf("read %d bytes of %s for buddy icon (sum 0x%08x)\n", buddyiconlen, buddyiconpath, buddyiconsum);
+
+			fclose(f);
+
+		} else
+			dvprintf("could not open buddy icon %s\n", buddyiconpath);
+
+	}
+
+	faimtest_init();
+
+	if (faimtest_mode < 2)
+		cmd_init();
+
+	if (faimtest_mode >= 1) {
+		if (login(screenname, password) == -1) {
+			if (faimtest_mode < 2)
+				cmd_uninit();
+			exit(-1);
+		}
+	}
+
+	while (keepgoing) {
+
+		tv.tv_sec = 5;
+		tv.tv_usec = 0;
+
+		waitingconn = aim_select(&aimsess, &tv, &selstat);
+
+		if (connected && ((time(NULL) - lastnop) > 30)) {
+			lastnop = time(NULL);
+			aim_flap_nop(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS));
+		}
+
+		if (selstat == -1) { /* error */
+			keepgoing = 0; /* fall through */
+		} else if (selstat == 0) { /* no events pending */
+			;
+		} else if (selstat == 1) { /* outgoing data pending */
+			aim_tx_flushqueue(&aimsess);
+		} else if (selstat == 2) { /* incoming data pending */
+			if ((faimtest_mode < 2) && (waitingconn->fd == STDIN_FILENO)) {
+				cmd_gotkey();
+			} else {
+				if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
+					if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
+						dprintf("connection error (rend out)\n");
+						aim_conn_kill(&aimsess, &waitingconn);
+					}
+				} else {
+					if (aim_get_command(&aimsess, waitingconn) >= 0) {
+						aim_rxdispatch(&aimsess);
+					} else {
+						dvprintf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
+						/* we should have callbacks for all these, else the library will do the conn_kill for us. */
+						if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
+							dprintf("connection error: rendezvous connection. you forgot register a disconnect callback, right?\n");	  
+							aim_conn_kill(&aimsess, &waitingconn);
+						} else
+							aim_conn_kill(&aimsess, &waitingconn);
+						if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
+							dprintf("major connection error\n");
+							if (faimtest_mode == 2)
+								break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/* close up all connections, dead or no */
+	aim_session_kill(&aimsess); 
+
+	if (faimtest_mode < 2) {
+		printf("\n");
+		cmd_uninit();
+	}
+
+	free(buddyicon);
+
+	/* Get out */
+	exit(0);
 }
 
 int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
 
-  switch(command->conn->type) {
-  case AIM_CONN_TYPE_BOS: {
-    /* this is the new buddy list */
-    char buddies[128];
-    /* this is the new profile */
-    char profile[256];
-    char awaymsg[] = {"blah blah blah Ole! blah blah blah"};
+	switch(command->conn->type) {
+	case AIM_CONN_TYPE_BOS: {
+		/* this is the new buddy list */
+		char buddies[128];
+		/* this is the new profile */
+		char profile[256];
+		char awaymsg[] = {"blah blah blah Ole! blah blah blah"};
 
-    /* Caution: Buddy1 and Buddy2 are real people! (who I don't know) */
-    snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", ohcaptainmycaptain?ohcaptainmycaptain:"blah");
-    snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", ohcaptainmycaptain);
+		/* Caution: Buddy1 and Buddy2 are real people! (who I don't know) */
+		snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", ohcaptainmycaptain?ohcaptainmycaptain:"blah");
+		snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", ohcaptainmycaptain);
 
-    aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response */
-    aim_bos_reqpersonalinfo(sess, command->conn);
-    aim_bos_reqlocaterights(sess, command->conn);
-    aim_bos_setprofile(sess, command->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
-    aim_bos_reqbuddyrights(sess, command->conn);
+		aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response */
+		aim_bos_reqpersonalinfo(sess, command->conn);
+		aim_bos_reqlocaterights(sess, command->conn);
+		aim_bos_setprofile(sess, command->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
+		aim_bos_reqbuddyrights(sess, command->conn);
 
-    /* send the buddy list and profile (required, even if empty) */
-    aim_bos_setbuddylist(sess, command->conn, buddies);
+		/* send the buddy list and profile (required, even if empty) */
+		aim_bos_setbuddylist(sess, command->conn, buddies);
 
-    /* dont really know what this does */
-    aim_addicbmparam(sess, command->conn);
-    aim_bos_reqicbmparaminfo(sess, command->conn);  
-  
-    aim_bos_reqrights(sess, command->conn);  
-    /* set group permissions -- all user classes */
-    aim_bos_setgroupperm(sess, command->conn, AIM_FLAG_ALLUSERS);
-    aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE);
+		aim_reqicbmparams(sess, command->conn);  
 
-    break;  
-  }
-  case AIM_CONN_TYPE_AUTH:
-    aim_bos_ackrateresp(sess, command->conn);
-    aim_auth_clientready(sess, command->conn);
-    dprintf("faimtest: connected to authorization/admin service\n");
-    break;
+		aim_bos_reqrights(sess, command->conn);  
+		/* set group permissions -- all user classes */
+		aim_bos_setgroupperm(sess, command->conn, AIM_FLAG_ALLUSERS);
+		aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE);
 
-  default: 
-    dvprintf("faimtest: got rate response for unhandled connection type %04x\n", command->conn->type);
-    break;
-  }
+		break;  
+	}
+	case AIM_CONN_TYPE_AUTH:
+		aim_bos_ackrateresp(sess, command->conn);
+		aim_auth_clientready(sess, command->conn);
+		dprintf("faimtest: connected to authorization/admin service\n");
+		break;
 
-  return 1;
+	default: 
+		dvprintf("faimtest: got rate response for unhandled connection type %04x\n", command->conn->type);
+		break;
+	}
+
+	return 1;
 }
 
 static int faimtest_icbmparaminfo(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  unsigned long defflags, minmsginterval;
-  unsigned short maxicbmlen, maxsenderwarn, maxrecverwarn, maxchannel;
-  va_list ap;
+	struct aim_icbmparameters *params;
+	va_list ap;
 
-  va_start(ap, command);
-  maxchannel = va_arg(ap, unsigned int);
-  defflags = va_arg(ap, unsigned long);
-  maxicbmlen = va_arg(ap, unsigned int);
-  maxsenderwarn = va_arg(ap, unsigned int);
-  maxrecverwarn = va_arg(ap, unsigned int);
-  minmsginterval = va_arg(ap, unsigned long);
-  va_end(ap);
+	va_start(ap, command);
+	params = va_arg(ap, struct aim_icbmparameters *);
+	va_end(ap);
 
-  dvprintf("ICBM Parameters: maxchannel = %d, default flags = 0x%08lx, max msg len = %d, max sender evil = %f, max reciever evil = %f, min msg interval = %ld\n", maxchannel, defflags, maxicbmlen, ((float)maxsenderwarn)/10.0, ((float)maxrecverwarn)/10.0, minmsginterval);
+	dvprintf("ICBM Parameters: maxchannel = %d, default flags = 0x%08lx, max msg len = %d, max sender evil = %f, max reciever evil = %f, min msg interval = %ld\n", params->maxchan, params->flags, params->maxmsglen, ((float)params->maxsenderwarn)/10.0, ((float)params->maxrecverwarn)/10.0, params->minmsginterval);
 
-  return 1;
+	params->maxchan = 0; /* this has to be set to zero in the response */
+	//params->flags = 0;
+	params->maxmsglen = 8000;
+	params->minmsginterval = 0;
+
+	aim_seticbmparam(sess, command->conn, params);
+
+	return 1;
 }
 
 int faimtest_hostversions(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  int vercount, i;
-  unsigned char *versions;
-  va_list ap;
+	int vercount, i;
+	unsigned char *versions;
+	va_list ap;
 
-  va_start(ap, command);
-  vercount = va_arg(ap, int); /* number of family/version pairs */
-  versions = va_arg(ap, unsigned char *);
-  va_end(ap);
+	va_start(ap, command);
+	vercount = va_arg(ap, int); /* number of family/version pairs */
+	versions = va_arg(ap, unsigned char *);
+	va_end(ap);
 
-  dprintf("faimtest: SNAC versions supported by this host: ");
-  for (i = 0; i < vercount*4; i += 4)
-    dvinlineprintf("0x%04x:0x%04x ", 
-		   aimutil_get16(versions+i),  /* SNAC family */
-		   aimutil_get16(versions+i+2) /* Version number */);
-  dinlineprintf("\n");
+	dprintf("faimtest: SNAC versions supported by this host: ");
+	for (i = 0; i < vercount*4; i += 4) {
+		dvinlineprintf("0x%04x:0x%04x ", 
+			aimutil_get16(versions+i),  /* SNAC family */
+			aimutil_get16(versions+i+2) /* Version number */);
+	}
+	dinlineprintf("\n");
 
-  return 1;
+	return 1;
 }
 
 int faimtest_accountconfirm(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  int status;
-  va_list ap;
+	int status;
+	va_list ap;
 
-  va_start(ap, command);
-  status = va_arg(ap, int); /* status code of confirmation request */
-  va_end(ap);
+	va_start(ap, command);
+	status = va_arg(ap, int); /* status code of confirmation request */
+	va_end(ap);
 
-  dvprintf("account confirmation returned status 0x%04x (%s)\n", status, (status==0x0000)?"email sent":"unknown");
+	dvprintf("account confirmation returned status 0x%04x (%s)\n", status, (status==0x0000)?"email sent":"unknown");
 
-  return 1;
+	return 1;
 }
 
 int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
@@ -1798,85 +1814,72 @@ int faimtest_parse_offgoing(struct aim_session_t *sess, struct command_rx_struct
 
 int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  static char *codes[] = {
-    "Unknown",
-    "Mandatory upgrade",
-    "Advisory upgrade",
-    "System bulletin",
-    "Top o' the world!"};
-  static int codeslen = 5;
+	static char *codes[] = {
+		"Unknown",
+		"Mandatory upgrade",
+		"Advisory upgrade",
+		"System bulletin",
+		"Top o' the world!"
+	};
+	static int codeslen = 5;
+	char *msg;
+	unsigned short id;
+	va_list ap;
 
-  char *msg;
-  unsigned short id;
-  va_list ap;
-  
-  va_start(ap, command);
-  id = va_arg(ap, int);
-  msg = va_arg(ap, char *);
-  va_end(ap);
+	va_start(ap, command);
+	id = va_arg(ap, int);
+	msg = va_arg(ap, char *);
+	va_end(ap);
 
-  dvprintf("faimtest: motd: %s (%d / %s)\n", msg, id, 
-	   (id < codeslen)?codes[id]:"unknown");
+	dvprintf("faimtest: motd: %s (%d / %s)\n", msg, id, (id < codeslen)?codes[id]:"unknown");
 
-  if (!connected)
-    connected++;
-
-#if 0
-  aim_bos_reqservice(sess, command->conn, 0x0005); /* adverts */
-  aim_bos_reqservice(sess, command->conn, 0x000f); /* user directory */
-
-  /* Don't know what this does... */
-  /* XXX sess->sn should be normalized by the 0001/000f handler */
-  aim_0002_000b(sess, command->conn, sess->sn);
-#endif
-
-  return 1;
+	return 1;
 }
 
 int faimtest_parse_genericerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  unsigned short reason;
+	va_list ap;
+	unsigned short reason;
 
-  va_start(ap, command);
-  reason = va_arg(ap, int);
-  va_end(ap);
+	va_start(ap, command);
+	reason = va_arg(ap, int);
+	va_end(ap);
 
-  dvprintf("faimtest: snac threw error (reason 0x%04x: %s)\n", reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
-  
-  return 1;
+	dvprintf("faimtest: snac threw error (reason 0x%04x: %s)\n", reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+
+	return 1;
 }
 
 int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  char *destsn;
-  unsigned short reason;
+	va_list ap;
+	char *destsn;
+	unsigned short reason;
 
-  va_start(ap, command);
-  reason = va_arg(ap, int);
-  destsn = va_arg(ap, char *);
-  va_end(ap);
+	va_start(ap, command);
+	reason = va_arg(ap, int);
+	destsn = va_arg(ap, char *);
+	va_end(ap);
 
-  dvprintf("faimtest: message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
-  
-  return 1;
+	dvprintf("faimtest: message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+
+	return 1;
 }
 
 int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  char *destsn;
-  unsigned short reason;
+	va_list ap;
+	char *destsn;
+	unsigned short reason;
 
-  va_start(ap, command);
-  reason = va_arg(ap, int);
-  destsn = va_arg(ap, char *);
-  va_end(ap);
+	va_start(ap, command);
+	reason = va_arg(ap, int);
+	destsn = va_arg(ap, char *);
+	va_end(ap);
 
-  dvprintf("faimtest: user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
-  
-  return 1;
+	dvprintf("faimtest: user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+
+	return 1;
 }
 
 /* 
@@ -1884,149 +1887,148 @@ int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *
  */
 int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  static char *missedreasons[] = {
-    "Unknown",
-    "Message too large"};
-  static int missedreasonslen = 2;
+	static char *missedreasons[] = {
+		"Invalid (0)",
+		"Message too large",
+		"Rate exceeded",
+		"Evil Sender",
+		"Evil Receiver"
+	};
+	static int missedreasonslen = 5;
 
-  va_list ap;
-  unsigned short chan, nummissed, reason;
-  struct aim_userinfo_s *userinfo;
-  
-  va_start(ap, command);
-  chan = va_arg(ap, int);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);
-  nummissed = va_arg(ap, int);
-  reason = va_arg(ap, int);
-  va_end(ap);
+	va_list ap;
+	unsigned short chan, nummissed, reason;
+	struct aim_userinfo_s *userinfo;
 
-  dvprintf("faimtest: missed %d messages from %s (reason %d: %s)\n", nummissed, userinfo->sn, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
-  
-  return 1;
+	va_start(ap, command);
+	chan = va_arg(ap, int);
+	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	nummissed = va_arg(ap, int);
+	reason = va_arg(ap, int);
+	va_end(ap);
+
+	dvprintf("faimtest: missed %d messages from %s (reason %d: %s)\n", nummissed, userinfo->sn, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
+
+	return 1;
 }
 
 int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  struct client_info_s info = AIM_CLIENTINFO_KNOWNGOOD;
-  char *key;
-  va_list ap;
-  
-  va_start(ap, command);
-  key = va_arg(ap, char *);
-  va_end(ap);
+	struct client_info_s info = AIM_CLIENTINFO_KNOWNGOOD;
+	char *key;
+	va_list ap;
 
-  aim_send_login(sess, command->conn, screenname, password, &info, key);
- 
-  return 1;
+	va_start(ap, command);
+	key = va_arg(ap, char *);
+	va_end(ap);
+
+	aim_send_login(sess, command->conn, screenname, password, &info, key);
+
+	return 1;
 }
 
 int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct aim_userinfo_s *userinfo;
-  int count = 0, i = 0;
-  
-  va_start(ap, command);
-  count = va_arg(ap, int);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);
-  va_end(ap);
+	va_list ap;
+	struct aim_userinfo_s *userinfo;
+	int count = 0, i = 0;
 
-  dvprintf("faimtest: chat: %s:  New occupants have joined:\n", (char *)command->conn->priv);
-  while (i < count)
-    dvprintf("faimtest: chat: %s: \t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+	va_start(ap, command);
+	count = va_arg(ap, int);
+	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	va_end(ap);
 
-  return 1;
+	dvprintf("faimtest: chat: %s:  New occupants have joined:\n", (char *)command->conn->priv);
+	while (i < count)
+		dvprintf("faimtest: chat: %s: \t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+
+	return 1;
 }
 
 int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct aim_userinfo_s *userinfo;
-  int count = 0, i = 0;
-  
-  va_start(ap, command);
-  count = va_arg(ap, int);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);
-  va_end(ap);
+	va_list ap;
+	struct aim_userinfo_s *userinfo;
+	int count = 0, i = 0;
 
-  dvprintf("faimtest: chat: %s:  Some occupants have left:\n", (char *)command->conn->priv);
+	va_start(ap, command);
+	count = va_arg(ap, int);
+	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	va_end(ap);
 
-  for (i = 0; i < count; )
-    dvprintf("faimtest: chat: %s: \t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+	dvprintf("faimtest: chat: %s:  Some occupants have left:\n", (char *)command->conn->priv);
 
-  return 1;
+	for (i = 0; i < count; )
+		dvprintf("faimtest: chat: %s: \t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+
+	return 1;
 }
 
 int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct aim_userinfo_s *userinfo;
-  struct aim_chat_roominfo *roominfo;
-  char *roomname;
-  int usercount,i;
-  char *roomdesc;
-  unsigned short unknown_c9, unknown_d2, unknown_d5, maxmsglen;
-  unsigned long creationtime;
+	va_list ap;
+	struct aim_userinfo_s *userinfo;
+	struct aim_chat_roominfo *roominfo;
+	char *roomname;
+	int usercount,i;
+	char *roomdesc;
+	unsigned short unknown_c9, unknown_d2, unknown_d5, maxmsglen;
+	unsigned long creationtime;
 
-  va_start(ap, command);
-  roominfo = va_arg(ap, struct aim_chat_roominfo *);
-  roomname = va_arg(ap, char *);
-  usercount= va_arg(ap, int);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);
-  roomdesc = va_arg(ap, char *);
-  unknown_c9 = va_arg(ap, int);
-  creationtime = va_arg(ap, unsigned long);
-  maxmsglen = va_arg(ap, int);
-  unknown_d2 = va_arg(ap, int);
-  unknown_d5 = va_arg(ap, int);
-  va_end(ap);
+	va_start(ap, command);
+	roominfo = va_arg(ap, struct aim_chat_roominfo *);
+	roomname = va_arg(ap, char *);
+	usercount= va_arg(ap, int);
+	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	roomdesc = va_arg(ap, char *);
+	unknown_c9 = va_arg(ap, int);
+	creationtime = va_arg(ap, unsigned long);
+	maxmsglen = va_arg(ap, int);
+	unknown_d2 = va_arg(ap, int);
+	unknown_d5 = va_arg(ap, int);
+	va_end(ap);
 
-  dvprintf("faimtest: chat: %s:  info update:\n", (char *)command->conn->priv);
-  dvprintf("faimtest: chat: %s:  \tRoominfo: {%04x, %s, %04x}\n", 
-	 (char *)command->conn->priv,
-	 roominfo->exchange,
-	 roominfo->name,
-	 roominfo->instance);
-  dvprintf("faimtest: chat: %s:  \tRoomname: %s\n", (char *)command->conn->priv, roomname);
-  dvprintf("faimtest: chat: %s:  \tRoomdesc: %s\n", (char *)command->conn->priv, roomdesc);
-  dvprintf("faimtest: chat: %s:  \tOccupants: (%d)\n", (char *)command->conn->priv, usercount);
-  
-  for (i = 0; i < usercount; )
-    dvprintf("faimtest: chat: %s:  \t\t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+	dvprintf("faimtest: chat: %s:  info update:\n", (char *)command->conn->priv);
+	dvprintf("faimtest: chat: %s:  \tRoominfo: {%04x, %s, %04x}\n",  (char *)command->conn->priv, roominfo->exchange, roominfo->name, roominfo->instance);
+	dvprintf("faimtest: chat: %s:  \tRoomname: %s\n", (char *)command->conn->priv, roomname);
+	dvprintf("faimtest: chat: %s:  \tRoomdesc: %s\n", (char *)command->conn->priv, roomdesc);
+	dvprintf("faimtest: chat: %s:  \tOccupants: (%d)\n", (char *)command->conn->priv, usercount);
 
-  dvprintf("faimtest: chat: %s:  \tUnknown_c9: 0x%04x\n", (char *)command->conn->priv, unknown_c9);
-  dvprintf("faimtest: chat: %s:  \tCreation time: %lu (time_t)\n", (char *)command->conn->priv, creationtime);
-  dvprintf("faimtest: chat: %s:  \tMax message length: %d bytes\n", (char *)command->conn->priv, maxmsglen);
-  dvprintf("faimtest: chat: %s:  \tUnknown_d2: 0x%04x\n", (char *)command->conn->priv, unknown_d2);
-  dvprintf("faimtest: chat: %s:  \tUnknown_d5: 0x%02x\n", (char *)command->conn->priv, unknown_d5);
+	for (i = 0; i < usercount; )
+		dvprintf("faimtest: chat: %s:  \t\t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
 
-  return 1;
+	dvprintf("faimtest: chat: %s:  \tUnknown_c9: 0x%04x\n", (char *)command->conn->priv, unknown_c9);
+	dvprintf("faimtest: chat: %s:  \tCreation time: %lu (time_t)\n", (char *)command->conn->priv, creationtime);
+	dvprintf("faimtest: chat: %s:  \tMax message length: %d bytes\n", (char *)command->conn->priv, maxmsglen);
+	dvprintf("faimtest: chat: %s:  \tUnknown_d2: 0x%04x\n", (char *)command->conn->priv, unknown_d2);
+	dvprintf("faimtest: chat: %s:  \tUnknown_d5: 0x%02x\n", (char *)command->conn->priv, unknown_d5);
+
+	return 1;
 }
 
 int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct aim_userinfo_s *userinfo;
-  char *msg;
-  char tmpbuf[1152];
- 
-  va_start(ap, command);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);	
-  msg = va_arg(ap, char *);
-  va_end(ap);
+	va_list ap;
+	struct aim_userinfo_s *userinfo;
+	char *msg;
+	char tmpbuf[1152];
 
-  dvprintf("faimtest: chat: %s: incoming msg from %s: %s\n", (char *)command->conn->priv, userinfo->sn, msg);
+	va_start(ap, command);
+	userinfo = va_arg(ap, struct aim_userinfo_s *);	
+	msg = va_arg(ap, char *);
+	va_end(ap);
 
-  /*
-   * Do an echo for testing purposes.  But not for ourselves ("oops!")
-   */
-  if (strcmp(userinfo->sn, sess->sn) != 0)
-    {
-      sprintf(tmpbuf, "(%s said \"%s\")", userinfo->sn, msg);
-      aim_chat_send_im(sess, command->conn, 0, tmpbuf, strlen(tmpbuf));
-    }
+	dvprintf("faimtest: chat: %s: incoming msg from %s: %s\n", (char *)command->conn->priv, userinfo->sn, msg);
 
-  return 1;
+	/*
+	 * Do an echo for testing purposes.  But not for ourselves ("oops!")
+	 */
+	if (strcmp(userinfo->sn, sess->sn) != 0) {
+		sprintf(tmpbuf, "(%s said \"%s\")", userinfo->sn, msg);
+		aim_chat_send_im(sess, command->conn, 0, tmpbuf, strlen(tmpbuf));
+	}
+
+	return 1;
 }
 
 int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *command, ...)
@@ -2093,37 +2095,37 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
 
 int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  unsigned short code;
-  char *msg = NULL;
+	va_list ap;
+	unsigned short code;
+	char *msg = NULL;
 
-  va_start(ap, command);
-  code = va_arg(ap, int);
-  msg = va_arg(ap, char *);
-  va_end(ap);
+	va_start(ap, command);
+	code = va_arg(ap, int);
+	msg = va_arg(ap, char *);
+	va_end(ap);
 
-  dvprintf("faimtest: connerr: Code 0x%04x: %s\n", code, msg);
-  aim_conn_kill(sess, &command->conn); /* this will break the main loop */
+	dvprintf("faimtest: connerr: Code 0x%04x: %s\n", code, msg);
+	aim_conn_kill(sess, &command->conn); /* this will break the main loop */
 
-  connected = 0;
+	connected = 0;
 
-  return 1;
+	return 1;
 }
 
 int faimtest_debugconn_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {	
-  dprintf("faimtest: connecting to an aimdebugd!\n");
+	dprintf("faimtest: connecting to an aimdebugd!\n");
 
-  /* convert the authorizer connection to a BOS connection */
-  command->conn->type = AIM_CONN_TYPE_BOS;
+	/* convert the authorizer connection to a BOS connection */
+	command->conn->type = AIM_CONN_TYPE_BOS;
 
-  aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
+	aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
 
-  /* tell the aimddebugd we're ready */
-  aim_debugconn_sendconnect(sess, command->conn); 
+	/* tell the aimddebugd we're ready */
+	aim_debugconn_sendconnect(sess, command->conn); 
 
-  /* go right into main loop (don't open a BOS connection, etc) */
-  return 1;
+	/* go right into main loop (don't open a BOS connection, etc) */
+	return 1;
 }
 
 /*
@@ -2131,36 +2133,36 @@ int faimtest_debugconn_connect(struct aim_session_t *sess, struct command_rx_str
  */
 int faimtest_parse_msgack(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  unsigned short type;
-  char *sn = NULL;
+	va_list ap;
+	unsigned short type;
+	char *sn = NULL;
 
-  va_start(ap, command);
-  type = va_arg(ap, int);
-  sn = va_arg(ap, char *);
-  va_end(ap);
+	va_start(ap, command);
+	type = va_arg(ap, int);
+	sn = va_arg(ap, char *);
+	va_end(ap);
 
-  dvprintf("faimtest: msgack: 0x%04x / %s\n", type, sn);
+	dvprintf("faimtest: msgack: 0x%04x / %s\n", type, sn);
 
-  return 1;
+	return 1;
 }
 
 int faimtest_getfile_filereq(struct aim_session_t *ses, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct aim_conn_t *oftconn;
-  struct aim_fileheader_t *fh;
-  char *cookie;
+	va_list ap;
+	struct aim_conn_t *oftconn;
+	struct aim_fileheader_t *fh;
+	char *cookie;
 
-  va_start(ap, command);
-  oftconn = va_arg(ap, struct aim_conn_t *);
-  fh = va_arg(ap, struct aim_fileheader_t *);
-  cookie = va_arg(ap, char *);
-  va_end(ap);
+	va_start(ap, command);
+	oftconn = va_arg(ap, struct aim_conn_t *);
+	fh = va_arg(ap, struct aim_fileheader_t *);
+	cookie = va_arg(ap, char *);
+	va_end(ap);
 
-  dvprintf("faimtest: request for file %s.\n", fh->name);
+	dvprintf("faimtest: request for file %s.\n", fh->name);
 
-  return 1;
+	return 1;
 }
 
 
@@ -2272,6 +2274,7 @@ int faimtest_getfile_disconnect(struct aim_session_t *sess, struct command_rx_st
   dvprintf("faimtest: getfile: disconnected from %s\n", sn);
   return 1;
 }
+
 int faimtest_getfile_initiate(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
@@ -2519,59 +2522,59 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
 
 int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  int newevil;
-  struct aim_userinfo_s *userinfo;
+	va_list ap;
+	int newevil;
+	struct aim_userinfo_s *userinfo;
 
-  va_start(ap, command);
-  newevil = va_arg(ap, int);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);
-  va_end(ap);
+	va_start(ap, command);
+	newevil = va_arg(ap, int);
+	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	va_end(ap);
 
-  /*
-   * Evil Notifications that are lacking userinfo->sn are anon-warns
-   * if they are an evil increases, but are not warnings at all if its
-   * a decrease (its the natural backoff happening).
-   *
-   * newevil is passed as an int representing the new evil value times
-   * ten.
-   */
-  dvprintf("faimtest: evil level change: new value = %2.1f%% (caused by %s)\n", ((float)newevil)/10, (userinfo && strlen(userinfo->sn))?userinfo->sn:"anonymous");
+	/*
+	 * Evil Notifications that are lacking userinfo->sn are anon-warns
+	 * if they are an evil increases, but are not warnings at all if its
+	 * a decrease (its the natural backoff happening).
+	 *
+	 * newevil is passed as an int representing the new evil value times
+	 * ten.
+	 */
+	dvprintf("faimtest: evil level change: new value = %2.1f%% (caused by %s)\n", ((float)newevil)/10, (userinfo && strlen(userinfo->sn))?userinfo->sn:"anonymous");
 
-  return 1;
+	return 1;
 }
 
 int faimtest_parse_searchreply(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  char *address, *SNs;
-  int i, num;
-  
-  va_start(ap, command);
-  address = va_arg(ap, char *);
-  num = va_arg(ap, int);
-  SNs = va_arg(ap, char *);
-  va_end(ap);
+	va_list ap;
+	char *address, *SNs;
+	int i, num;
 
-  dvprintf("faimtest: E-Mail Search Results for %s: ", address);
+	va_start(ap, command);
+	address = va_arg(ap, char *);
+	num = va_arg(ap, int);
+	SNs = va_arg(ap, char *);
+	va_end(ap);
 
-  for(i = 0; i < num; i++)
-    dvinlineprintf("%s, ", &SNs[i*(MAXSNLEN+1)]);
-  dinlineprintf("\n");
+	dvprintf("faimtest: E-Mail Search Results for %s: ", address);
 
-  return 1;
+	for(i = 0; i < num; i++)
+		dvinlineprintf("%s, ", &SNs[i*(MAXSNLEN+1)]);
+	dinlineprintf("\n");
+
+	return 1;
 }
 
 int faimtest_parse_searcherror(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  char *address;
-  
-  va_start(ap, command);
-  address = va_arg(ap, char *);
-  va_end(ap);
+	va_list ap;
+	char *address;
 
-  dvprintf("faimtest: E-Mail Search Results for %s: No Results or Invalid Email\n", address);
+	va_start(ap, command);
+	address = va_arg(ap, char *);
+	va_end(ap);
 
-  return 1;
+	dvprintf("faimtest: E-Mail Search Results for %s: No Results or Invalid Email\n", address);
+
+	return 1;
 }

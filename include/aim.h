@@ -484,8 +484,8 @@ faim_export void aim_conn_kill(struct aim_session_t *sess, struct aim_conn_t **d
 typedef int (*aim_rxcallback_t)(struct aim_session_t *, struct command_rx_struct *, ...);
 
 /* aim_login.c */
-faim_export int aim_sendconnack(struct aim_session_t *sess, struct aim_conn_t *conn);
-faim_export int aim_request_login (struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
+faim_export int aim_sendflapver(struct aim_session_t *sess, struct aim_conn_t *conn);
+faim_export int aim_request_login (struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn);
 faim_export int aim_send_login (struct aim_session_t *, struct aim_conn_t *, char *, char *, struct client_info_s *, char *key);
 faim_export int aim_encode_password_md5(const char *password, const char *key, unsigned char *digest);
 faim_export unsigned long aim_sendauthresp(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn, int errorcode, char *errorurl, char *bosip, char *cookie, char *email, int regstatus);
@@ -563,8 +563,6 @@ faim_export unsigned long aim_bos_reqservice(struct aim_session_t *, struct aim_
 faim_export unsigned long aim_bos_reqrights(struct aim_session_t *, struct aim_conn_t *);
 faim_export unsigned long aim_bos_reqbuddyrights(struct aim_session_t *, struct aim_conn_t *);
 faim_export unsigned long aim_bos_reqlocaterights(struct aim_session_t *, struct aim_conn_t *);
-faim_export unsigned long aim_bos_reqicbmparaminfo(struct aim_session_t *, struct aim_conn_t *);
-faim_export unsigned long aim_addicbmparam(struct aim_session_t *sess,struct aim_conn_t *conn);
 faim_export unsigned long aim_setversions(struct aim_session_t *sess, struct aim_conn_t *conn);
 faim_export unsigned long aim_auth_setversions(struct aim_session_t *sess, struct aim_conn_t *conn);
 faim_export unsigned long aim_auth_reqconfirm(struct aim_session_t *sess, struct aim_conn_t *conn);
@@ -714,7 +712,6 @@ faim_export unsigned short aim_iconsum(const unsigned char *buf, int buflen);
 faim_export int aim_send_im_direct(struct aim_session_t *, struct aim_conn_t *, char *);
 faim_export struct aim_conn_t * aim_directim_initiate(struct aim_session_t *, struct aim_conn_t *, struct aim_directim_priv *, char *destsn);
 faim_export struct aim_conn_t *aim_directim_connect(struct aim_session_t *, struct aim_conn_t *, struct aim_directim_priv *);
-faim_export unsigned long aim_seticbmparam(struct aim_session_t *, struct aim_conn_t *conn);
 
 faim_export struct aim_conn_t *aim_getfile_initiate(struct aim_session_t *sess, struct aim_conn_t *conn, char *destsn);
 faim_export int aim_oft_getfile_request(struct aim_session_t *sess, struct aim_conn_t *conn, const unsigned char *name, const int size);
@@ -787,6 +784,40 @@ faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess, st
 faim_export int aim_getinfo(struct aim_session_t *, struct aim_conn_t *, const char *, unsigned short);
 faim_export int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_userinfo_s *info);
 faim_export int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
+
+#define AIM_IMPARAM_FLAG_CHANMSGS_ALLOWED	0x00000001
+#define AIM_IMPARAM_FLAG_MISSEDCALLS_ENABLED	0x00000002
+
+/* This is what the server will give you if you don't set them yourself. */
+#define AIM_IMPARAM_DEFAULTS { \
+	0, \
+	AIM_IMPARAM_FLAG_CHANMSGS_ALLOWED | AIM_IMPARAM_FLAG_MISSEDCALLS_ENABLED, \
+	512, /* !! Note how small this is. */ \
+	(99.9)*10, (99.9)*10, \
+	1000 \
+}
+
+/* This is what most AIM versions use. */
+#define AIM_IMPARAM_REASONABLE { \
+	0, \
+	AIM_IMPARAM_FLAG_CHANMSGS_ALLOWED | AIM_IMPARAM_FLAG_MISSEDCALLS_ENABLED, \
+	8000, \
+	(99.9)*10, (99.9)*10, \
+	0 \
+}
+
+
+struct aim_icbmparameters {
+	unsigned short maxchan;
+	unsigned long flags; /* AIM_IMPARAM_FLAG_ */
+	unsigned short maxmsglen; /* message size that you will accept */
+	unsigned short maxsenderwarn; /* this and below are *10 (999=99.9%) */
+	unsigned short maxrecverwarn;
+	unsigned long minmsginterval; /* in milliseconds? */
+};
+
+faim_export unsigned long aim_reqicbmparams(struct aim_session_t *sess, struct aim_conn_t *conn);
+faim_export unsigned long aim_seticbmparam(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_icbmparameters *params);
 
 
 /* aim_auth.c */
