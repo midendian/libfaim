@@ -1604,14 +1604,85 @@ int faimtest_getfile_disconnect(struct aim_session_t *sess, struct command_rx_st
 
 int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
+  static char *codes[5] = {"invalid",
+			   "change",
+			   "warning",
+			   "limit",
+			   "limit cleared"};
   va_list ap;
-  unsigned long newrate;
-  
+  int code;
+  unsigned long parmid, windowsize, clear, alert, limit, disconnect;
+  unsigned long currentavg, maxavg;
+
   va_start(ap, command); 
-  newrate = va_arg(ap, unsigned long);
+
+  /* See code explanations below */
+  code = va_arg(ap, int);
+
+  /*
+   * Known parameter ID's...
+   *   0x0003  BOS (normal ICBMs, userinfo requests, etc)
+   *   0x0005  Chat messages
+   */
+  parmid = va_arg(ap, unsigned long);
+
+  /*
+   * Not sure what this is exactly.  I think its the temporal 
+   * relation factor (ie, how to make the rest of the numbers
+   * make sense in the real world). 
+   */
+  windowsize = va_arg(ap, unsigned long);
+
+  /* Explained below */
+  clear = va_arg(ap, unsigned long);
+  alert = va_arg(ap, unsigned long);
+  limit = va_arg(ap, unsigned long);
+  disconnect = va_arg(ap, unsigned long);
+  currentavg = va_arg(ap, unsigned long);
+  maxavg = va_arg(ap, unsigned long);
+
   va_end(ap);
 
-  printf("faimtest: ratechange: %lu\n", newrate);
+
+  printf("faimtest: rate %s (paramid 0x%04lx): curavg = %ld, maxavg = %ld, alert at %ld, clear warning at %ld, limit at %ld, disconnect at %ld (window size = %ld)\n",
+	 (code < 5)?codes[code]:"invalid",
+	 parmid,
+	 currentavg, maxavg,
+	 alert, clear,
+	 limit, disconnect,
+	 windowsize);
+
+  if (code == AIM_RATE_CODE_CHANGE) {
+    /*
+     * Not real sure when these get sent.
+     */
+    if (currentavg >= clear)
+      aim_conn_setlatency(command->conn, 0);
+
+  } else if (code == AIM_RATE_CODE_WARNING) {
+    /*
+     * We start getting WARNINGs the first time we go below the 'alert'
+     * limit (currentavg < alert) and they stop when either we pause
+     * long enough for currentavg to go above 'clear', or until we
+     * flood it bad enough to go below 'limit' (and start getting
+     * LIMITs instead) or even further and go below 'disconnect' and 
+     * get disconnected completely (and won't be able to login right
+     * away either).
+     */
+    aim_conn_setlatency(command->conn, windowsize/4); /* XXX this is bogus! */ 
+
+  } else if (code == AIM_RATE_CODE_LIMIT) {
+    /*
+     * When we hit LIMIT, messages will start getting dropped.
+     */
+    aim_conn_setlatency(command->conn, windowsize/2); /* XXX this is bogus! */ 
+
+  } else if (code == AIM_RATE_CODE_CLEARLIMIT) {
+    /*
+     * The limit is cleared when curavg goes above 'clear'.
+     */
+    aim_conn_setlatency(command->conn, 0); 
+  }
 
   return 1;
 }
