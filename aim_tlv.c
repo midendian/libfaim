@@ -212,12 +212,15 @@ faim_internal int aim_addtlvtochain_caps(struct aim_tlvlist_t **list, unsigned s
   if(!list)
     return 0;
 
+  newtl = (struct aim_tlvlist_t *)malloc(sizeof(struct aim_tlvlist_t));
+  memset(newtl, 0x00, sizeof(struct aim_tlvlist_t));
+
   newtl->tlv = aim_createtlv();	
   newtl->tlv->type = type;
 
-  newtl->tlv->length = aim_putcap(buf, 128, caps);
+  newtl->tlv->length = aim_putcap(buf, sizeof(buf), caps);
   newtl->tlv->value = (unsigned char *)calloc(1, newtl->tlv->length);
-  memcpy(newtl->tlv->value, &buf, newtl->tlv->length);
+  memcpy(newtl->tlv->value, buf, newtl->tlv->length);
 
   newtl->next = NULL;
 

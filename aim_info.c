@@ -581,7 +581,7 @@ faim_internal int aim_parse_userinfo_middle(struct aim_session_t *sess,
  */
 faim_internal int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s *info)
 {
-  int i = 0, numberpos;
+  int i = 0, numtlv = 0;
   struct aim_tlvlist_t *tlvlist = NULL;
 
   if (!buf || !info)
@@ -592,12 +592,18 @@ faim_internal int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s
 
   i += aimutil_put16(buf+i, info->warnlevel);
 
-  numberpos = i;
-  i += aimutil_put16(buf+i, 0); /* fill in for real later */
+
   aim_addtlvtochain16(&tlvlist, 0x0001, info->flags);
+  numtlv++;
+
   aim_addtlvtochain32(&tlvlist, 0x0002, info->membersince);
+  numtlv++;
+
   aim_addtlvtochain32(&tlvlist, 0x0003, info->onlinesince);
+  numtlv++;
+
   aim_addtlvtochain16(&tlvlist, 0x0004, info->idletime);
+  numtlv++;
 
 #if ICQ_OSCAR_SUPPORT
   if(atoi(info->sn) != 0) {
@@ -607,16 +613,15 @@ faim_internal int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s
 #endif
 
   aim_addtlvtochain_caps(&tlvlist, 0x000d, info->capabilities);
-
-  aim_addtlvtochain32(&tlvlist, 0x000f, info->sessionlen);
+  numtlv++;
 
   aim_addtlvtochain32(&tlvlist, (unsigned short)((info->flags)&AIM_FLAG_AOL?0x0010:0x000f), info->sessionlen);
+  numtlv++;
 
-  i += aim_writetlvchain(buf+i, buflen-i, &tlvlist);
+  i += aimutil_put16(buf+i, numtlv); /* tlvcount */
+  i += aim_writetlvchain(buf+i, buflen-i, &tlvlist); /* tlvs */
   aim_freetlvchain(&tlvlist);
 
-  aimutil_put16(buf+numberpos, aim_counttlvchain(&tlvlist));
-  
   return i;
 }
 
