@@ -360,7 +360,7 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
 }
 
 int faimtest_parse_buddyrights(struct aim_session_t *sess, struct command_rx_struct *command, ...)
-{	
+{
   va_list ap;
   unsigned short maxbuddies, maxwatchers;
 
@@ -1125,7 +1125,7 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
 
   printf("faimtest: missed %d messages from %s (reason %d: %s)\n", nummissed, userinfo->sn, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
   
-  return 0;
+  return 1;
 }
 
 int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *command, ...)
