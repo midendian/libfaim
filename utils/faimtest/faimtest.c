@@ -879,9 +879,9 @@ static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_list ap;
 	va_start(ap, fr);
 	userinfo = va_arg(ap, aim_userinfo_t *);
+	inforeq = (fu16_t)va_arg(ap, unsigned int);
 	prof_encoding = va_arg(ap, char *);
 	prof = va_arg(ap, char *);
-	inforeq = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
 	dvprintf("userinfo: sn: %s\n", userinfo->sn);
@@ -893,13 +893,23 @@ static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	dvprintf("userinfo: membersince: %lu\n", userinfo->membersince);
 	dvprintf("userinfo: onlinesince: %lu\n", userinfo->onlinesince);
 	dvprintf("userinfo: idletime: 0x%04x\n", userinfo->idletime);
+	dvprintf("userinfo: capabilities = %s = 0x%08lx\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
+
 
 	if (inforeq == AIM_GETINFO_GENERALINFO) {
+
 		dvprintf("userinfo: profile_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
 		dvprintf("userinfo: prof: %s\n", prof ? prof : "[none]");
+
 	} else if (inforeq == AIM_GETINFO_AWAYMESSAGE) {
+
 		dvprintf("userinfo: awaymsg_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
 		dvprintf("userinfo: awaymsg: %s\n", prof ? prof : "[none]");
+
+	} else if (inforeq == AIM_GETINFO_CAPABILITIES) {
+
+		dprintf("userinfo: capabilities: see above\n");
+
 	} else 
 		dprintf("userinfo: unknown info request\n");
 
@@ -1104,10 +1114,13 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (!strncmp(tmpstr, "getinfo", 7)) {
 
+#if 0
 		aim_getinfo(sess, conn, "75784102", AIM_GETINFO_GENERALINFO);
 		aim_getinfo(sess, conn, "15853637", AIM_GETINFO_AWAYMESSAGE);
+#endif
 		aim_getinfo(sess, conn, "midendian", AIM_GETINFO_GENERALINFO);
 		aim_getinfo(sess, conn, "midendian", AIM_GETINFO_AWAYMESSAGE);
+		aim_getinfo(sess, conn, "midendian", AIM_GETINFO_CAPABILITIES);
 
 	} else if (strstr(tmpstr, "open directim")) {
 
