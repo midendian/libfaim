@@ -103,4 +103,15 @@
  */
 #define AIMUTIL_USEMACROS
 
+/*
+ * Select whether or not to use POSIX thread functionality.
+ * 
+ * Default: defined on Linux, otherwise undefined
+ */
+#ifdef __linux__
+#define FAIM_USEPTHREADS
+#endif
+
 #endif /* __FAIMCONFIG_H__ */
+
+
