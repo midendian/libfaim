@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Sun Sep  3 23:58:17 UTC 2000
+   - Portability fixes (for solaris, set the SOLARIS env var first)
+
  - Sat Sep  2 23:42:37 UTC 2000
    - Hopefully fix aim_snac.c bugs
    - Add Buddy List Rights parser (max buddies and max watchers)

@@ -10,6 +10,11 @@ ifdef LIBFAIM_LIB
 LDFLAGS += -lfaim -L$(LIBFAIM_LIB)
 endif
 
+ifdef SOLARIS
+CC = gcc
+MAKE = gmake
+endif
+
 AR = ar
 RANLIB = ranlib
 

@@ -657,7 +657,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	newconn = aim_directim_initiate(sess, command->conn, NULL, userinfo->sn);
 	//aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINITIATE, faimtest_directim_initiate, 0);
       } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
-	aim_send_im(sess, command->conn, "vaxherder", 0, "sendmsg 7986");
+	aim_send_im(sess, command->conn, "vaxherder", 0, "sendmsg 7900");
       } else if (!strncmp(tmpstr, "sendmsg", 7)) {
 	int i;
 	i = atoi(tmpstr+8);

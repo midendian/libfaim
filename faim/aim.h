@@ -70,9 +70,8 @@
 #define gethostbyname(x) gethostbyname2(x, AF_INET) 
 #endif
 
-#if !defined(MSG_WAITALL)
-#warning FIX YOUR LIBC! MSG_WAITALL is required!
-#define MSG_WAITALL 0x100
+#if defined(MSG_WAITALL)
+#define FAIM_HAS_MSG_WAITALL
 #endif
 
 /* 
@@ -746,6 +745,9 @@ char *aimutil_itemidx(char *toSearch, int index, char dl);
 
 int aim_snlen(const char *sn);
 int aim_sncmp(const char *sn1, const char *sn2);
+
+/* for libc's that dont have it */
+char *aim_strsep(char **pp, const char *delim);
 
 /* aim_meta.c */
 char *aim_getbuilddate(void);

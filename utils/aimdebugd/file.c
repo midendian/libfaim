@@ -72,8 +72,8 @@ int parsescriptline2(struct aim_session_t *sess, struct aim_conn_t **scriptconn,
     {  
       char *sn, *msg;
       buf = nextwhite(buf)+1;
-      sn = strsep(&buf, "/");
-      msg = strsep(&buf, "/");
+      sn = aim_strsep(&buf, "/");
+      msg = aim_strsep(&buf, "/");
       sendimtoclient(sess, aim_getconn_type(sess, AIM_CONN_TYPE_BOS), sn, 0, msg);
     }
     break;

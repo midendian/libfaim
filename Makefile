@@ -36,7 +36,11 @@ mkbuildinfo:
 libfaim: mkbuildinfo $(LIBFAIM_OBJECTS)
 	$(AR) cru libfaim.a $(LIBFAIM_OBJECTS)
 	$(RANLIB) libfaim.a
+ifdef SOLARIS
+	ld -G -o $(SONAME) $(LIBFAIM_OBJECTS) -lresolv
+else
 	ld -o $(SONAME) $(LIBFAIM_OBJECTS) -shared -soname $(SONAME)
+endif
 
 allutils: libfaim
 	@echo "LIBFAIM_INC = $$PWD" > utils/Makefile.dynamicrules; \

@@ -9,6 +9,34 @@
 #include <faim/aim.h> 
 
 /*
+ * Since not all implementations support MSG_WAITALL, define
+ * an alternate guarenteed read function...
+ */
+static int aim_recv(int fd, void *buf, size_t count)
+{
+#ifdef FAIM_HAS_MSG_WAITALL
+  return recv(fd, buf, count, MSG_WAITALL);
+#else
+  int left, ret, cur = 0; 
+
+  left = count;
+
+  while (left) {
+    ret = read(fd, buf+cur, left);
+    if (ret == -1)
+      return -1;
+    if (ret == 0)
+      return cur;
+    
+    cur += ret;
+    left -= ret;
+  }
+
+  return cur;
+#endif
+}
+
+/*
  * Grab a single command sequence off the socket, and enqueue
  * it in the incoming event queue in a seperate struct.
  */
@@ -41,7 +69,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
    *   4 short -- Number of data bytes that follow.
    */
   faim_mutex_lock(&conn->active);
-  if (recv(conn->fd, generic, 6, MSG_WAITALL) < 6){
+  if (aim_recv(conn->fd, generic, 6) < 6){
     aim_conn_close(conn);
     faim_mutex_unlock(&conn->active);
     return -1;
@@ -89,7 +117,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
   }
 
   /* read the data portion of the packet */
-  if (recv(conn->fd, newrx->data, newrx->commandlen, MSG_WAITALL) < newrx->commandlen){
+  if (aim_recv(conn->fd, newrx->data, newrx->commandlen) < newrx->commandlen){
     free(newrx->data);
     free(newrx);
     aim_conn_close(conn);
