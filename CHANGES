@@ -1,6 +1,24 @@
 
 No release numbers
 ------------------
+ - The week prior to Fri Jun 16 19:37:09 UTC 2000
+   - Rethought the rendezvous stuff.  DEFINIT WORK IN PROGRESS
+     - Do not bother trying to use this.  This will probably break
+         your clients.  You may or may not want to fix them, since 
+         I may change it again soon.  
+     - I REPEAT: This really is a developer-only version.  It barely
+         compiles.  I'm just committing it so I don't have so many
+         trees floating around.
+   - Added stuff to support OFT as well as OSCAR protocols
+   - Added aim_send_im_direct() for directim ("IM Image")
+   - Added caps getting/putting routines 
+   - Added more aim_login fixes to avoid more AOL stupidity
+     - This is the same as went to libfaim-devel yesterday, so don't upgrade
+       just to get these changes.
+   - Removed aimicq_encode_password -- now use the same table
+       for both ICQ and AIM
+   - Added AUTHORS
+
  - Tue Jun  6 01:36:48 UTC 2000
    - Inverted gethostbyname2() check.  Not sure how that ended up 
        in that state.

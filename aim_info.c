@@ -25,7 +25,7 @@ u_long aim_getinfo(struct aim_session_t *sess,
   if (!sess || !conn || !sn)
     return 0;
 
-  if (!(newpacket = aim_tx_new(0x0002, conn, 12+1+strlen(sn))))
+  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 12+1+strlen(sn))))
     return -1;
 
   newpacket->lock = 1;
@@ -87,6 +87,66 @@ u_char aim_caps[6][16] = {
   {0x09, 0x46, 0x13, 0x43, 0x4c, 0x7f, 0x11, 0xd1, 
    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}
 };
+
+u_short aim_getcap(unsigned char *capblock, int buflen)
+{
+  u_short ret = 0;
+  int y;
+  int offset = 0;
+
+  while (offset < buflen) {
+    for(y=0; y < (sizeof(aim_caps)/0x10); y++) {
+      if (memcmp(&aim_caps[y], capblock+offset, 0x10) == 0) {
+	switch(y) {
+	case 0: ret |= AIM_CAPS_BUDDYICON; break;
+	case 1: ret |= AIM_CAPS_VOICE; break;
+	case 2: ret |= AIM_CAPS_IMIMAGE; break;
+	case 3: ret |= AIM_CAPS_CHAT; break;
+	case 4: ret |= AIM_CAPS_GETFILE; break;
+	case 5: ret |= AIM_CAPS_SENDFILE; break;
+	default: ret |= 0xff00; break;
+	}
+      }
+    }
+    offset += 0x10;
+  } 
+  return ret;
+}
+
+int aim_putcap(unsigned char *capblock, int buflen, u_short caps)
+{
+  int offset = 0;
+
+  if (!capblock)
+    return -1;
+
+  if ((caps & AIM_CAPS_BUDDYICON) && (offset < buflen)) {
+    memcpy(capblock+offset, aim_caps[0], sizeof(aim_caps[0]));
+    offset += sizeof(aim_caps[1]);
+  }
+  if ((caps & AIM_CAPS_VOICE) && (offset < buflen)) {
+    memcpy(capblock+offset, aim_caps[1], sizeof(aim_caps[1]));
+    offset += sizeof(aim_caps[1]);
+  }
+  if ((caps & AIM_CAPS_IMIMAGE) && (offset < buflen)) {
+    memcpy(capblock+offset, aim_caps[2], sizeof(aim_caps[2]));
+    offset += sizeof(aim_caps[2]);
+  }
+  if ((caps & AIM_CAPS_CHAT) && (offset < buflen)) {
+    memcpy(capblock+offset, aim_caps[3], sizeof(aim_caps[3]));
+    offset += sizeof(aim_caps[3]);
+  }
+  if ((caps & AIM_CAPS_GETFILE) && (offset < buflen)) {
+    memcpy(capblock+offset, aim_caps[4], sizeof(aim_caps[4]));
+    offset += sizeof(aim_caps[4]);
+  }
+  if ((caps & AIM_CAPS_SENDFILE) && (offset < buflen)) {
+    memcpy(capblock+offset, aim_caps[5], sizeof(aim_caps[5]));
+    offset += sizeof(aim_caps[5]);
+  }
+
+  return offset;
+}
 
 /*
  * AIM is fairly regular about providing user info.  This
@@ -198,32 +258,15 @@ int aim_extractuserinfo(u_char *buf, struct aim_userinfo_s *outinfo)
 	   * actual decoding.  See comment on aim_bos_setprofile()
 	   * in aim_misc.c about the capability block, its the same.
 	   *
-	   * Ignore.
-	   *
 	   */
 	case 0x000d:
 	  {
-	    int z,y; 
 	    int len;
 	    len = aimutil_get16(buf+i+2);
 	    if (!len)
 	      break;
-
-	    for (z = 0; z < len; z+=0x10) {
-	      for(y=0; y < 6; y++) {
-		if (memcmp(&aim_caps[y], buf+i+4+z, 0x10) == 0) {
-		  switch(y) {
-		  case 0: outinfo->capabilities |= AIM_CAPS_BUDDYICON; break;
-		  case 1: outinfo->capabilities |= AIM_CAPS_VOICE; break;
-		  case 2: outinfo->capabilities |= AIM_CAPS_IMIMAGE; break;
-		  case 3: outinfo->capabilities |= AIM_CAPS_CHAT; break;
-		  case 4: outinfo->capabilities |= AIM_CAPS_GETFILE; break;
-		  case 5: outinfo->capabilities |= AIM_CAPS_SENDFILE; break;
-		  default: outinfo->capabilities |= 0xff00; break;
-		  }
-		}
-	      }
-	    }
+	    
+	    outinfo->capabilities = aim_getcap(buf+i+4, len);
 	  }
 	  break;
 
@@ -478,7 +521,7 @@ int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, s
   if (!sess || !conn || !info)
     return 0;
 
-  if (!(tx = aim_tx_new(0x0002, conn, 1152)))
+  if (!(tx = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 1152)))
     return -1;
 
   tx->lock = 1;
@@ -506,7 +549,7 @@ int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, c
   if (!sess || !conn || !sn)
     return 0;
 
-  if (!(tx = aim_tx_new(0x0002, conn, 10+1+strlen(sn))))
+  if (!(tx = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+1+strlen(sn))))
     return -1;
 
   tx->lock = 1;

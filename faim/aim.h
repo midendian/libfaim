@@ -74,7 +74,7 @@
  * with utterly oversized instant messages!
  * 
  */
-#define MAXMSGLEN 7988
+#define MAXMSGLEN 7987
 
 /*
  * Current Maximum Length for Chat Room Messages
@@ -154,6 +154,9 @@ struct client_info_s {
 #define AIM_CONN_STATUS_RESOLVERR   0x0080
 #define AIM_CONN_STATUS_CONNERR     0x0040
 
+#define AIM_FRAMETYPE_OSCAR 0x0000
+#define AIM_FRAMETYPE_OFT 0x0001
+
 struct aim_conn_t {
   int fd;
   int type;
@@ -170,25 +173,43 @@ struct aim_conn_t {
 
 /* struct for incoming commands */
 struct command_rx_struct {
-                            /* byte 1 assumed to always be 0x2a */
-  char type;                /* type code (byte 2) */
-  u_int seqnum;             /* sequence number (bytes 3 and 4) */
-  u_int commandlen;         /* total packet len - 6 (bytes 5 and 6) */
-  u_char *data;             /* packet data (from 7 byte on) */
-  u_int lock;               /* 0 = open, !0 = locked */
-  u_int handled;            /* 0 = new, !0 = been handled */
-  u_int nofree;		    /* 0 = free data on purge, 1 = only unlink */
+  unsigned char hdrtype; /* defines which piece of the union to use */
+  union {
+    struct { 
+      char type;        
+      unsigned short seqnum;     
+    } oscar;
+    struct {
+      unsigned short type;
+      unsigned short hdr2len;
+      unsigned char *hdr2; /* rest of bloated header */
+    } oft;
+  } hdr;
+  unsigned short commandlen;         /* total payload length */
+  unsigned char *data;             /* packet data (from 7 byte on) */
+  unsigned char lock;               /* 0 = open, !0 = locked */
+  unsigned char handled;            /* 0 = new, !0 = been handled */
+  unsigned char nofree;		    /* 0 = free data on purge, 1 = only unlink */
   struct aim_conn_t *conn;  /* the connection it came in on... */
   struct command_rx_struct *next; /* ptr to next struct in list */
 };
 
 /* struct for outgoing commands */
 struct command_tx_struct {
-                            /* byte 1 assumed to be 0x2a */
-  char type;                /* type/family code */
-  u_int seqnum;             /* seqnum dynamically assigned on tx */
-  u_int commandlen;         /* SNAC length */
-  u_char *data;             /* packet data */
+  unsigned char hdrtype; /* defines which piece of the union to use */
+  union {
+    struct {
+      unsigned char type;
+      unsigned short seqnum;
+    } oscar;
+    struct {
+      unsigned short type;
+      unsigned short hdr2len;
+      unsigned char *hdr2;
+    } oft;
+  } hdr;
+  u_int commandlen;         
+  u_char *data;      
   u_int lock;               /* 0 = open, !0 = locked */
   u_int sent;               /* 0 = pending, !0 = has been sent */
   struct aim_conn_t *conn; 
@@ -355,7 +376,8 @@ int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *command,
 int aim_parse_missed_im(struct aim_session_t *, struct command_rx_struct *, ...);
 int aim_parse_last_bad(struct aim_session_t *, struct command_rx_struct *, ...);
 
-struct command_tx_struct *aim_tx_new(int, struct aim_conn_t *, int);
+
+struct command_tx_struct *aim_tx_new(unsigned short framing, int chan, struct aim_conn_t *conn, int datalen);
 int aim_tx_enqueue__queuebased(struct aim_session_t *, struct command_tx_struct *);
 int aim_tx_enqueue__immediate(struct aim_session_t *, struct command_tx_struct *);
 #define aim_tx_enqueue(x, y) ((*(x->tx_enqueue))(x, y))
@@ -458,21 +480,16 @@ int aim_negchan_middle(struct aim_session_t *sess, struct command_rx_struct *com
 #define AIM_CAPS_CHAT 0x08
 #define AIM_CAPS_GETFILE 0x10
 #define AIM_CAPS_SENDFILE 0x20
+
 extern u_char aim_caps[6][16];
+u_short aim_getcap(unsigned char *capblock, int buflen);
+int aim_putcap(unsigned char *capblock, int buflen, u_short caps);
 
 #define AIM_GETINFO_GENERALINFO 0x00001
 #define AIM_GETINFO_AWAYMESSAGE 0x00003
 
-#define AIM_RENDEZVOUS_VOICE 0x0000
-#define AIM_RENDEZVOUS_FILETRANSFER 0x0001
-#define AIM_RENDEZVOUS_CHAT_EX3 0x0003
-#define AIM_RENDEZVOUS_CHAT_EX4 0x0004
-#define AIM_RENDEZVOUS_CHAT_EX5 0x0005
-#define AIM_RENDEZVOUS_FILETRANSFER_GET 0x0012
-
 struct aim_msgcookie_t {
   unsigned char cookie[8];
-  unsigned char extended[16];
   int type;
   void *data;
   time_t addtime;
@@ -492,6 +509,7 @@ int aim_purgecookies(struct aim_session_t *sess);
 #define AIM_TRANSFER_DENY_DECLINE 0x0001
 #define AIM_TRANSFER_DENY_NOTACCEPTING 0x0002
 u_long aim_denytransfer(struct aim_session_t *sess, struct aim_conn_t *conn, char *sender, char *cookie, unsigned short code);
+u_long aim_accepttransfer(struct aim_session_t *sess, struct aim_conn_t *conn, char *sender, char *cookie, unsigned short rendid);
 
 u_long aim_getinfo(struct aim_session_t *, struct aim_conn_t *, const char *, unsigned short);
 int aim_extractuserinfo(u_char *, struct aim_userinfo_s *);

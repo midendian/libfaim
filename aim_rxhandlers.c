@@ -311,6 +311,19 @@ int aim_rxdispatch(struct aim_session_t *sess)
       if (workingPtr->handled)
 	continue;
 
+      /*
+       * This is a debugging/sanity check only and probably could/should be removed
+       * for stable code.
+       */
+      if (((workingPtr->hdrtype == AIM_FRAMETYPE_OFT) && 
+	   (workingPtr->conn->type != AIM_CONN_TYPE_RENDEZVOUS)) || 
+	  ((workingPtr->hdrtype == AIM_FRAMETYPE_OSCAR) && 
+	   (workingPtr->conn->type == AIM_CONN_TYPE_RENDEZVOUS))) {
+	printf("faim: rxhandlers: incompatible frame type %d on connection type 0x%04x\n", workingPtr->hdrtype, workingPtr->conn->type);
+	workingPtr->handled = 1;
+	continue;
+      }
+
       switch(workingPtr->conn->type) {
       case -1:
 	/*
@@ -373,7 +386,7 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	u_short family;
 	u_short subtype;
 
-	if (workingPtr->type == 0x04) {
+	if (workingPtr->hdr.oscar.type == 0x04) {
 	  workingPtr->handled = aim_negchan_middle(sess, workingPtr);
 	  break;
 	}
@@ -550,8 +563,21 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	}
 	break;
       }
+      case AIM_CONN_TYPE_RENDEZVOUS: {
+	/* make sure that we only get OFT frames on these connections */
+	if (workingPtr->hdrtype != AIM_FRAMETYPE_OFT) {
+	  printf("faim: internal error: non-OFT frames on OFT connection\n");
+	  workingPtr->handled = 1; /* get rid of it */
+	  break;
+	}
+	
+	/* XXX: implement this */
+	printf("faim: OFT frame!\n");
+	
+	break;
+      }
       default:
-	printf("\ninternal error: unknown connection type (very bad.) (type = %d, fd = %d, channel = %02x, commandlen = %02x)\n\n", workingPtr->conn->type, workingPtr->conn->fd, workingPtr->type, workingPtr->commandlen);
+	printf("\ninternal error: unknown connection type (very bad.) (type = %d, fd = %d, commandlen = %02x)\n\n", workingPtr->conn->type, workingPtr->conn->fd, workingPtr->commandlen);
 	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 	break;
       }	

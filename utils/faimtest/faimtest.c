@@ -74,9 +74,9 @@ int main(void)
   struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
   int keepgoing = 1, stayconnected = 1;
 
-#if 0
+#if 1
   /* Use something like this for AIM */
-  struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
+  struct client_info_s info = {"Boo", 2, 1, 0, "us", "en"};
 #else
   /* or something exactly like this for ICQ and AIM */
   struct client_info_s info = {"Random String (libfaim)", 4, 30, 3141, "us", "en"};
@@ -163,7 +163,7 @@ int main(void)
       printf("\nTrying to reconnect in 2 seconds...\n");
       sleep(2);
       goto enter;
-    }
+   }
 
   /* Get out */
   exit(0);
@@ -266,7 +266,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 
       /* send the buddy list and profile (required, even if empty) */
       aim_bos_setbuddylist(sess, command->conn, buddies);
-      aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_CHAT);
+      aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_VOICE | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE);
 
       /* send final login command (required) */
       aim_bos_clientready(sess, command->conn); /* tell BOS we're ready to go live */
@@ -511,6 +511,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     printf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
     printf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
     printf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
+    printf("faimtest: icbm: capabilities = 0x%04x\n", userinfo->capabilities);
     
     printf("faimtest: icbm: icbmflags = ");
     if (icbmflags & AIM_IMFLAGS_AWAY)
@@ -524,11 +525,18 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     printf("faimtest: icbm: message: %s\n", msg);
     
     if (msg) {
-      tmpstr = index(msg, '>');
-      if (tmpstr != NULL)
-	tmpstr+=1;
-      else
-	tmpstr = msg;
+      int i = 0;
+
+      while (msg[i] == '<') {
+	if (msg[i] == '<') {
+	  while (msg[i] != '>')
+	    i++;
+	  i++;
+	}
+      }
+      tmpstr = msg+i;
+
+      printf("tmpstr = %s\n", tmpstr);
       
       if ( (strlen(tmpstr) >= 10) &&
 	   (!strncmp(tmpstr, "disconnect", 10)) ) {
@@ -553,8 +561,24 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       else if (!strncmp(tmpstr, "getinfo", 7)) {
 	aim_getinfo(sess, command->conn, "75784102", AIM_GETINFO_GENERALINFO);
 	aim_getinfo(sess, command->conn, "15853637", AIM_GETINFO_AWAYMESSAGE);
+      } else if (!strncmp(tmpstr, "sendmsg", 7)) {
+	int i;
+	i = atoi(tmpstr+8);
+	if (i < 10000) {
+	  char *newbuf;
+	  int z;
+
+	  newbuf = malloc(i+1);
+	  for (z = 0; z < i; z++) {
+	    newbuf[z] = (z % 10)+0x30;
+	  }
+	  newbuf[i] = '\0';
+	  aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf);
+	  free(newbuf);
+	}
       } else {
 	printf("unknown command.\n");
+	aim_add_buddy(sess, command->conn, userinfo->sn);
       }
       
     }
@@ -568,7 +592,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     
     reqclass = va_arg(ap, unsigned short);
     switch (reqclass) {
-    case AIM_RENDEZVOUS_VOICE: {
+    case AIM_CAPS_VOICE: {
       userinfo = va_arg(ap, struct aim_userinfo_s *);
       va_end(ap);
       
@@ -588,13 +612,15 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       
       break;
     }
-    case AIM_RENDEZVOUS_FILETRANSFER: {
-      printf("faimtset: file transfer!\n");
+    case AIM_CAPS_GETFILE: {
+      printf("faimtset: get file!\n");
       break;
     }
-    case AIM_RENDEZVOUS_CHAT_EX3:
-    case AIM_RENDEZVOUS_CHAT_EX4:
-    case AIM_RENDEZVOUS_CHAT_EX5: {
+    case AIM_CAPS_SENDFILE: {
+      printf("faimtest: send file!\n");
+      break;
+    }
+    case AIM_CAPS_CHAT: {
       char *msg,*encoding,*lang;
       struct aim_chat_roominfo *roominfo;
       
@@ -677,7 +703,8 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   va_end(ap);
 
-  printf("\n%s is now online (class: %04x = %s%s%s%s%s%s%s%s)\n", userinfo->sn, userinfo->class,
+  printf("\n%s is now online (class: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+	 userinfo->sn, userinfo->class,
 	 (userinfo->class&AIM_CLASS_TRIAL)?" TRIAL":"",
 	 (userinfo->class&AIM_CLASS_UNKNOWN2)?" UNKNOWN2":"",
 	 (userinfo->class&AIM_CLASS_AOL)?" AOL":"",
@@ -685,8 +712,8 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
 	 (userinfo->class&AIM_CLASS_FREE)?" FREE":"",
 	 (userinfo->class&AIM_CLASS_AWAY)?" AWAY":"",
 	 (userinfo->class&AIM_CLASS_UNKNOWN40)?" UNKNOWN40":"",
-	 (userinfo->class&AIM_CLASS_UNKNOWN80)?" UNKNOWN80":"");
-
+	 (userinfo->class&AIM_CLASS_UNKNOWN80)?" UNKNOWN80":"",
+	 userinfo->capabilities);
   return 1;
 }
 
