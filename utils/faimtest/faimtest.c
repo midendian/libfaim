@@ -370,7 +370,7 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	aim_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_ICQ);
+	aim_bos_setprofile(sess, fr->conn, profile, NULL /*awaymsg*/, /*AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | */ AIM_CAPS_ICQ | AIM_CAPS_ICQUNKNOWN | AIM_CAPS_ICQRTF | AIM_CAPS_ICQSERVERRELAY);
 	aim_bos_reqbuddyrights(sess, fr->conn);
 
 	/* send the buddy list and profile (required, even if empty) */
@@ -1161,6 +1161,18 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 		aim_setextstatus(sess, conn, AIM_ICQ_STATE_DND);
 
+	} else if (strstr(tmpstr, "rtfmsg")) {
+		static const char rtfmsg[] = {"{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1033{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}{\\f1\\froman\\fprq2\\fcharset0 Georgia;}{\\f2\\fmodern\\fprq1\\fcharset0 MS Mincho;}{\\f3\\froman\\fprq2\\fcharset2 Symbol;}}\\viewkind4\\uc1\\pard\\f0\\fs20 Test\\f1 test\\f2\fs44 test\\f3\\fs20 test\\f0\\par}"};
+		struct aim_sendrtfmsg_args rtfargs;
+
+		memset(&rtfargs, 0, sizeof(rtfargs));
+
+		rtfargs.destsn = userinfo->sn;
+		rtfargs.fgcolor = 0xffffffff;
+		rtfargs.bgcolor = 0x00000000;
+		rtfargs.rtfmsg = rtfmsg;
+		aim_send_rtfmsg(sess, &rtfargs);
+
 	} else {
 
 		dprintf("unknown command.\n");
@@ -1192,7 +1204,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	dvprintf("icbm: membersince = %lu\n", userinfo->membersince);
 	dvprintf("icbm: onlinesince = %lu\n", userinfo->onlinesince);
 	dvprintf("icbm: idletime = 0x%04x\n", userinfo->idletime);
-	dvprintf("icbm: capabilities = %s = 0x%04x\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
+	dvprintf("icbm: capabilities = %s = 0x%08lx\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
 
 	dprintf("icbm: icbmflags = ");
 	if (args->icbmflags & AIM_IMFLAGS_AWAY)
@@ -1360,6 +1372,10 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 
 		dvprintf("Buddy Icon from %s, length = %lu\n", userinfo->sn, args->info.icon.length);
 
+	} else if (args->reqclass == AIM_CAPS_ICQRTF) {
+
+		dvprintf("RTF message from %s: (fgcolor = 0x%08lx, bgcolor = 0x%08lx) %s\n", userinfo->sn, args->info.rtfmsg.fgcolor, args->info.rtfmsg.bgcolor, args->info.rtfmsg.rtfmsg);
+
 	} else {
 
 		dvprintf("icbm: unknown reqclass (%d)\n", args->reqclass);
@@ -1411,7 +1427,7 @@ static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("%ld  %s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = %s = 0x%04x)\n",
+	dvprintf("%ld  %s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = %s = 0x%08lx)\n",
 			time(NULL),
 			userinfo->sn, userinfo->flags,
 			(userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
@@ -1436,7 +1452,7 @@ static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("%ld  %s is now offline (flags: %04x = %s%s%s%s%s%s%s%s) (caps = %s = 0x%04x)\n",
+	dvprintf("%ld  %s is now offline (flags: %04x = %s%s%s%s%s%s%s%s) (caps = %s = 0x%08lx)\n",
 			 time(NULL),
 			 userinfo->sn, userinfo->flags,
 			 (userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
