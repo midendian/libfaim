@@ -914,15 +914,23 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     u_int icbmflags = 0;
     char *tmpstr = NULL;
     unsigned short flag1, flag2;
+    int finlen = 0;
+    unsigned char *fingerprint = NULL;
+    int clienttype = AIM_CLIENTTYPE_UNKNOWN;
     
     userinfo = va_arg(ap, struct aim_userinfo_s *);
     msg = va_arg(ap, char *);
     icbmflags = va_arg(ap, u_int);
     flag1 = va_arg(ap, int);
     flag2 = va_arg(ap, int);
+    finlen = va_arg(ap, int);
+    fingerprint = va_arg(ap, unsigned char *);
     va_end(ap);
     
+    clienttype = aim_fingerprintclient(fingerprint, finlen);
+
     dvprintf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
+    dvprintf("faimtest: icbm: probable client type: %d\n", clienttype);
     dvprintf("faimtest: icbm: warnlevel = 0x%04x\n", userinfo->warnlevel);
     dvprintf("faimtest: icbm: flags = 0x%04x = ", userinfo->flags);
     printuserflags(userinfo->flags);

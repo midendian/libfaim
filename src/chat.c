@@ -51,6 +51,7 @@ faim_export int aim_chat_attachname(struct aim_conn_t *conn, char *roomname)
   return 0;
 }
 
+/* XXX convert this to use tlvchains */
 faim_export unsigned long aim_chat_send_im(struct aim_session_t *sess,
 					   struct aim_conn_t *conn, 
 					   char *msg)
@@ -84,8 +85,7 @@ faim_export unsigned long aim_chat_send_im(struct aim_session_t *sess,
   aim_cachecookie(sess, cookie);
 
   /*
-   * metaTLV start.  -- i assume this is a metaTLV.  it could be the
-   *                    channel ID though.
+   * Channel ID. 
    */
   curbyte += aimutil_put16(newpacket->data+curbyte, 0x0003);
 
@@ -402,6 +402,24 @@ faim_internal int aim_chat_parse_leave(struct aim_session_t *sess,
  * We could probably include this in the normal ICBM parsing 
  * code as channel 0x0003, however, since only the start
  * would be the same, we might as well do it here.
+ *
+ * General outline of this SNAC:
+ *   snac
+ *   cookie
+ *   channel id
+ *   tlvlist
+ *     unknown
+ *     source user info
+ *       name
+ *       evility
+ *       userinfo tlvs
+ *         online time
+ *         etc
+ *     message metatlv
+ *       message tlv
+ *         message string
+ *       possibly others
+ *  
  */
 faim_internal int aim_chat_parse_incoming(struct aim_session_t *sess,
 					  struct command_rx_struct *command)

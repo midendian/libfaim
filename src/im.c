@@ -9,6 +9,63 @@
 #include <aim.h>
 
 /*
+ * Takes a msghdr (and a length) and returns a client type
+ * code.  Note that this is *only a guess* and has a low likelihood
+ * of actually being accurate.
+ *
+ * Its based on experimental data, with the help of Eric Warmenhoven
+ * who seems to have collected a wide variety of different AIM clients.
+ *
+ *
+ * Heres the current collection:
+ *  0501 0003 0101 0101 01       AOL Mobile Communicator, WinAIM 1.0.414
+ *  0501 0003 0101 0201 01       WinAIM 2.0.847, 2.1.1187, 3.0.1464, 
+ *                                      4.3.2229, 4.4.2286
+ *  0501 0004 0101 0102 0101     WinAIM 4.1.2010, libfaim (right here)
+ *  0501 0001 0101 01            AOL v6.0, CompuServe 2000 v6.0, any
+ *                                      TOC client
+ */
+faim_export unsigned short aim_fingerprintclient(unsigned char *msghdr, int len)
+{
+  static const struct {
+    unsigned short clientid;
+    int len;
+    unsigned char data[10];
+  } fingerprints[] = {
+    /* AOL Mobile Communicator, WinAIM 1.0.414 */
+    { AIM_CLIENTTYPE_MC, 
+      9, {0x05, 0x01, 0x00, 0x03, 0x01, 0x01, 0x01, 0x01, 0x01}},
+
+    /* WinAIM 2.0.847, 2.1.1187, 3.0.1464, 4.3.2229, 4.4.2286 */
+    { AIM_CLIENTTYPE_WINAIM, 
+      9, {0x05, 0x01, 0x00, 0x03, 0x01, 0x01, 0x02, 0x01, 0x01}},
+
+    /* WinAIM 4.1.2010, libfaim */
+    { AIM_CLIENTTYPE_WINAIM41,
+      10, {0x05, 0x01, 0x00, 0x04, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01}},
+
+    /* AOL v6.0, CompuServe 2000 v6.0, any TOC client */
+    { AIM_CLIENTTYPE_AOL_TOC,
+      7, {0x05, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01}},
+
+    { 0, 0}
+  };
+  int i;
+
+  if (!msghdr || (len <= 0))
+    return 0;
+
+  for (i = 0; fingerprints[i].len; i++) {
+    if (fingerprints[i].len != len)
+      continue;
+    if (memcmp(fingerprints[i].data, msghdr, fingerprints[i].len) == 0)
+      return fingerprints[i].clientid;
+  }
+
+  return AIM_CLIENTTYPE_UNKNOWN;
+}
+
+/*
  * Send an ICBM (instant message).  
  *
  *
@@ -69,6 +126,9 @@ faim_export unsigned long aim_send_im(struct aim_session_t *sess,
 
   /*
    * Flag data / ICBM Parameters?
+   *
+   * I don't know what these are...
+   *
    */
   curbyte += aimutil_put8(newpacket->data+curbyte, 0x05);
   curbyte += aimutil_put8(newpacket->data+curbyte, 0x01);
@@ -217,7 +277,6 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
   int channel;
   struct aim_tlvlist_t *tlvlist;
   struct aim_userinfo_s userinfo;
-  u_short wastebits;
 
   memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
  
@@ -289,6 +348,9 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       struct aim_tlv_t *msgblocktlv;
       u_char *msgblock;
       u_short flag1,flag2;
+      int finlen = 0;
+      unsigned char fingerprint[10];
+      u_short wastebits;
            
       /*
        * Check Autoresponse status.  If it is an autoresponse,
@@ -335,7 +397,12 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	wastebits = aimutil_get8(msgblock+j++);
       wastebits = aimutil_get8(msgblock+j++);
       wastebits = aimutil_get8(msgblock+j++);
-      
+
+      finlen = j;
+      if (finlen > sizeof(fingerprint))
+	finlen = sizeof(fingerprint);
+      memcpy(fingerprint, msgblocktlv->value, finlen);
+
       /* 
        * Message string length, including flag words.
        */
@@ -373,7 +440,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        */
       userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
       if (userfunc)
-	i = userfunc(sess, command, channel, &userinfo, msg, icbmflags, flag1, flag2);
+	i = userfunc(sess, command, channel, &userinfo, msg, icbmflags, flag1, flag2, finlen, fingerprint);
       else 
 	i = 0;
       

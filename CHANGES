@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Fri Mar  2 02:17:22 UTC 2001
+  - Add aim_fingerprintclient(). (AB will, but you shouldn't.)
+  - Add some EXTRA_DIST to Makefile.am
+
  - Mon Feb 26 01:46:34 UTC 2001
   - Fix swapped bytes in aim_caps[]. Thanks to 
       Bruce Miller <bmiller@ics.uci.edu> for pointing this out.

@@ -625,6 +625,13 @@ struct aim_tool_version {
 
 #endif /* FAIM_INTERNAL */
 
+#define AIM_CLIENTTYPE_UNKNOWN  0x0000
+#define AIM_CLIENTTYPE_MC       0x0001
+#define AIM_CLIENTTYPE_WINAIM   0x0002
+#define AIM_CLIENTTYPE_WINAIM41 0x0003
+#define AIM_CLIENTTYPE_AOL_TOC  0x0004
+faim_export unsigned short aim_fingerprintclient(unsigned char *msghdr, int len);
+
 #define AIM_RATE_CODE_CHANGE     0x0001
 #define AIM_RATE_CODE_WARNING    0x0002
 #define AIM_RATE_CODE_LIMIT      0x0003
