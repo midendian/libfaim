@@ -370,8 +370,8 @@ int faimtest_parse_buddyrights(struct aim_session_t *sess, struct command_rx_str
   unsigned short maxbuddies, maxwatchers;
 
   va_start(ap, command);
-  maxbuddies = va_arg(ap, unsigned short);
-  maxwatchers = va_arg(ap, unsigned short);
+  maxbuddies = va_arg(ap, int);
+  maxwatchers = va_arg(ap, int);
   va_end(ap);
 
   printf("faimtest: buddy list rights: Max buddies = %d / Max watchers = %d\n", maxbuddies, maxwatchers);
@@ -385,8 +385,8 @@ int faimtest_bosrights(struct aim_session_t *sess, struct command_rx_struct *com
   va_list ap;
 
   va_start(ap, command);
-  maxpermits = va_arg(ap, unsigned short);
-  maxdenies = va_arg(ap, unsigned short);
+  maxpermits = va_arg(ap, int);
+  maxdenies = va_arg(ap, int);
   va_end(ap);
 
   printf("faimtest: BOS rights: Max permit = %d / Max deny = %d\n", maxpermits, maxdenies);
@@ -587,7 +587,7 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   prof_encoding = va_arg(ap, char *);
   prof = va_arg(ap, char *);
-  inforeq = va_arg(ap, unsigned short);
+  inforeq = va_arg(ap, int);
   va_end(ap);
   
   printf("faimtest: userinfo: sn: %s\n", userinfo->sn);
@@ -643,13 +643,13 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     char *msg = NULL;
     u_int icbmflags = 0;
     char *tmpstr = NULL;
-    u_short flag1, flag2;
+    unsigned short flag1, flag2;
     
     userinfo = va_arg(ap, struct aim_userinfo_s *);
     msg = va_arg(ap, char *);
     icbmflags = va_arg(ap, u_int);
-    flag1 = va_arg(ap, u_short);
-    flag2 = va_arg(ap, u_short);
+    flag1 = va_arg(ap, int);
+    flag2 = va_arg(ap, int);
     va_end(ap);
     
     printf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
@@ -757,7 +757,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     struct aim_userinfo_s *userinfo;
     unsigned short reqclass;
     
-    reqclass = va_arg(ap, unsigned short);
+    reqclass = va_arg(ap, int);
     switch (reqclass) {
     case AIM_CAPS_VOICE: {
       userinfo = va_arg(ap, struct aim_userinfo_s *);
@@ -884,7 +884,7 @@ int faimtest_directim_initiate(struct aim_session_t *sess, struct command_rx_str
   struct aim_directim_priv *priv;
   struct aim_conn_t *newconn;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   newconn = va_arg(ap, struct aim_conn_t *);
   va_end(ap);
 
@@ -908,7 +908,7 @@ int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_stru
   va_list ap;
   struct aim_directim_priv *priv;
   
-  ap = va_start(ap, command);
+  va_start(ap, command);
   priv = va_arg(ap, struct aim_directim_priv *);
 
   va_end(ap);
@@ -924,7 +924,7 @@ int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_str
   char *sn = NULL, *msg = NULL;
   struct aim_conn_t *conn;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   conn = va_arg(ap, struct aim_conn_t *);
   sn = va_arg(ap, char *);
   msg = va_arg(ap, char *);
@@ -962,7 +962,7 @@ int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_s
   struct aim_conn_t *conn;
   char *sn;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   conn = va_arg(ap, struct aim_conn_t *);
   sn = va_arg(ap, char *);
   va_end(ap);
@@ -978,7 +978,7 @@ int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struc
   va_list ap;
   char *sn;
   
-  ap = va_start(ap, command);
+  va_start(ap, command);
   sn = va_arg(ap, char *);
   va_end(ap);
 
@@ -1064,7 +1064,7 @@ int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *co
   va_list ap;
   
   va_start(ap, command);
-  id = va_arg(ap, unsigned short);
+  id = va_arg(ap, int);
   msg = va_arg(ap, char *);
   va_end(ap);
 
@@ -1082,7 +1082,7 @@ int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *
 
   va_start(ap, command);
   destsn = va_arg(ap, char *);
-  reason = va_arg(ap, unsigned short);
+  reason = va_arg(ap, int);
   va_end(ap);
 
   printf("faimtest: message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
@@ -1098,7 +1098,7 @@ int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *
 
   va_start(ap, command);
   destsn = va_arg(ap, char *);
-  reason = va_arg(ap, unsigned short);
+  reason = va_arg(ap, int);
   va_end(ap);
 
   printf("faimtest: user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
@@ -1121,10 +1121,10 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
   struct aim_userinfo_s *userinfo;
   
   va_start(ap, command);
-  chan = va_arg(ap, unsigned short);
+  chan = va_arg(ap, int);
   userinfo = va_arg(ap, struct aim_userinfo_s *);
-  nummissed = va_arg(ap, unsigned short);
-  reason = va_arg(ap, unsigned short);
+  nummissed = va_arg(ap, int);
+  reason = va_arg(ap, int);
   va_end(ap);
 
   printf("faimtest: missed %d messages from %s (reason %d: %s)\n", nummissed, userinfo->sn, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
@@ -1200,11 +1200,11 @@ int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struc
   usercount= va_arg(ap, int);
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   roomdesc = va_arg(ap, char *);
-  unknown_c9 = va_arg(ap, unsigned short);
+  unknown_c9 = va_arg(ap, int);
   creationtime = va_arg(ap, unsigned long);
-  maxmsglen = va_arg(ap, unsigned short);
-  unknown_d2 = va_arg(ap, unsigned short);
-  unknown_d5 = va_arg(ap, unsigned short);
+  maxmsglen = va_arg(ap, int);
+  unknown_d2 = va_arg(ap, int);
+  unknown_d5 = va_arg(ap, int);
   va_end(ap);
 
   printf("faimtest: chat: %s:  info update:\n", (char *)command->conn->priv);
@@ -1258,11 +1258,11 @@ int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_stru
 
 int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  u_short type;
+  unsigned short type;
   va_list ap;
 
-  ap = va_start(ap, command);
-  type = va_arg(ap, u_short);
+  va_start(ap, command);
+  type = va_arg(ap, int);
 
   switch(type) {
   case 0x0002: {
@@ -1270,7 +1270,7 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
     struct aim_chat_exchangeinfo *exchanges;
     int exchangecount,i = 0;
     
-    maxrooms = va_arg(ap, u_char);
+    maxrooms = va_arg(ap, int);
     exchangecount = va_arg(ap, int);
     exchanges = va_arg(ap, struct aim_chat_exchangeinfo *);
     va_end(ap);
@@ -1297,13 +1297,13 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
     unsigned long createtime;
 
     fqcn = va_arg(ap, char *);
-    instance = va_arg(ap, unsigned short);
-    flags = va_arg(ap, unsigned short);
+    instance = va_arg(ap, int);
+    flags = va_arg(ap, int);
     createtime = va_arg(ap, unsigned long);
-    maxmsglen = va_arg(ap, unsigned short);
-    maxoccupancy = va_arg(ap, unsigned short);
-    createperms = va_arg(ap, unsigned char);
-    unknown = va_arg(ap, unsigned short);
+    maxmsglen = va_arg(ap, int);
+    maxoccupancy = va_arg(ap, int);
+    createperms = va_arg(ap, int);
+    unknown = va_arg(ap, int);
     name = va_arg(ap, char *);
     ck = va_arg(ap, char *);
     va_end(ap);
@@ -1324,8 +1324,8 @@ int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct 
   unsigned short code;
   char *msg = NULL;
 
-  ap = va_start(ap, command);
-  code = va_arg(ap, unsigned short);
+  va_start(ap, command);
+  code = va_arg(ap, int);
   msg = va_arg(ap, char *);
   va_end(ap);
 
@@ -1360,8 +1360,8 @@ int faimtest_parse_msgack(struct aim_session_t *sess, struct command_rx_struct *
   unsigned short type;
   char *sn = NULL;
 
-  ap = va_start(ap, command);
-  type = va_arg(ap, unsigned short);
+  va_start(ap, command);
+  type = va_arg(ap, int);
   sn = va_arg(ap, char *);
   va_end(ap);
 
@@ -1378,7 +1378,7 @@ int faimtest_getfile_filereq(struct aim_session_t *ses, struct command_rx_struct
   struct aim_fileheader_t *fh;
   char *cookie;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   oftconn = va_arg(ap, struct aim_conn_t *);
   fh = va_arg(ap, struct aim_fileheader_t *);
   cookie = va_arg(ap, char *);
@@ -1399,7 +1399,7 @@ int faimtest_getfile_filesend(struct aim_session_t *sess, struct command_rx_stru
 
   FILE *file;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   oftconn = va_arg(ap, struct aim_conn_t *);
   fh = va_arg(ap, struct aim_fileheader_t *);
   cookie = va_arg(ap, char *);
@@ -1437,7 +1437,7 @@ int faimtest_getfile_complete(struct aim_session_t *sess, struct command_rx_stru
   struct aim_conn_t *conn;
   struct aim_fileheader_t *fh;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   conn = va_arg(ap, struct aim_conn_t *);
   fh = va_arg(ap, struct aim_fileheader_t *);
   va_end(ap);
@@ -1454,7 +1454,7 @@ int faimtest_getfile_disconnect(struct aim_session_t *sess, struct command_rx_st
   struct aim_conn_t *conn;
   char *sn;
 
-  ap = va_start(ap, command);
+  va_start(ap, command);
   conn = va_arg(ap, struct aim_conn_t *);
   sn = va_arg(ap, char *);
   va_end(ap);

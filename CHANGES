@@ -1,6 +1,12 @@
 
 No release numbers
 ------------------
+ - Wed Oct 25 17:52:20 UTC 2000
+  - Cleanup warnings from newer gcc's (RH7.0)
+    - Aparently newer gcc's don't let you do as strong of integer types
+      on va_arg as older ones... So, let me know if this breaks on your
+      compiler
+
  - Tue Oct 17 02:10:13 UTC 2000
   - Rearrange a few things
 
