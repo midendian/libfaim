@@ -741,6 +741,28 @@ static int memrequest(struct aim_session_t *sess, aim_module_t *mod, struct comm
   return 0;
 }
 
+static void dumpbox(struct aim_session_t *sess, unsigned char *buf, int len)
+{
+  int i = 0;
+
+  if (!sess || !buf || !len)
+    return;
+
+  faimdprintf(sess, 1, "\nDump of %d bytes at %p:", len, buf);
+
+  for (i = 0; i < len; i++)
+    {
+      if ((i % 8) == 0)
+	faimdprintf(sess, 1, "\n\t");
+
+      faimdprintf(sess, 1, "0x%2x ", buf[i]);
+    }
+  
+  faimdprintf(sess, 1, "\n\n");
+
+  return;
+}
+
 faim_export int aim_sendmemblock(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned long offset, unsigned long len, const unsigned char *buf)
 {
   struct command_tx_struct *tx;
@@ -762,6 +784,20 @@ faim_export int aim_sendmemblock(struct aim_session_t *sess, struct aim_conn_t *
 
     md5_init(&state);	
     md5_append(&state, (const md5_byte_t *)buf, len);
+    md5_finish(&state, (md5_byte_t *)(tx->data+i));
+    i += 0x10;
+
+  } else if (len == 0) { /* no length, just hash NULL (buf is optional) */
+    md5_state_t state;
+    unsigned char nil = '\0';
+
+    /*
+     * These MD5 routines are stupid in that you have to have
+     * at least one append.  So thats why this doesn't look 
+     * real logical.
+     */
+    md5_init(&state);
+    md5_append(&state, (const md5_byte_t *)&nil, 0);
     md5_finish(&state, (md5_byte_t *)(tx->data+i));
     i += 0x10;
 

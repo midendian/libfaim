@@ -803,6 +803,8 @@ static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, cons
   static const char defaultmod[] = "aim.exe";
   char *filename = NULL;
 
+  memset(buf, 0, buflen);
+
   if (modname) {
 
     if (!(filename = malloc(strlen(aimbinarypath)+1+strlen(modname)+4+1))) {
@@ -833,16 +835,18 @@ static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, cons
 
   free(filename);
 
-  if (fseek(f, offset, SEEK_SET) == -1) {
-    dperror("memrequest: fseek");
-    fclose(f);
-    return -1;
-  }
+  if (buflen) {
+    if (fseek(f, offset, SEEK_SET) == -1) {
+      dperror("memrequest: fseek");
+      fclose(f);
+      return -1;
+    }
 
-  if (fread(buf, buflen, 1, f) != 1) {
-    dperror("memrequest: fread");
-    fclose(f);
-    return -1;
+    if (fread(buf, buflen, 1, f) != 1) {
+      dperror("memrequest: fread");
+      fclose(f);
+      return -1;
+    }
   }
 
   fclose(f);
