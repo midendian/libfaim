@@ -36,10 +36,16 @@ make DESTDIR=$RPM_BUILD_ROOT prefix=%{prefix} sysconfdir=%{sysconfdir} install
 
 %files
 %defattr(-,root,root)
-%{prefix}/lib/libfaim.so*
+%{prefix}/lib/libfaim.so.0.0.0
 %{prefix}/bin/faimtest
 %doc README AUTHORS BUGS CHANGES
 
 %clean
 rm -r $RPM_BUILD_ROOT
+
+%post
+/sbin/ldconfig
+
+%postun
+/sbin/ldconfig
 
