@@ -1,6 +1,16 @@
 
 No release numbers
 ------------------
+ - Sun Apr  2 07:29:11 UTC 2000
+   - Redid much of the tx path to remove the superfluous copy.  But
+       it touches every function that transmits.  Its been a long 
+       time in coming.
+   - Added caps parameter to aim_bos_setprofile().  You can now
+       control what capabilties you show up as others to
+   - Added ->capabilities to userinfo.  It should be nonzero when
+       its coming off buddy oncoming information, but NOT requested
+       user info.
+
  - Sun Apr  2 01:45:15 UTC 2000
    - Increased AIM_CONN_MAX from 5 to 7.  Precausionary only
    - Removed deprecated TIS_TELNET_PROXY from faim/faimconfig.h
