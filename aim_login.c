@@ -311,12 +311,18 @@ int aim_authparse(struct aim_session_t *sess,
 
   aim_freetlvchain(&tlvlist);
 
-  if (sess->logininfo.BOSIP)
+  if (sess->logininfo.BOSIP) {
     free(sess->logininfo.BOSIP);
-  if (sess->logininfo.email)
+    sess->logininfo.BOSIP = NULL;
+  }
+  if (sess->logininfo.email) {
     free(sess->logininfo.email);
-  if (sess->logininfo.errorurl)
+    sess->logininfo.email = NULL;
+  }
+  if (sess->logininfo.errorurl) {
     free(sess->logininfo.errorurl);
+    sess->logininfo.errorurl = NULL;
+  }
 
   return ret;
 }
