@@ -555,7 +555,7 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	  else if (subtype == 0x0007)
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0007, workingPtr);
 	  else
-	    printf("Chat: unknown snac %04x/%04x\n", family, subtype);
+	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
 	} else if (family == 0x000e) {
 	  if (subtype == 0x0002)
 	    workingPtr->handled = aim_chat_parse_infoupdate(sess, workingPtr);
