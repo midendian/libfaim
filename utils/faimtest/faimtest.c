@@ -75,7 +75,7 @@ static char *dprintf_ctime(void)
 int faimtest_parse_oncoming(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_offgoing(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_login_phase3d_f(struct aim_session_t *, struct command_rx_struct *, ...);
-int faimtest_parse_authresp(struct aim_session_t *, struct command_rx_struct *, ...);
+static int faimtest_parse_authresp(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_incoming_im(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_userinfo(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_handleredirect(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -148,6 +148,7 @@ static char *msgerrreasons[] = {
   "Not while on AOL"};
 static int msgerrreasonslen = 25;
 
+static char *aimbinarypath = NULL;
 static char *screenname,*password,*server=NULL;
 static char *proxy = NULL, *proxyusername = NULL, *proxypass = NULL;
 static char *ohcaptainmycaptain = NULL;
@@ -331,7 +332,7 @@ int main(int argc, char **argv)
 
   listingpath = getenv("LISTINGPATH");
 
-  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoO")) != EOF) {
+  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoOb:")) != EOF) {
     switch (i) {
     case 'u': screenname = optarg; break;
     case 'p': password = optarg; break;
@@ -343,6 +344,7 @@ int main(int argc, char **argv)
     case 'c': ohcaptainmycaptain = optarg; break;
     case 'o': faimtest_mode = 1; break; /* half old interface */
     case 'O': faimtest_mode = 2; break; /* full old interface */
+    case 'b': aimbinarypath = optarg; break;
     case 'h':
     default:
       printf("faimtest\n");
@@ -408,7 +410,6 @@ int main(int argc, char **argv)
 
     if (connected && ((time(NULL) - lastnop) > 30)) {
       lastnop = time(NULL);
-      dprintf("sending NOP\n");
       aim_flap_nop(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS));
     }
 
@@ -796,7 +797,75 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
-int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+static int getaimdata(unsigned char *buf, int buflen, unsigned long offset)
+{
+  FILE *f;
+
+  if (!(f = fopen(aimbinarypath, "r"))) {
+    dperror("memrequest: fopen");
+    return -1;
+  }
+
+  if (fseek(f, offset, SEEK_SET) == -1) {
+    dperror("memrequest: fseek");
+    fclose(f);
+    return -1;
+  }
+
+  if (fread(buf, buflen, 1, f) != 1) {
+    dperror("memrequest: fread");
+    fclose(f);
+    return -1;
+  }
+
+  fclose(f);
+
+  return buflen;
+}
+
+/*
+ * This will get an offset and a length.  The client should read this
+ * data out of whatever AIM.EXE binary the user has provided (hopefully
+ * it matches the client information thats sent at login) and pass a
+ * buffer back to libfaim so it can hash the data and send it to AOL for
+ * inspection by the client police.
+ */
+static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  unsigned long offset, len;
+  unsigned char *buf;
+  
+  va_start(ap, command);
+  offset = va_arg(ap, unsigned long);
+  len = va_arg(ap, unsigned long);
+  va_end(ap);
+
+  if (!(buf = malloc(len))) {
+    dperror("memrequest: malloc");
+    return 0;
+  }
+
+  if (aimbinarypath && (getaimdata(buf, len, offset) == len)) {
+
+    dvprintf("memrequest: sending %ld bytes from 0x%08lx in %s...\n", len, offset, aimbinarypath);
+
+    aim_sendmemblock(sess, command->conn, offset, len, buf);
+
+  } else {
+
+    dprintf("memrequest: unable to use AIM binary, sending defaults...\n");
+
+    aim_sendmemblock(sess, command->conn, offset, len, NULL);
+
+  }
+
+  free(buf);
+
+  return 1;
+}
+
+static int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
   struct aim_conn_t *bosconn = NULL;
@@ -893,6 +962,7 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   aim_conn_addhandler(sess, bosconn, 0x0009, 0x0001, faimtest_parse_genericerr, 0);
 
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, faimtest_parse_connerr, 0);
+  aim_conn_addhandler(sess, bosconn, 0x0001, 0x001f, faimtest_memrequest, 0);
   aim_conn_addhandler(sess, bosconn, 0xffff, 0xffff, faimtest_parse_unknown, 0);
 
   aim_auth_sendcookie(sess, bosconn, cookie);
@@ -1539,10 +1609,6 @@ int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *co
   /* XXX sess->sn should be normalized by the 0001/000f handler */
   aim_0002_000b(sess, command->conn, sess->sn);
 #endif
-
-  /* As of 26 Mar 2001 you need to send this to keep from getting kicked off */
-  aim_0001_0020(sess, command->conn);
-
 
   return 1;
 }

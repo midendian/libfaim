@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Wed Mar 28 16:51:25 PST 2001
+  - I decided it was a good day while I was figuring out that it was a bad day.
+  - See faimtest and login.c::memrequest().
+  - Hopefully I'm done for a while.
+
  - Tue Mar 27 19:15:10 PST 2001
   - I haven't decided yet whether today is a good day or a bad day.
   - Probably both.

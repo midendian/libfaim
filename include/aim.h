@@ -169,7 +169,7 @@ struct client_info_s {
   long unknown;
 };
 
-#define AIM_CLIENTINFO_KNOWNGOOD { \
+#define AIM_CLIENTINFO_KNOWNGOOD_3_5_1670 { \
   "AOL Instant Messenger (SM), version 3.5.1670/WIN32", \
   0x0003, \
   0x0005, \
@@ -180,6 +180,28 @@ struct client_info_s {
   0x0000, \
   0x0000002a, \
 }
+
+#define AIM_CLIENTINFO_KNOWNGOOD_4_1_2010 { \
+  "AOL Instant Messenger (SM), version 4.1.2010/WIN32", \
+  0x0004, \
+  0x0001, \
+  0x07da, \
+  "us", \
+  "en", \
+  0x0004, \
+  0x0000, \
+  0x0000004b, \
+}
+
+/*
+ * I would make 4.1.2010 the default, but they seem to have found
+ * an alternate way of breaking that one. 
+ *
+ * 3.5.1670 should work fine, however, you will be subjected to the
+ * memory test, which may require you to have a WinAIM binary laying 
+ * around. (see login.c::memrequest())
+ */
+#define AIM_CLIENTINFO_KNOWNGOOD AIM_CLIENTINFO_KNOWNGOOD_3_5_1670
 
 #ifndef TRUE
 #define TRUE 1
@@ -637,7 +659,7 @@ faim_export int aim_oft_getfile_end(struct aim_session_t *sess, struct aim_conn_
 #define AIM_CAPS_SAVESTOCKS 0x80
 
 faim_export int aim_0002_000b(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn);
-faim_export int aim_0001_0020(struct aim_session_t *sess, struct aim_conn_t *conn);
+faim_export int aim_sendmemblock(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned long offset, unsigned long len, const unsigned char *buf);
 
 #define AIM_GETINFO_GENERALINFO 0x00001
 #define AIM_GETINFO_AWAYMESSAGE 0x00003
