@@ -433,122 +433,144 @@ static int outgoingim(struct aim_session_t *sess, aim_module_t *mod, struct comm
 
 static int incomingim_ch1(struct aim_session_t *sess, aim_module_t *mod,  struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned short channel, struct aim_userinfo_s *userinfo, unsigned char *data, int datalen, unsigned char *cookie)
 {
-  unsigned short type, length;
-  aim_rxcallback_t userfunc;
-  int i, ret = 0;
-  struct aim_incomingim_ch1_args args;
+	unsigned short type, length;
+	aim_rxcallback_t userfunc;
+	int i, ret = 0;
+	struct aim_incomingim_ch1_args args;
 
-  memset(&args, 0, sizeof(args));
+	memset(&args, 0, sizeof(args));
 
-  /*
-   * This used to be done using tlvchains.  For performance reasons,
-   * I've changed it to process the TLVs in-place.  This avoids lots
-   * of per-IM memory allocations.
-   */
-  for (i = 0; i < datalen; ) {
-      
-    type = aimutil_get16(data+i);
-    i += 2;
-      
-    length = aimutil_get16(data+i);
-    i += 2;
+	/*
+	 * This used to be done using tlvchains.  For performance reasons,
+	 * I've changed it to process the TLVs in-place.  This avoids lots
+	 * of per-IM memory allocations.
+	 */
+	for (i = 0; i < datalen; ) {
 
-    if (type == 0x0002) { /* Message Block */
-      unsigned short wastebits;
-      unsigned char *msgblock;
-      int j = 0, y = 0, z = 0;
+		type = aimutil_get16(data+i);
+		i += 2;
+		      
+		length = aimutil_get16(data+i);
+		i += 2;
 
-      msgblock = data+i;
-      
-      /*
-       * Extracting the message from the unknown cruft.
-       * 
-       * This is a bit messy, and I'm not really qualified,
-       * even as the author, to comment on it.  At least
-       * its not as bad as a while loop shooting into infinity.
-       *
-       * "Do you believe in magic?"
-       *
-       */
+		if (type == 0x0002) { /* Message Block */
+			unsigned short wastebits;
+			unsigned char *msgblock;
+			int j = 0, y = 0, z = 0;
 
-      wastebits = aimutil_get8(msgblock+j++);
-      wastebits = aimutil_get8(msgblock+j++);
-      
-      y = aimutil_get16(msgblock+j);
-      j += 2;
-      for (z = 0; z < y; z++)
-	wastebits = aimutil_get8(msgblock+j++);
-      wastebits = aimutil_get8(msgblock+j++);
-      wastebits = aimutil_get8(msgblock+j++);
+			msgblock = data+i;
+			      
+			/*
+			 * Extracting the message from the unknown cruft.
+			 * 
+			 * This is a bit messy, and I'm not really qualified,
+			 * even as the author, to comment on it.  At least
+			 * its not as bad as a while loop shooting into 
+			 * infinity.
+			 *
+			 * "Do you believe in magic?"
+			 *
+			 */
 
-      args.finlen = j;
-      if (args.finlen > sizeof(args.fingerprint))
-	args.finlen = sizeof(args.fingerprint);
-      memcpy(args.fingerprint, msgblock, args.finlen);
+			wastebits = aimutil_get8(msgblock+j++);
+			wastebits = aimutil_get8(msgblock+j++);
+			      
+			y = aimutil_get16(msgblock+j);
+			j += 2;
+			for (z = 0; z < y; z++)
+				wastebits = aimutil_get8(msgblock+j++);
+			wastebits = aimutil_get8(msgblock+j++);
+			wastebits = aimutil_get8(msgblock+j++);
 
-      /* Message string length, including flag words. */
-      args.msglen = aimutil_get16(msgblock+j);
-      j += 2;
+			args.finlen = j;
+			if (args.finlen > sizeof(args.fingerprint))
+				args.finlen = sizeof(args.fingerprint);
+			memcpy(args.fingerprint, msgblock, args.finlen);
 
-      /* Flag words. */
-      args.flag1 = aimutil_get16(msgblock+j);
-      if (args.flag1 == 0x0002)
-	args.icbmflags |= AIM_IMFLAGS_UNICODE;
-      else if (args.flag1 == 0x0003)
-	args.icbmflags |= AIM_IMFLAGS_ISO_8859_1;
-      j += 2;
+			/* Message string length, including flag words. */
+			args.msglen = aimutil_get16(msgblock+j);
+			j += 2;
 
-      args.flag2 = aimutil_get16(msgblock+j);
-      j += 2;
-      
-      if ((args.flag1 && (args.flag1 != 0x0002) && (args.flag1 != 0x0003)) || args.flag2)
-	faimdprintf(sess, 0, "icbm: **warning: encoding flags are being used! {%04x, %04x}\n", args.flag1, args.flag2);
+			/* Flag words. */
+			args.flag1 = aimutil_get16(msgblock+j);
+			if (args.flag1 == 0x0000)
+				; /* ASCII */
+			else if (args.flag1 == 0x0002)
+				args.icbmflags |= AIM_IMFLAGS_UNICODE;
+			else if (args.flag1 == 0x0003)
+				args.icbmflags |= AIM_IMFLAGS_ISO_8859_1;
+			else if (args.flag1 == 0xffff)
+				; /* no encoding (yeep!) */
+			j += 2;
 
-      /* Message string. */
-      args.msglen -= 4;
-      if (args.icbmflags & AIM_IMFLAGS_UNICODE) {
-	args.msg = malloc(args.msglen+2);
-	memcpy(args.msg, msgblock+j, args.msglen);
-	args.msg[args.msglen] = '\0'; /* wide NULL */
-	args.msg[args.msglen+1] = '\0';
-      } else {
-	args.msg = malloc(args.msglen+1);
-	memcpy(args.msg, msgblock+j, args.msglen);
-	args.msg[args.msglen] = '\0';
-      }
+			args.flag2 = aimutil_get16(msgblock+j);
+			if (args.flag2 == 0x0000)
+				; /* standard subencoding? */
+			else if (args.flag2 == 0x000b)
+				args.icbmflags |= AIM_IMFLAGS_SUBENC_MACINTOSH;
+			else if (args.flag2 == 0xffff)
+				; /* no subencoding */
+			j += 2;
+			
+			if (	((args.flag1 != 0x0000) &&
+				 (args.flag1 != 0x0002) &&
+				 (args.flag1 != 0x0003) &&
+				 (args.flag1 != 0xffff)) ||
+				((args.flag2 != 0x0000) &&
+				 (args.flag2 != 0x000b) &&
+				 (args.flag2 != 0xffff))) {
+				faimdprintf(sess, 0, "icbm: **warning: encoding flags are being used! {%04x, %04x}\n", args.flag1, args.flag2);
+			}
 
-    } else if (type == 0x0003) { /* Server Ack Requested */
+			/* Message string. */
+			args.msglen -= 4;
+			if (args.icbmflags & AIM_IMFLAGS_UNICODE) {
+				args.msg = malloc(args.msglen+2);
+				memcpy(args.msg, msgblock+j, args.msglen);
+				args.msg[args.msglen] = '\0'; /* wide NULL */
+				args.msg[args.msglen+1] = '\0';
+			} else {
+				args.msg = malloc(args.msglen+1);
+				memcpy(args.msg, msgblock+j, args.msglen);
+				args.msg[args.msglen] = '\0';
+			}
 
-      args.icbmflags |= AIM_IMFLAGS_ACK;
+		} else if (type == 0x0003) { /* Server Ack Requested */
 
-    } else if (type == 0x0004) { /* Message is Auto Response */
+			args.icbmflags |= AIM_IMFLAGS_ACK;
 
-      args.icbmflags |= AIM_IMFLAGS_AWAY;
+		} else if (type == 0x0004) { /* Message is Auto Response */
 
-    } else if ((type == 0x0008) && 
-	       (length == 0x000c)) { /* I-HAVE-A-REALLY-PURTY-ICON Flag */
+			args.icbmflags |= AIM_IMFLAGS_AWAY;
 
-      args.iconstamp = aimutil_get32(data+i+8);
-      args.icbmflags |= AIM_IMFLAGS_HASICON;
+		} else if ((type == 0x0008) && (length == 0x000c)) { /* I-HAVE-A-REALLY-PURTY-ICON Flag */
 
-    } else if (type == 0x0009) {
+			args.iconstamp = aimutil_get32(data+i+8);
+			args.icbmflags |= AIM_IMFLAGS_HASICON;
 
-      args.icbmflags |= AIM_IMFLAGS_BUDDYREQ;
+		} else if (type == 0x0009) {
 
-    } else {
-      fprintf(stderr, "incomingim_ch1: unknown TLV 0x%04x (len %d)\n", type, length);
-    }
+			args.icbmflags |= AIM_IMFLAGS_BUDDYREQ;
 
-    i += length;
-  }
+		} else if (type == 0x0017) {
+
+			args.extdatalen = length;
+			args.extdata = data+i;
+
+		} else {
+			fprintf(stderr, "incomingim_ch1: unknown TLV 0x%04x (len %d)\n", type, length);
+		}
+
+		i += length;
+	}
 
 
-  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-    ret = userfunc(sess, rx, channel, userinfo, &args);
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, channel, userinfo, &args);
 
-  free(args.msg);
+	free(args.msg);
 
-  return ret;
+	return ret;
 }
 
 static int incomingim_ch2(struct aim_session_t *sess, aim_module_t *mod,  struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned short channel, struct aim_userinfo_s *userinfo, struct aim_tlvlist_t *tlvlist, unsigned char *cookie)
