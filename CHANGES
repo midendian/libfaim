@@ -1,6 +1,15 @@
 
 No release numbers
 ------------------
+ - Sat Sep  8 20:18:34 PDT 2001
+  - Split up the ICBM Channel 2 handlers a bit more
+  - Add a stub parser for recieving buddy lists.  It will stay that way until
+      someone decides on a good API for passing lists like this to the client.
+      In case someone does, the same standard will be used for setbuddylist and
+      the as yet nonexistant support for server-side buddy lists.
+  - Make infochange work again. I still don't like it, but I don't want to 
+      fix it.
+
  - Sat Sep  8 19:05:05 PDT 2001
   - Redo ICQ login
   - Fix search by email (oops).

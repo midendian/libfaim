@@ -624,6 +624,68 @@ static int incomingim_ch1(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 	return ret;
 }
 
+static int incomingim_ch2_buddylist(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+	aim_rxcallback_t userfunc;
+	int ret = 0;
+	aim_tlv_t *tse;
+	aim_bstream_t tbs;
+
+	if (args->status != 0x0000)
+		return 1; /* ignore it -- not sure what it means */
+
+	tse = aim_gettlv(list2, 0x2711, 1);
+	aim_bstream_init(&tbs, tse->value, tse->length);
+
+	/*
+	 * This goes like this...
+	 *
+	 *   group name length
+	 *   group name
+	 *     num of buddies in group
+	 *     buddy name length
+	 *     buddy name
+	 *     buddy name length
+	 *     buddy name
+	 *     ...
+	 *   group name length
+	 *   group name
+	 *     num of buddies in group
+	 *     buddy name length
+	 *     buddy name
+	 *     ...
+	 *   ...
+	 */
+	while (aim_bstream_empty(&tbs)) {
+		fu16_t gnlen, numb;
+		int i;
+		char *gn;
+
+		gnlen = aimbs_get16(&tbs);
+		gn = aimbs_getstr(&tbs, gnlen);
+		numb = aimbs_get16(&tbs);
+
+		for (i = 0; i < numb; i++) {
+			fu16_t bnlen;
+			char *bn;
+
+			bnlen = aimbs_get16(&tbs);
+			bn = aimbs_getstr(&tbs, bnlen);
+
+			faimdprintf(sess, 0, "got a buddy list from %s: group %s, buddy %s\n", userinfo->sn, gn, bn);
+
+			free(bn);
+		}
+
+		free(gn);
+	}
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, 0x0002, userinfo, args);
+
+	return ret;
+}
+
 static int incomingim_ch2_buddyicon(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
 {
 	aim_rxcallback_t userfunc;
@@ -645,6 +707,172 @@ static int incomingim_ch2_buddyicon(aim_session_t *sess, aim_module_t *mod, aim_
 	free(args->info.icon.icon);
 
 	return ret;
+}
+
+static int incomingim_ch2_voice(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+	aim_msgcookie_t *cachedcook;
+	int ret = 0;
+	aim_rxcallback_t userfunc;
+
+	faimdprintf(sess, 1, "rend: voice!\n");
+
+	if (!(cachedcook = (aim_msgcookie_t*)calloc(1, sizeof(aim_msgcookie_t))))
+		return 0;
+
+	memcpy(cachedcook->cookie, args->cookie, 8);
+	cachedcook->type = AIM_COOKIETYPE_OFTVOICE;
+	cachedcook->data = NULL;
+
+	if (aim_cachecookie(sess, cachedcook) == -1)
+		faimdprintf(sess, 0, "ERROR caching message cookie\n");
+
+	/* XXX: implement all this */
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype))) 
+		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+
+	return ret;
+}
+
+static int incomingim_ch2_chat(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+	aim_tlv_t *miscinfo;
+	aim_bstream_t tbs;
+	aim_rxcallback_t userfunc;
+	int ret = 0;
+
+	miscinfo = aim_gettlv(list2, 0x2711, 1);
+	aim_bstream_init(&tbs, miscinfo->value, miscinfo->length);
+
+	aim_chat_readroominfo(&tbs, &args->info.chat.roominfo);
+		  
+	if (aim_gettlv(list2, 0x000c, 1))
+		args->info.chat.msg = aim_gettlv_str(list2, 0x000c, 1);
+	
+	if (aim_gettlv(list2, 0x000d, 1))
+		args->info.chat.encoding = aim_gettlv_str(list2, 0x000d, 1);
+	
+	if (aim_gettlv(list2, 0x000e, 1))
+		args->info.chat.lang = aim_gettlv_str(list2, 0x000e, 1);
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+
+	/* XXX free_roominfo */
+	free(args->info.chat.roominfo.name);
+	free(args->info.chat.msg);
+	free(args->info.chat.encoding);
+	free(args->info.chat.lang);
+
+	return ret;
+}
+
+static int incomingim_ch2_getfile(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+	char ip[30];
+	aim_msgcookie_t *cachedcook;
+	aim_tlv_t *miscinfo;
+	aim_tlv_t *iptlv, *porttlv;
+	int ret = 0;
+	aim_rxcallback_t userfunc;
+
+	memset(ip, 0, 30);
+
+	if (!(cachedcook = calloc(1, sizeof(aim_msgcookie_t)))) {
+		aim_freetlvchain(&list2);
+		return 0;
+	}
+
+	if (!(miscinfo = aim_gettlv(list2, 0x2711, 1)) || 
+		!(iptlv = aim_gettlv(list2, 0x0003, 1)) || 
+		!(porttlv = aim_gettlv(list2, 0x0005, 1))) {
+		
+		faimdprintf(sess, 0, "rend: badly damaged file get request from %s...\n", userinfo->sn);
+		aim_cookie_free(sess, cachedcook);
+		aim_freetlvchain(&list2);
+		
+		return 0;
+	}
+
+	snprintf(ip, 30, "%d.%d.%d.%d:%d",
+		aimutil_get8(iptlv->value+0),
+		aimutil_get8(iptlv->value+1),
+		aimutil_get8(iptlv->value+2),
+		aimutil_get8(iptlv->value+3),
+		aimutil_get16(porttlv->value));
+
+	faimdprintf(sess, 0, "rend: file get request from %s (%s)\n", userinfo->sn, ip);
+
+	args->info.getfile.ip = ip;
+	memcpy(args->info.getfile.cookie, args->cookie, 8);
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+
+	return ret;
+}
+
+static int incomingim_ch2_sendfile(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+#if 0
+	char ip[30];
+	aim_msgcookie_t *cachedcook;
+	aim_tlv_t *miscinfo;
+	aim_tlv_t *iptlv, *porttlv;
+	int ret =0;
+	aim_rxcallback_t userfunc;
+	char *desc = NULL;
+
+	memset(ip, 0, 30);
+
+	if (!(cachedcook = calloc(1, sizeof(aim_msgcookie_t)))) 
+		return 0;
+
+	if (!(miscinfo = aim_gettlv(list2, 0x2711, 1)) || 
+		!(iptlv = aim_gettlv(list2, 0x0003, 1)) || 
+		!(porttlv = aim_gettlv(list2, 0x0005, 1))) {
+	
+		faimdprintf(sess, 0, "rend: badly damaged file get request from %s...\n", userinfo->sn);
+		aim_cookie_free(sess, cachedcook);
+
+		return 0;
+	}
+
+	snprintf(ip, 30, "%d.%d.%d.%d:%d",
+		aimutil_get8(iptlv->value+0),
+		aimutil_get8(iptlv->value+1),
+		aimutil_get8(iptlv->value+2),
+		aimutil_get8(iptlv->value+3),
+		aimutil_get16(porttlv->value));
+
+	if (aim_gettlv(list2, 0x000c, 1))
+		desc = aim_gettlv_str(list2, 0x000c, 1);
+
+	faimdprintf(sess, 0, "rend: file transfer request from %s: %s (%s)\n",
+		userinfo->sn, desc, ip);
+
+	memcpy(cachedcook->cookie, args->cookie, 8);
+
+	ft = malloc(sizeof(struct aim_filetransfer_priv)); /* XXX */
+	strncpy(ft->sn, userinfo.sn, sizeof(ft->sn));
+	strncpy(ft->ip, ip, sizeof(ft->ip));
+	strncpy(ft->fh.name, miscinfo->value+8, sizeof(ft->fh.name));
+	cachedcook->type = AIM_COOKIETYPE_OFTSEND;
+	cachedcook->data = ft;
+
+	if (aim_cachecookie(sess, cachedcook) == -1)
+		faimdprintf(sess, 0, "ERROR caching message cookie\n");
+
+	aim_accepttransfer(sess, rx->conn, ft->sn, cookie, AIM_CAPS_SENDFILE);
+
+	if (desc)
+		free(desc);
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+#endif
+	return 0;
 }
 
 static int incomingim_ch2_imimage(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
@@ -708,7 +936,6 @@ static int incomingim_ch2_imimage(aim_session_t *sess, aim_module_t *mod, aim_fr
 /* XXX Ugh.  I think its obvious. */
 static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, fu16_t channel, struct aim_userinfo_s *userinfo, aim_tlvlist_t *tlvlist, fu8_t *cookie)
 {
-	aim_rxcallback_t userfunc;
 	aim_tlv_t *block1;
 	aim_tlvlist_t *list2;
 	int ret = 0;
@@ -822,162 +1049,21 @@ static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 	/*
 	 * The rest of the handling depends on what type it is.
 	 */
-	if (args.reqclass & AIM_CAPS_BUDDYICON) {
-
+	if (args.reqclass & AIM_CAPS_BUDDYICON)
 		ret = incomingim_ch2_buddyicon(sess, mod, rx, snac, userinfo, &args, list2);
-
-	} else if (args.reqclass & AIM_CAPS_VOICE) {
-		aim_msgcookie_t *cachedcook;
-
-		faimdprintf(sess, 1, "rend: voice!\n");
-
-		if(!(cachedcook = (aim_msgcookie_t*)calloc(1, sizeof(aim_msgcookie_t)))) {
-			aim_freetlvchain(&list2);
-			return 0;
-		}
-
-		memcpy(cachedcook->cookie, cookie, 8);
-		cachedcook->type = AIM_COOKIETYPE_OFTVOICE;
-		cachedcook->data = NULL;
-
-		if (aim_cachecookie(sess, cachedcook) == -1)
-			faimdprintf(sess, 0, "ERROR caching message cookie\n");
-
-		/* XXX: implement all this */
-
-		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype))) 
-			ret = userfunc(sess, rx, channel, userinfo, &args);
-
-	} else if (args.reqclass & AIM_CAPS_IMIMAGE) {
-
+	else if (args.reqclass & AIM_CAPS_SENDBUDDYLIST)
+		ret = incomingim_ch2_buddylist(sess, mod, rx, snac, userinfo, &args, list2);
+	else if (args.reqclass & AIM_CAPS_VOICE)
+		ret = incomingim_ch2_voice(sess, mod, rx, snac, userinfo, &args, list2);
+	else if (args.reqclass & AIM_CAPS_IMIMAGE)
 		ret = incomingim_ch2_imimage(sess, mod, rx, snac, userinfo, &args, list2);
-
-	} else if (args.reqclass & AIM_CAPS_CHAT) {
-		aim_tlv_t *miscinfo;
-		aim_bstream_t tbs;
-
-		miscinfo = aim_gettlv(list2, 0x2711, 1);
-
-		aim_bstream_init(&tbs, miscinfo->value, miscinfo->length);
-
-		aim_chat_readroominfo(&tbs, &args.info.chat.roominfo);
-			  
-		if (aim_gettlv(list2, 0x000c, 1))
-			args.info.chat.msg = aim_gettlv_str(list2, 0x000c, 1);
-		
-		if (aim_gettlv(list2, 0x000d, 1))
-			args.info.chat.encoding = aim_gettlv_str(list2, 0x000d, 1);
-		
-		if (aim_gettlv(list2, 0x000e, 1))
-			args.info.chat.lang = aim_gettlv_str(list2, 0x000e, 1);
-
-		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-			ret = userfunc(sess, rx, channel, userinfo, &args);
-
-		free(args.info.chat.roominfo.name);
-		free(args.info.chat.msg);
-		free(args.info.chat.encoding);
-		free(args.info.chat.lang);
-
-	} else if (args.reqclass & AIM_CAPS_GETFILE) {
-		char ip[30];
-		aim_msgcookie_t *cachedcook;
-		aim_tlv_t *miscinfo;
-		aim_tlv_t *iptlv, *porttlv;
-
-		memset(ip, 0, 30);
-
-		if (!(cachedcook = calloc(1, sizeof(aim_msgcookie_t)))) {
-			aim_freetlvchain(&list2);
-			return 0;
-		}
-
-		if (!(miscinfo = aim_gettlv(list2, 0x2711, 1)) || 
-			!(iptlv = aim_gettlv(list2, 0x0003, 1)) || 
-			!(porttlv = aim_gettlv(list2, 0x0005, 1))) {
-			
-			faimdprintf(sess, 0, "rend: badly damaged file get request from %s...\n", userinfo->sn);
-			aim_cookie_free(sess, cachedcook);
-			aim_freetlvchain(&list2);
-			
-			return 0;
-		}
-
-		snprintf(ip, 30, "%d.%d.%d.%d:%d",
-			aimutil_get8(iptlv->value+0),
-			aimutil_get8(iptlv->value+1),
-			aimutil_get8(iptlv->value+2),
-			aimutil_get8(iptlv->value+3),
-			aimutil_get16(porttlv->value));
-
-		faimdprintf(sess, 0, "rend: file get request from %s (%s)\n", userinfo->sn, ip);
-
-		args.info.getfile.ip = ip;
-		args.info.getfile.cookie = cookie;
-
-		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-			ret = userfunc(sess, rx, channel, userinfo, &args);
-
-	} else if (args.reqclass & AIM_CAPS_SENDFILE) {
-#if 0 
-		char ip[30];
-		aim_msgcookie_t *cachedcook;
-		aim_tlv_t *miscinfo;
-		aim_tlv_t *iptlv, *porttlv;
-
-		memset(ip, 0, 30);
-
-		if (!(cachedcook = calloc(1, sizeof(aim_msgcookie_t)))) {
-			aim_freetlvchain(&list2);
-			return 0;
-		}
-
-		if (!(miscinfo = aim_gettlv(list2, 0x2711, 1)) || 
-			!(iptlv = aim_gettlv(list2, 0x0003, 1)) || 
-			!(porttlv = aim_gettlv(list2, 0x0005, 1))) {
-		
-			faimdprintf(sess, 0, "rend: badly damaged file get request from %s...\n", userinfo->sn);
-			aim_cookie_free(sess, cachedcook);
-			aim_freetlvchain(&list2);
-
-			return 0;
-		}
-
-		snprintf(ip, 30, "%d.%d.%d.%d:%d",
-			aimutil_get8(iptlv->value+0),
-			aimutil_get8(iptlv->value+1),
-			aimutil_get8(iptlv->value+2),
-			aimutil_get8(iptlv->value+3),
-			aimutil_get16(porttlv->value));
-
-		if (aim_gettlv(list2, 0x000c, 1))
-			desc = aim_gettlv_str(list2, 0x000c, 1);
-
-		faimdprintf(sess, 0, "rend: file transfer request from %s: %s (%s)\n",
-			userinfo->sn, desc, ip);
-
-		memcpy(cachedcook->cookie, cookie, 8);
-
-		ft = malloc(sizeof(struct aim_filetransfer_priv)); /* XXX */
-		strncpy(ft->sn, userinfo.sn, sizeof(ft->sn));
-		strncpy(ft->ip, ip, sizeof(ft->ip));
-		strncpy(ft->fh.name, miscinfo->value+8, sizeof(ft->fh.name));
-		cachedcook->type = AIM_COOKIETYPE_OFTSEND;
-		cachedcook->data = ft;
-
-		if (aim_cachecookie(sess, cachedcook) == -1)
-			faimdprintf(sess, 0, "ERROR caching message cookie\n");
-
-		aim_accepttransfer(sess, rx->conn, ft->sn, cookie, AIM_CAPS_SENDFILE);
-
-		if (desc)
-			free(desc);
-
-		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-			ret = userfunc(sess, rx, channel, userinfo, &args);
-
-#endif	
-	} else
+	else if (args.reqclass & AIM_CAPS_CHAT)
+		ret = incomingim_ch2_chat(sess, mod, rx, snac, userinfo, &args, list2);
+	else if (args.reqclass & AIM_CAPS_GETFILE)
+		ret = incomingim_ch2_getfile(sess, mod, rx, snac, userinfo, &args, list2);
+	else if (args.reqclass & AIM_CAPS_SENDFILE)
+		ret = incomingim_ch2_sendfile(sess, mod, rx, snac, userinfo, &args, list2);
+	else
 		faimdprintf(sess, 0, "rend: unknown rendezvous 0x%04x\n", args.reqclass);
 
 	aim_freetlvchain(&list2);

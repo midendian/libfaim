@@ -401,7 +401,6 @@ int faimtest_parse_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-#if 0
 static int faimtest_rateresp_auth(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 
@@ -426,9 +425,6 @@ int faimtest_accountconfirm(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	return 1;
 }
-
-
-#endif
 
 #if 0
 /* 
@@ -455,6 +451,28 @@ int faimtest_parse_unknown(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 #endif
+
+static int faimtest_infochange(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	fu16_t change = 0, perms, type;
+	int length, str;
+	char *val;
+	va_list ap;
+
+	va_start(ap, fr);
+	change = va_arg(ap, int);
+	perms = va_arg(ap, fu16_t);
+	type = va_arg(ap, fu16_t);
+	length = va_arg(ap, int);
+	val = va_arg(ap, char *);
+	str = va_arg(ap, int);
+	va_end(ap);
+
+	dvprintf("info%s: perms = %d, type = %x, length = %d, val = %s\n", change?" change":"", perms, type, length, str?val:"(not string)");
+
+	return 1;
+}
+
 
 int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 {
@@ -486,7 +504,6 @@ int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 		}
 #endif
 	} else if (serviceid == 0x0007) {  /* Authorizer */
-#if 0
 		aim_conn_t *tstconn;
 		
 		tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
@@ -496,8 +513,8 @@ int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
-			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp_auth, 0); /* rate info */
+			//aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0007, faimtest_accountconfirm, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
@@ -505,7 +522,6 @@ int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 			aim_auth_sendcookie(sess, tstconn, cookie);
 			dprintf("sent cookie to authorizer host\n");
 		}
-#endif
 	} else if (serviceid == 0x000d) {  /* ChatNav */
 
 		chatnav_redirect(sess, ip, cookie);
@@ -542,7 +558,7 @@ static int faimtest_rateresp_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_bos_ackrateresp(sess, fr->conn);  /* ack rate info response */
 	aim_bos_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
+	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST);
 	aim_bos_reqbuddyrights(sess, fr->conn);
 
 	/* send the buddy list and profile (required, even if empty) */
@@ -1321,31 +1337,6 @@ static int faimtest_parse_incoming_im(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	return 1;
 }
-
-#ifdef MID_REWROTE_ALL_THE_CRAP
-static int faimtest_infochange(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	fu16_t change = 0, perms, type;
-	int length, str;
-	char *val;
-	va_list ap;
-
-	va_start(ap, fr);
-	perms = va_arg(ap, fu16_t);
-	type = va_arg(ap, fu16_t);
-	length = va_arg(ap, int);
-	val = va_arg(ap, char *);
-	str = va_arg(ap, int);
-	va_end(ap);
-
-	if (aimutil_get16(command->data+2) == 0x0005)
-		change = 1;
-
-	dvprintf("info%s: perms = %d, type = %x, length = %d, val = %s\n", change?" change":"", perms, type, length, str?val:"(not string)");
-
-	return 1;
-}
-#endif
 
 static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 {

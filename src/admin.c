@@ -5,8 +5,6 @@
 /* called for both reply and change-reply */
 static int infochange(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
-#ifdef MID_FINALLY_REWROTE_ALL_THE_CRAP
-	int i;
 
 	/*
 	 * struct {
@@ -15,45 +13,39 @@ static int infochange(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 	 *    aim_tlv_t tlvs[tlvcount];
 	 *  } admin_info[n];
 	 */
-	for (i = 0; i < datalen; ) {
-		int perms, tlvcount;
+	while (aim_bstream_empty(bs)) {
+		fu16_t perms, tlvcount;
 
-		perms = aimutil_get16(data+i);
-		i += 2;
+		perms = aimbs_get16(bs);
+		tlvcount = aimbs_get16(bs);
 
-		tlvcount = aimutil_get16(data+i);
-		i += 2;
-
-		while (tlvcount) {
+		while (tlvcount && aim_bstream_empty(bs)) {
 			aim_rxcallback_t userfunc;
-			aim_tlv_t *tlv;
+			fu16_t type, len;
+			fu8_t *val;
 			int str = 0;
 
-			if ((aimutil_get16(data+i) == 0x0011) ||
-					(aimutil_get16(data+i) == 0x0004))
+			type = aimbs_get16(bs);
+			len = aimbs_get16(bs);
+
+			if ((type == 0x0011) || (type == 0x0004))
 				str = 1;
 
 			if (str)
-				tlv = aim_grabtlvstr(data+i);
+				val = aimbs_getstr(bs, len);
 			else
-				tlv = aim_grabtlv(data+i);
+				val = aimbs_getraw(bs, len);
 
 			/* XXX fix so its only called once for the entire packet */
 			if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-				userfunc(sess, rx, perms, tlv->type, tlv->length, tlv->value, str);
+				userfunc(sess, rx, (snac->subtype == 0x0005) ? 1 : 0, perms, type, len, val, str);
 
-			if (tlv)
-				i += 2+2+tlv->length;
-
-			if (tlv && tlv->value)
-				free(tlv->value);
-			if (tlv)
-				free(tlv);
+			free(val);
 
 			tlvcount--;
 		}
 	}
-#endif /* MID_FINALLY_REWROTE_ALL_THE_CRAP */
+
 	return 1;
 }
 
