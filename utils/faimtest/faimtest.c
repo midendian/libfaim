@@ -84,13 +84,8 @@ int main(void)
   struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
   int keepgoing = 1;
 
-#if 0
-  /* Use something like this for AIM */
-  struct client_info_s info = {"Boo", 2, 1, 0, "us", "en"};
-#else
-  /* or something exactly like this for ICQ and AIM */
-  struct client_info_s info = {"Random String (libfaim)", 4, 30, 3141, "us", "en"};
-#endif
+  struct client_info_s info = {"FAIMtest (Hi guys!)", 4, 3, 3141, "us", "en", 0x0004, 0x0001, 0x00000055};
+
   int selstat = 0;
 
   if ( !(screenname = getenv("SCREENNAME")) ||

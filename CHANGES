@@ -1,6 +1,14 @@
 
 No release numbers
 ------------------
+ - Fri Jun 30 00:04:47 UTC 2000
+   - Removed the forceful ICQ-related warnings, just in case they're wrong
+   - Added three new fields to the client info.  
+      - **REQUIRES CLIENT CHANGES -- see faimtest for new initializer
+   - Cleaned up aim_send_login()
+   - Put in a nice hidious fix for AOL's latest bit of the drama.  See
+      aim_readtlvchain() for the details.
+
  - Mon Jun 26 07:53:02 UTC 2000
    - Added utils/aimdebugd for playing with things -- see the README
    - Added aim_im.c::aim_parse_outgoing_im().  Probably not useful
