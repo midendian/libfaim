@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Mon Feb 26 01:46:34 UTC 2001
+  - Fix swapped bytes in aim_caps[]. Thanks to 
+      Bruce Miller <bmiller@ics.uci.edu> for pointing this out.
+
  - Sun Feb 11 01:07:36 UTC 2001
   - Make secondary connections to the authorizer work again
   - Make aim_auth_changepasswd() work again.
