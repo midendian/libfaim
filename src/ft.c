@@ -17,6 +17,8 @@
 
 #endif
 
+#if 0
+
 /* TODO: 
    o look for memory leaks.. there's going to be shitloads, i'm sure. 
 */
@@ -109,7 +111,8 @@ faim_export int aim_handlerendconnect(struct aim_session_t *sess, struct aim_con
 
   return ret;
 }
- 
+#endif
+
 /**
  * aim_send_im_direct - send IM client-to-client over established connection
  * @sess: session to conn
@@ -119,8 +122,10 @@ faim_export int aim_handlerendconnect(struct aim_session_t *sess, struct aim_con
  * Call this just like you would aim_send_im, to send a directim. You
  * _must_ have previously established the directim connection.
  */
-faim_export int aim_send_im_direct(struct aim_session_t *sess, struct aim_conn_t *conn, char *msg)
+faim_export int aim_send_im_direct(aim_session_t *sess, aim_conn_t *conn, const char *msg)
 {
+	return -EINVAL;
+#if 0
   struct command_tx_struct *newpacket;
   struct aim_directim_priv *priv = NULL;
   int i;
@@ -146,14 +151,14 @@ faim_export int aim_send_im_direct(struct aim_session_t *sess, struct aim_conn_t
     newpacket->hdr.oft.hdr2len = 0x54;
     if (!(newpacket->hdr.oft.hdr2 = calloc(1,newpacket->hdr.oft.hdr2len))) { 
       newpacket->lock = 0;
-      aim_tx_destroy(newpacket);
+      aim_frame_destroy(newpacket);
       return -1;
     } 
   } else { 
     newpacket->hdr.oft.hdr2len = 0x44;
     if (!(newpacket->hdr.oft.hdr2 = calloc(1,newpacket->hdr.oft.hdr2len))) { 
       newpacket->lock = 0;
-      aim_tx_destroy(newpacket);
+      aim_frame_destroy(newpacket);
       return -1;
     } 
   } 
@@ -211,7 +216,9 @@ faim_export int aim_send_im_direct(struct aim_session_t *sess, struct aim_conn_t
   } 
   newpacket->lock = 0;
   aim_tx_enqueue(sess, newpacket);
+
   return 0;
+#endif
 } 
 
 /* XXX: give the client author the responsibility of setting up a
@@ -226,12 +233,10 @@ faim_export int aim_send_im_direct(struct aim_session_t *sess, struct aim_conn_t
  * @destsn: the SN to connect to.
  *
  */
-faim_export struct aim_conn_t *aim_directim_initiate(struct aim_session_t *sess, 
-						     struct aim_conn_t *conn,
-						     struct aim_directim_priv *priv, 
-						     char *destsn)
+faim_export aim_conn_t *aim_directim_initiate(aim_session_t *sess, aim_conn_t *conn, struct aim_directim_priv *priv, const char *destsn)
 { 
-
+	return NULL;
+#if 0
   struct command_tx_struct *newpacket;
   struct aim_conn_t *newconn;
   struct aim_msgcookie_t *cookie;
@@ -349,8 +354,10 @@ faim_export struct aim_conn_t *aim_directim_initiate(struct aim_session_t *sess,
   faimdprintf(sess, 2,"faim: listening (fd = %d, unconnected)\n", newconn->fd);
 
   return newconn;
+#endif
 } 
 
+#if 0
 /**
  * unsigned int aim_oft_listener_clean - close up old listeners
  * @sess: session to clean up in
@@ -381,6 +388,7 @@ faim_export unsigned int aim_oft_listener_clean(struct aim_session_t *sess, time
   faim_mutex_unlock(&sess->connlistlock);
   return hit;
 } 
+#endif 
 
 /**
  * aim_directim_connect - connect to buddy for directim
@@ -390,8 +398,10 @@ faim_export unsigned int aim_oft_listener_clean(struct aim_session_t *sess, time
  *
  * returns conn if connected, %NULL on error
  */
-faim_export struct aim_conn_t *aim_directim_connect(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_directim_priv *priv)
+faim_export aim_conn_t *aim_directim_connect(aim_session_t *sess, aim_conn_t *conn, struct aim_directim_priv *priv)
 { 
+	return NULL;
+#if 0
   struct aim_conn_t *newconn = NULL;
 
   if (!sess || !conn || !priv)
@@ -410,8 +420,10 @@ faim_export struct aim_conn_t *aim_directim_connect(struct aim_session_t *sess, 
   faimdprintf(sess, 2, "faim: connected to peer (fd = %d)\n", newconn->fd);
 
   return newconn;
+#endif
 } 
 
+#if 0
 /**
  * aim_directim_getconn - find a directim conn for buddy name
  * @sess: your session,
@@ -439,6 +451,7 @@ faim_export struct aim_conn_t *aim_directim_getconn(struct aim_session_t *sess, 
   } faim_mutex_unlock(&sess->connlistlock);
   return cur;
 } 
+#endif
 
 /**
  * aim_accepttransfer - accept a file transfer request
@@ -454,17 +467,21 @@ faim_export struct aim_conn_t *aim_directim_getconn(struct aim_session_t *sess, 
  * @rendid: capability type (%AIM_CAPS_GETFILE or %AIM_CAPS_SENDFILE)  
  *
  * Returns new connection or %NULL on error.
+ *
+ * XXX this should take a struct.
  */
-faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess, 
-						  struct aim_conn_t *conn, 
-						  char *sn, char *cookie, 
-						  char *ip, 
-						  unsigned short listingfiles, 
-						  unsigned short listingtotsize, 
-						  unsigned short listingsize, 
-						  unsigned int listingchecksum, 
-						  unsigned short rendid)
-{ 
+faim_export aim_conn_t *aim_accepttransfer(aim_session_t *sess, 
+						  aim_conn_t *conn, 
+						  const char *sn, const fu8_t *cookie, 
+						  const fu8_t *ip, 
+						  fu16_t listingfiles, 
+						  fu16_t listingtotsize, 
+						  fu16_t listingsize, 
+						  fu32_t listingchecksum, 
+						  fu16_t rendid)
+{
+       return NULL;	
+#if 0
   struct command_tx_struct *newpacket, *newoft;
   struct aim_conn_t *newconn;
   struct aim_fileheader_t *fh;
@@ -547,7 +564,7 @@ faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess,
 
       if (!(newoft->hdr.oft.hdr2 = (char *)calloc(1,newoft->hdr.oft.hdr2len))) { 
 	newoft->lock = 0;
-	aim_tx_destroy(newoft);
+	aim_frame_destroy(newoft);
 	/* XXX: conn leak */
 	perror("calloc (1)");
 	return NULL;
@@ -609,6 +626,7 @@ faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess,
   aim_tx_enqueue(sess, newpacket);
 
   return newconn;
+#endif
 }
 
 /**
@@ -621,9 +639,10 @@ faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess,
  * guess.
  *
  */
-
-faim_export struct aim_fileheader_t *aim_getlisting(struct aim_session_t *sess, FILE *file) 
+faim_export struct aim_fileheader_t *aim_getlisting(aim_session_t *sess, FILE *file) 
 {
+	return NULL;
+#if 0
   struct aim_fileheader_t *fh;
   u_long totsize = 0, size = 0, checksum = 0xffff0000;
   short totfiles = 0;
@@ -727,6 +746,7 @@ faim_export struct aim_fileheader_t *aim_getlisting(struct aim_session_t *sess, 
 
   faimdprintf(sess, 2, "faim: OFT: listing fh name %s / %s\n", fh->name, (fh->name+(strlen(fh->name))));
   return fh;
+#endif
 }
 
 /**
@@ -736,8 +756,10 @@ faim_export struct aim_fileheader_t *aim_getlisting(struct aim_session_t *sess, 
  * you need to call accept() when it's connected. returns your fd 
  *
  */
-faim_export int aim_listenestablish(u_short portnum)
+faim_export int aim_listenestablish(fu16_t portnum)
 {
+	return -EINVAL;
+#if 0
 #if defined(__linux__)
   /* XXX what other OS's support getaddrinfo? */
   int listenfd;
@@ -808,6 +830,7 @@ faim_export int aim_listenestablish(u_short portnum)
   }
   return listenfd;
 #endif
+#endif
 } 
 
 /**
@@ -818,8 +841,9 @@ faim_export int aim_listenestablish(u_short portnum)
  * this reads and handles data from conn->fd. currently a little rough
  * around the edges
  */
-faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *conn)
+faim_internal int aim_get_command_rendezvous(aim_session_t *sess, aim_conn_t *conn)
 {
+#if 0
   unsigned char hdrbuf1[6];
   unsigned char *hdr = NULL;
   int hdrlen, hdrtype;
@@ -873,7 +897,7 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
      
      if (!(newoft->hdr.oft.hdr2 = (char *)calloc(1,newoft->hdr.oft.hdr2len))) {
        newoft->lock = 0;
-       aim_tx_destroy(newoft);
+       aim_frame_destroy(newoft);
        free(listing);
        faim_mutex_unlock(&conn->active);
        return -1;
@@ -1108,13 +1132,13 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
 
    if (!(newoft->hdr.oft.hdr2 = (char *)calloc(1,newoft->hdr.oft.hdr2len))) {
      newoft->lock = 0;
-     aim_tx_destroy(newoft);
+     aim_frame_destroy(newoft);
      return -1;
    }
 
    if (!(aim_oft_buildheader((unsigned char *)newoft->hdr.oft.hdr2, &(ft->fh)))) {
      newoft->lock = 0;
-     aim_tx_destroy(newoft);
+     aim_frame_destroy(newoft);
      return -1;
    }
 
@@ -1235,7 +1259,7 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
 
    if (!(newoft->hdr.oft.hdr2 = calloc(1,newoft->hdr.oft.hdr2len))) {
      newoft->lock = 0;
-     aim_tx_destroy(newoft);
+     aim_frame_destroy(newoft);
      return -1;
    } 
 
@@ -1298,7 +1322,7 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
 
    if (!(newoft->hdr.oft.hdr2 = calloc(1,newoft->hdr.oft.hdr2len))) {
      newoft->lock = 0;
-     aim_tx_destroy(newoft);
+     aim_frame_destroy(newoft);
      return -1;
    }
 
@@ -1386,8 +1410,12 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
    hdr = NULL;
  }
  return 0;
+#else
+ return -1;
+#endif 
 }
- 
+
+#if 0
 /**
  * aim_oft_getfh - extracts an &aim_fileheader_t from buffer hdr.
  * @hdr: buffer to extract header from  
@@ -1458,6 +1486,7 @@ static struct aim_fileheader_t *aim_oft_getfh(unsigned char *hdr)
   i += 64;
   return fh;
 } 
+#endif
 
 /**
  * aim_oft_checksum - calculate oft checksum of buffer
@@ -1477,10 +1506,13 @@ static struct aim_fileheader_t *aim_oft_getfh(unsigned char *hdr)
  * Also, it's been said that this is incorrect as currently
  * written. You were warned.
  */
-faim_export int aim_oft_checksum(struct aim_session_t *sess, char *buffer, int bufsize, int *checksum)
+faim_export fu32_t aim_oft_checksum(aim_session_t *sess, const char *buffer, int bufsize, fu32_t *checksum)
 {
-  short check0, check1;
+	return 0xdeadbeef;
+#if 0
+  fu16_t check0, check1;
   int i;
+
   check0 = ((*checksum & 0xFF000000) >> 16);
   check1 = ((*checksum & 0x00ff0000) >> 16);
   for(i = 0; i < bufsize; i++) {
@@ -1524,8 +1556,10 @@ faim_export int aim_oft_checksum(struct aim_session_t *sess, char *buffer, int b
 
   *checksum = ((check0 * 0x1000000) + (check1 * 0x10000));
   return *checksum;
+#endif
 } 
 
+#if 0
 /**
  * aim_oft_buildheader - fills a buffer with network-order fh data
  * @dest: buffer to fill -- pre-alloced
@@ -1535,7 +1569,7 @@ faim_export int aim_oft_checksum(struct aim_session_t *sess, char *buffer, int b
  * DOES NOT DO BOUNDS CHECKING!
  *
  */
-faim_internal int aim_oft_buildheader(unsigned char *dest,struct aim_fileheader_t *fh) 
+static int oft_buildheader(unsigned char *dest, struct aim_fileheader_t *fh) 
 { 
   int i, curbyte;
   if (!dest || !fh)
@@ -1577,26 +1611,7 @@ faim_internal int aim_oft_buildheader(unsigned char *dest,struct aim_fileheader_
   curbyte += 64;
   return curbyte;
 }
-
-
-/**
- * aim_tx_destroy - free's tx_command_t's
- * @command: the command to free  
- *
- * if command is locked, doesn't free.
- * returns -1 on error (locked struct); 0 on success.  
- *
- */
-faim_internal int aim_tx_destroy(struct command_tx_struct *command){
-  if (command->lock)
-    return -1;
-  if (command->data)
-    free(command->data);
-  if (command->hdrtype == AIM_FRAMETYPE_OFT && command->hdr.oft.hdr2)
-    free(command->hdr.oft.hdr2);
-  free(command);
-  return 0;
-} 
+#endif
 
 /**
  * aim_getfile_intitiate - Request an OFT getfile session
@@ -1606,8 +1621,10 @@ faim_internal int aim_tx_destroy(struct command_tx_struct *command){
  * 
  * returns a new &aim_conn_t on success, %NULL on error
  */
-faim_export struct aim_conn_t *aim_getfile_initiate(struct aim_session_t *sess, struct aim_conn_t *conn, char *destsn)
+faim_export aim_conn_t *aim_getfile_initiate(aim_session_t *sess, aim_conn_t *conn, const char *destsn)
 { 
+	return NULL;
+#if 0
   struct command_tx_struct *newpacket;
   struct aim_conn_t *newconn;
   struct aim_filetransfer_priv *priv;
@@ -1745,6 +1762,7 @@ faim_export struct aim_conn_t *aim_getfile_initiate(struct aim_session_t *sess, 
   faimdprintf(sess, 2,"faim: listening (fd = %d, unconnected)\n", newconn->fd);
 
   return newconn;
+#endif
 }
  
 /**
@@ -1757,8 +1775,10 @@ faim_export struct aim_conn_t *aim_getfile_initiate(struct aim_session_t *sess, 
  *
  * returns -1 on error, 0 on successful enqueuing
  */
-faim_export int aim_oft_getfile_request(struct aim_session_t *sess, struct aim_conn_t *conn, const unsigned char *name, const int size)
+faim_export int aim_oft_getfile_request(aim_session_t *sess, aim_conn_t *conn, const char *name, int size)
 {
+	return -EINVAL;
+#if 0
   struct command_tx_struct *newoft;
   struct aim_filetransfer_priv *ft;
   if (!sess || !conn || !conn->priv || !name)
@@ -1787,13 +1807,13 @@ faim_export int aim_oft_getfile_request(struct aim_session_t *sess, struct aim_c
 
   if (!(newoft->hdr.oft.hdr2 = (unsigned char *)calloc(1,newoft->hdr.oft.hdr2len))) {
     newoft->lock = 0;
-    aim_tx_destroy(newoft);
+    aim_frame_destroy(newoft);
     return -1;
   }
 
   if (!(aim_oft_buildheader(newoft->hdr.oft.hdr2, &(ft->fh)))) {
     newoft->lock = 0;
-    aim_tx_destroy(newoft);
+    aim_frame_destroy(newoft);
     return -1;
   }
 
@@ -1801,6 +1821,7 @@ faim_export int aim_oft_getfile_request(struct aim_session_t *sess, struct aim_c
 
   aim_tx_enqueue(sess, newoft);
   return 0;
+#endif
 }
  
 /**
@@ -1812,8 +1833,10 @@ faim_export int aim_oft_getfile_request(struct aim_session_t *sess, struct aim_c
  * filetransfer. Returns -1 on error, 0 on apparent success
  *
  */
-faim_export int aim_oft_getfile_ack(struct aim_session_t *sess, struct aim_conn_t *conn) 
+faim_export int aim_oft_getfile_ack(aim_session_t *sess, aim_conn_t *conn) 
 {
+	return -EINVAL;
+#if 0
   struct command_tx_struct *newoft;
   struct aim_filetransfer_priv *ft;
 
@@ -1832,7 +1855,7 @@ faim_export int aim_oft_getfile_ack(struct aim_session_t *sess, struct aim_conn_
 
  if (!(newoft->hdr.oft.hdr2 = (char *)calloc(1,newoft->hdr.oft.hdr2len))) { 
    newoft->lock = 0;
-   aim_tx_destroy(newoft);
+   aim_frame_destroy(newoft);
    return -1;
  }
 
@@ -1840,13 +1863,14 @@ faim_export int aim_oft_getfile_ack(struct aim_session_t *sess, struct aim_conn_
 
  if (!(aim_oft_buildheader((unsigned char *)newoft->hdr.oft.hdr2, &(ft->fh)))) {
    newoft->lock = 0;
-   aim_tx_destroy(newoft);
+   aim_frame_destroy(newoft);
    return -1;
  }
 
  newoft->lock = 0;
  aim_tx_enqueue(sess, newoft);
  return 0;
+#endif
 }
  
 /**
@@ -1857,8 +1881,10 @@ faim_export int aim_oft_getfile_ack(struct aim_session_t *sess, struct aim_conn_
  * call this before you close the getfile connection if you're on the
  * receiving/requesting end.
  */
-faim_export int aim_oft_getfile_end(struct aim_session_t *sess, struct aim_conn_t *conn)
+faim_export int aim_oft_getfile_end(aim_session_t *sess, aim_conn_t *conn)
 {
+	return -EINVAL;
+#if 0
   struct command_tx_struct *newoft;
   struct aim_filetransfer_priv *ft;
   
@@ -1877,7 +1903,7 @@ faim_export int aim_oft_getfile_end(struct aim_session_t *sess, struct aim_conn_
   
   if (!(newoft->hdr.oft.hdr2 = (char *)calloc(1,newoft->hdr.oft.hdr2len))) {
     newoft->lock = 0;
-    aim_tx_destroy(newoft);
+    aim_frame_destroy(newoft);
     return -1;
   }
   
@@ -1889,7 +1915,7 @@ faim_export int aim_oft_getfile_end(struct aim_session_t *sess, struct aim_conn_
   
   if (!(aim_oft_buildheader((unsigned char *)newoft->hdr.oft.hdr2, &(ft->fh)))) {
     newoft->lock = 0;
-    aim_tx_destroy(newoft);
+    aim_frame_destroy(newoft);
     return -1;
   }
   
@@ -1897,4 +1923,6 @@ faim_export int aim_oft_getfile_end(struct aim_session_t *sess, struct aim_conn_
   aim_tx_enqueue(sess, newoft);
   
   return 0;
+#endif /* 0 */
 }
+

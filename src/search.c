@@ -9,124 +9,117 @@
 #define FAIM_INTERNAL
 #include <aim.h>
 
-faim_export unsigned long aim_usersearch_address(struct aim_session_t *sess,
-						 struct aim_conn_t *conn, 
-						 char *address)
+faim_export int aim_usersearch_address(aim_session_t *sess, aim_conn_t *conn, const char *address)
 {
-  struct command_tx_struct *newpacket;
-  
-  if (!address)
-    return -1;
+	aim_frame_t *fr;
+	aim_snacid_t snacid;
 
-  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+strlen(address))))
-    return -1;
+	if (!sess || !conn || !address)
+		return -EINVAL;
 
-  newpacket->lock = 1;
+	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, 10+strlen(address))))
+		return -ENOMEM;
 
-  aim_putsnac(newpacket->data, 0x000a, 0x0002, 0x0000, sess->snac_nextid);
+	snacid = aim_cachesnac(sess, 0x000a, 0x0002, 0x0000, address, strlen(address)+1);
 
-  aimutil_putstr(newpacket->data+10, address, strlen(address));
+	aim_putsnac(&fr->data, 0x000a, 0x0002, 0x0000, snacid);
+	aimbs_putraw(&fr->data, address, strlen(address)); /* XXX this doesn't seem right at all... */
 
-  aim_tx_enqueue(sess, newpacket);
+	aim_tx_enqueue(sess, fr);
 
-  aim_cachesnac(sess, 0x000a, 0x0002, 0x0000, address, strlen(address)+1);
-
-  return sess->snac_nextid;
+	return 0;
 }
 
 /* XXX can this be integrated with the rest of the error handling? */
-static int error(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+static int error(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
-  int ret = 0;
-  aim_rxcallback_t userfunc;
-  struct aim_snac_t *snac2;
+	int ret = 0;
+	aim_rxcallback_t userfunc;
+	aim_snac_t *snac2;
 
-  /* XXX the modules interface should have already retrieved this for us */
-  if(!(snac2 = aim_remsnac(sess, snac->id))) {
-    faimdprintf(sess, 2, "couldn't get a snac for 0x%08lx\n", snac->id);
-    return 0;
-  }
+	/* XXX the modules interface should have already retrieved this for us */
+	if (!(snac2 = aim_remsnac(sess, snac->id))) {
+		faimdprintf(sess, 2, "search error: couldn't get a snac for 0x%08lx\n", snac->id);
+		return 0;
+	}
 
-  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-    ret = userfunc(sess, rx, snac2->data /* address */);
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, snac2->data /* address */);
 
-  /* XXX freesnac()? */
-  if (snac2) {
-    if(snac2->data)
-      free(snac2->data);
-    free(snac2);
-  }
+	/* XXX freesnac()? */
+	if (snac2)
+		free(snac2->data);
+	free(snac2);
 
-  return ret;
+	return ret;
 }
 
-static int reply(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+static int reply(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
-  unsigned int j, m, ret = 0;
-  struct aim_tlvlist_t *tlvlist;
-  char *cur = NULL, *buf = NULL;
-  aim_rxcallback_t userfunc;
-  struct aim_snac_t *snac2;
+	int j, m, ret = 0;
+	aim_tlvlist_t *tlvlist;
+	char *cur = NULL, *buf = NULL;
+	aim_rxcallback_t userfunc;
+	aim_snac_t *snac2;
 
-  if (!(snac2 = aim_remsnac(sess, snac->id))) {
-    faimdprintf(sess, 2, "faim: couldn't get a snac for 0x%08lx\n", snac->id);
-    return 0;
-  }
+	if (!(snac2 = aim_remsnac(sess, snac->id))) {
+		faimdprintf(sess, 2, "search reply: couldn't get a snac for 0x%08lx\n", snac->id);
+		return 0;
+	}
 
-  if (!(tlvlist = aim_readtlvchain(data, datalen)))
-    return 0;
+	tlvlist = aim_readtlvchain(bs);
+		return 0;
 
-  j = 0;
+	j = 0;
 
-  m = aim_counttlvchain(&tlvlist);
+	m = aim_counttlvchain(&tlvlist);
 
-  while((cur = aim_gettlv_str(tlvlist, 0x0001, j+1)) && j < m) {
-    if(!(buf = realloc(buf, (j+1) * (MAXSNLEN+1))))
-      faimdprintf(sess, 2, "faim: couldn't realloc buf. oh well.\n");
+	/* XXX uhm. */
+	while ((cur = aim_gettlv_str(tlvlist, 0x0001, j+1)) && j < m) {
+		buf = realloc(buf, (j+1) * (MAXSNLEN+1));
 
-    strncpy(&buf[j * (MAXSNLEN+1)], cur, MAXSNLEN);
-    free(cur);
+		strncpy(&buf[j * (MAXSNLEN+1)], cur, MAXSNLEN);
+		free(cur);
 
-    j++; 
-  }
+		j++; 
+	}
 
-  aim_freetlvchain(&tlvlist);
+	aim_freetlvchain(&tlvlist);
 
-  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-    ret = userfunc(sess, rx, snac2->data /* address */, j, buf);
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, snac2->data /* address */, j, buf);
 
-  /* XXX freesnac()? */
-  if(snac2) {
-    if(snac2->data)
-      free(snac2->data);
-    free(snac2);
-  }
+	/* XXX freesnac()? */
+	if (snac2)
+		free(snac2->data);
+	free(snac2);
 
-  if(buf)
-    free(buf);
+	free(buf);
 
-  return ret;
+	return ret;
 }
 
-static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+static int snachandler(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
 
-  if (snac->subtype == 0x0001)
-    return error(sess, mod, rx, snac, data, datalen);
-  else if (snac->subtype == 0x0003)
-    return reply(sess, mod, rx, snac, data, datalen);
+	if (snac->subtype == 0x0001)
+		return error(sess, mod, rx, snac, bs);
+	else if (snac->subtype == 0x0003)
+		return reply(sess, mod, rx, snac, bs);
 
-  return 0;
+	return 0;
 }
 
-faim_internal int search_modfirst(struct aim_session_t *sess, aim_module_t *mod)
+faim_internal int search_modfirst(aim_session_t *sess, aim_module_t *mod)
 {
 
-  mod->family = 0x000a;
-  mod->version = 0x0000;
-  mod->flags = 0;
-  strncpy(mod->name, "search", sizeof(mod->name));
-  mod->snachandler = snachandler;
+	mod->family = 0x000a;
+	mod->version = 0x0000;
+	mod->flags = 0;
+	strncpy(mod->name, "search", sizeof(mod->name));
+	mod->snachandler = snachandler;
 
-  return 0;
+	return 0;
 }
+
+
