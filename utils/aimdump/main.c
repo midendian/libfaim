@@ -7,13 +7,9 @@
 
 #include "aimdump.h"
 
-#define IMAGEFILE "ibmboot.img"
 #define DEVNAME "eth0"
 
 pcap_t *pd = NULL;
-
-static u_int8_t clientaddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0x0ff, 0xff}; /* loaded with client address */
-static u_int8_t multicastaddr[ETH_ALEN] = {0x03, 0x00, 0x02, 0x00, 0x00, 0x00};
 
 pcap_t *open_pcap(char *device)
 {
@@ -71,6 +67,7 @@ char *next_pcap(pcap_t *pd, struct pcap_pkthdr *hdr)
  * an incoming RPL frame.  
  *
  */
+#if 0
 void processframe(struct pcap_pkthdr *hdr, char *pkt, char *device)
 {
   static struct ether_header *ether = NULL;
@@ -149,6 +146,7 @@ void processframe(struct pcap_pkthdr *hdr, char *pkt, char *device)
     return;
 #endif
 }
+#endif
 
 void sigint(int sig)
 {
@@ -159,10 +157,10 @@ void sigint(int sig)
 }
 
 struct flaphdr {
-  __u8 start;
-  __u8 channel;
-  __u16 seqnum;
-  __u16 len;
+  unsigned char start;
+  unsigned char channel;
+  unsigned short seqnum;
+  unsigned short len;
 };
 
 struct snachdr {
@@ -417,6 +415,13 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
   snac->id = (htons(snac->id & 0x0000ffff)) + (htons(snac->id >>16)<<16);
   
   printf("\n--------------------\n");
+  {
+    struct in_addr tmpaddr;
+    tmpaddr.s_addr = ip->saddr;
+    printf("%s -> ", inet_ntoa(tmpaddr));
+    tmpaddr.s_addr = ip->daddr;
+    printf("%s\n\n", inet_ntoa(tmpaddr));
+  }
   printf("FLAP:\n");
   printf("\tChannel:\t0x%02x\t\tSeqNum:\t0x%04x\n\tLength:\t\t0x%04x\n",
 	 flap->channel,

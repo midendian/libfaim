@@ -6,8 +6,10 @@
 #include <pcap/pcap.h>
 #include "util.h"
 #include <signal.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 /*
  * These are in NETWORK (big-endian) BYTE ORDER!!!
