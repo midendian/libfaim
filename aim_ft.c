@@ -151,7 +151,7 @@ faim_export int aim_send_im_direct(struct aim_session_t *sess,
   i += aimutil_put16(newpacket2->hdr.oft.hdr2+i, 0x0000);
   i += aimutil_put16(newpacket2->hdr.oft.hdr2+i, 0x0000);
 
-  i += aimutil_putstr(newpacket2->hdr.oft.hdr2+i, sess->logininfo.screen_name, strlen(sess->logininfo.screen_name));
+  i += aimutil_putstr(newpacket2->hdr.oft.hdr2+i, sess->sn, strlen(sess->sn));
   
   i = 52; /* 0x34 */
   i += aimutil_put8(newpacket2->hdr.oft.hdr2+i, 0x00); /* 53 */
@@ -205,7 +205,7 @@ faim_export int aim_send_im_direct(struct aim_session_t *sess,
   i += aimutil_put16(newpacket->hdr.oft.hdr2+i, 0x0000);
   i += aimutil_put16(newpacket->hdr.oft.hdr2+i, 0x0000);
 
-  i += aimutil_putstr(newpacket->hdr.oft.hdr2+i, sess->logininfo.screen_name, strlen(sess->logininfo.screen_name));
+  i += aimutil_putstr(newpacket->hdr.oft.hdr2+i, sess->sn, strlen(sess->sn));
   
   i = 52; /* 0x34 */
   i += aimutil_put8(newpacket->hdr.oft.hdr2+i, 0x00); /* 53 */
