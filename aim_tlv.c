@@ -67,7 +67,21 @@ void aim_freetlvchain(struct aim_tlvlist_t **list)
   return;
 }
 
-int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str)
+int aim_counttlvchain(struct aim_tlvlist_t **list)
+{
+  struct aim_tlvlist_t *cur;
+  int count = 0;
+
+  if (!list || !(*list))
+    return 0;
+
+  for (cur = *list; cur; cur = cur->next)
+    count++;
+ 
+  return count;
+}
+
+int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str, int len)
 {
   struct aim_tlvlist_t *new;
   struct aim_tlvlist_t *cur;
@@ -80,7 +94,7 @@ int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char
 
   new->tlv = aim_createtlv();	
   new->tlv->type = type;
-  new->tlv->length = strlen(str);
+  new->tlv->length = len;
   new->tlv->value = (u_char *)malloc(new->tlv->length*sizeof(u_char));
   memcpy(new->tlv->value, str, new->tlv->length);
 

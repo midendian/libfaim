@@ -332,3 +332,147 @@ int aim_authparse(struct aim_session_t *sess,
 
   return ret;
 }
+
+/*
+ * Generate an authorization response.  
+ *
+ * You probably don't want this unless you're writing an AIM server.
+ *
+ */
+unsigned long aim_sendauthresp(struct aim_session_t *sess, 
+			       struct aim_conn_t *conn, 
+			       char *sn, char *bosip, 
+			       char *cookie, char *email, 
+			       int regstatus)
+{	
+  struct command_tx_struct tx;
+  struct aim_tlvlist_t *tlvlist = NULL;
+
+  tx.conn = conn;
+
+  tx.commandlen = 1152; /* arbitrarily large */
+  tx.data = malloc(tx.commandlen);
+  memset(tx.data, 0x00, tx.commandlen);
+  
+  tx.lock = 1;
+  tx.type = 0x01; /* XXX: right? */
+
+  if (sn)
+    aim_addtlvtochain_str(&tlvlist, 0x0001, sn, strlen(sn));
+  else
+    aim_addtlvtochain_str(&tlvlist, 0x0001, sess->logininfo.screen_name, strlen(sess->logininfo.screen_name));
+
+  if (sess->logininfo.errorcode) {
+    aim_addtlvtochain16(&tlvlist, 0x0008, sess->logininfo.errorcode);
+    aim_addtlvtochain_str(&tlvlist, 0x0004, sess->logininfo.errorurl, strlen(sess->logininfo.errorurl));
+  } else {
+    aim_addtlvtochain_str(&tlvlist, 0x0005, bosip, strlen(bosip));
+    aim_addtlvtochain_str(&tlvlist, 0x0006, cookie, AIM_COOKIELEN);
+    aim_addtlvtochain_str(&tlvlist, 0x0011, email, strlen(email));
+    aim_addtlvtochain16(&tlvlist, 0x0013, regstatus);
+  }
+
+  tx.commandlen = aim_writetlvchain(tx.data, tx.commandlen, &tlvlist);
+  tx.lock = 0;
+  aim_tx_enqueue(sess, &tx);
+
+  return 0;
+}
+
+/*
+ * Generate a random cookie.  (Non-client use only)
+ */
+int aim_gencookie(unsigned char *buf)
+{
+  int i;
+
+  srand(time(NULL));
+
+  for (i=0; i < AIM_COOKIELEN; i++)
+    buf[i] = 1+(int) (256.0*rand()/(RAND_MAX+0.0));
+
+  return i;
+}
+
+/*
+ * Send Server Ready.  (Non-client)
+ */
+int aim_sendserverready(struct aim_session_t *sess, struct aim_conn_t *conn)
+{
+  struct command_tx_struct tx;
+  int i = 0;
+
+  tx.conn = conn;
+
+  tx.commandlen = 10 + 0x20;
+  tx.data = malloc(tx.commandlen);
+  memset(tx.data, 0x00, tx.commandlen);
+  
+  tx.lock = 1;
+  tx.type = 0x02;
+
+  i += aimutil_put16(tx.data+i, 0x0001);
+  i += aimutil_put16(tx.data+i, 0x0003);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  
+  i += aimutil_put16(tx.data+i, 0x0001);  
+  i += aimutil_put16(tx.data+i, 0x0002);
+  i += aimutil_put16(tx.data+i, 0x0003);
+  i += aimutil_put16(tx.data+i, 0x0004);
+  i += aimutil_put16(tx.data+i, 0x0006);
+  i += aimutil_put16(tx.data+i, 0x0008);
+  i += aimutil_put16(tx.data+i, 0x0009);
+  i += aimutil_put16(tx.data+i, 0x000a);
+  i += aimutil_put16(tx.data+i, 0x000b);
+  i += aimutil_put16(tx.data+i, 0x000c);
+
+  tx.lock = 0;
+
+  aim_tx_enqueue(sess, &tx);
+
+  return 0;
+}
+
+
+/* 
+ * Send service redirect.  (Non-Client)
+ */
+unsigned long aim_sendredirect(struct aim_session_t *sess, 
+			       struct aim_conn_t *conn, 
+			       unsigned short servid, 
+			       char *ip,
+			       char *cookie)
+{	
+  struct command_tx_struct tx;
+  struct aim_tlvlist_t *tlvlist = NULL;
+  int i = 0;
+
+  tx.conn = conn;
+
+  tx.commandlen = 1152; /* arbitrarily large */
+  tx.data = malloc(tx.commandlen);
+  memset(tx.data, 0x00, tx.commandlen);
+  
+  tx.lock = 1;
+  tx.type = 0x02;
+
+  i += aimutil_put16(tx.data+i, 0x0001);
+  i += aimutil_put16(tx.data+i, 0x0005);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  
+  aim_addtlvtochain16(&tlvlist, 0x000d, servid);
+  aim_addtlvtochain_str(&tlvlist, 0x0005, ip, strlen(ip));
+  aim_addtlvtochain_str(&tlvlist, 0x0006, cookie, AIM_COOKIELEN);
+
+  tx.commandlen = aim_writetlvchain(tx.data+i, tx.commandlen-i, &tlvlist)+i;
+  aim_freetlvchain(&tlvlist);
+
+  tx.lock = 0;
+  aim_tx_enqueue(sess, &tx);
+
+  return 0;
+}

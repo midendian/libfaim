@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Mon Mar 20 05:30:59 UTC 2000
+   - Added some server-only functions for login
+   - Added aim_counttlvchain()
+   - Added aim_sncmp() and aim_snlen()
+
  - Sun Mar 19 06:07:52 UTC 2000
    - Added a parameter to aim_select to return event type 
      - REQUIRES CLIENT CHANGES.

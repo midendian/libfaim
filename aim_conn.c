@@ -80,10 +80,16 @@ struct aim_conn_t *aim_newconn(struct aim_session_t *sess,
   char *host = NULL;
   int i=0;
   
-  if (!dest || ((connstruct=aim_conn_getnext(sess))==NULL))
+  if ((connstruct=aim_conn_getnext(sess))==NULL)
     return NULL;
 
   connstruct->type = type;
+
+  if (!dest) { /* just allocate a struct */
+    connstruct->fd = -1;
+    connstruct->status = 0;
+    return connstruct;
+  }
 
   /* 
    * As of 23 Jul 1999, AOL now sends the port number, preceded by a 

@@ -286,6 +286,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	{
 	  printf("faim: icbm: major error! no message block TLV found!\n");
 	  aim_freetlvchain(&tlvlist);
+	  return 1;
 	}
       
       /*
@@ -556,3 +557,5 @@ int aim_parse_msgerror_middle(struct aim_session_t *sess,
 
   return ret;
 }
+
+

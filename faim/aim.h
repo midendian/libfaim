@@ -254,7 +254,9 @@ int aim_puttlv_32(u_char *, u_short, u_long);
 int aim_puttlv_str(u_char *buf, u_short t, u_short l, u_char *v);
 int aim_writetlvchain(u_char *buf, int buflen, struct aim_tlvlist_t **list);
 int aim_addtlvtochain16(struct aim_tlvlist_t **list, unsigned short type, unsigned short val);
-int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str);
+int aim_addtlvtochain32(struct aim_tlvlist_t **list, unsigned short type, unsigned long val);
+int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str, int len);
+int aim_counttlvchain(struct aim_tlvlist_t **list);
 
 /*
  * Get command from connections / Dispatch commands
@@ -278,8 +280,18 @@ int aim_sendconnack(struct aim_session_t *sess, struct aim_conn_t *conn);
 int aim_request_login (struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
 int aim_send_login (struct aim_session_t *, struct aim_conn_t *, char *, char *, struct client_info_s *);
 int aim_encode_password(const char *, u_char *);
-
-
+unsigned long aim_sendauthresp(struct aim_session_t *sess, 
+			       struct aim_conn_t *conn, 
+			       char *sn, char *bosip, 
+			       char *cookie, char *email, 
+			       int regstatus);
+int aim_gencookie(unsigned char *buf);
+int aim_sendserverready(struct aim_session_t *sess, struct aim_conn_t *conn);
+unsigned long aim_sendredirect(struct aim_session_t *sess, 
+			       struct aim_conn_t *conn, 
+			       unsigned short servid, 
+			       char *ip,
+			       char *cookie);
 void aim_purge_rxqueue(struct aim_session_t *);
 
 
@@ -444,6 +456,9 @@ int aimutil_putstr(u_char *, const u_char *, int);
 int aimutil_tokslen(char *toSearch, int index, char dl);
 int aimutil_itemcnt(char *toSearch, char dl);
 char *aimutil_itemidx(char *toSearch, int index, char dl);
+
+int aim_snlen(const char *sn);
+int aim_sncmp(const char *sn1, const char *sn2);
 
 #endif /* __AIM_H__ */
 
