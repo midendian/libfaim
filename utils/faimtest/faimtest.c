@@ -559,7 +559,7 @@ static int faimtest_rateresp_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 	/* send the buddy list and profile (required, even if empty) */
 	aim_bos_setbuddylist(sess, fr->conn, buddies);
 
-	aim_reqicbmparams(sess, fr->conn);  
+	aim_reqicbmparams(sess);  
 
 	aim_bos_reqrights(sess, fr->conn);  
 	/* set group permissions -- all user classes */
@@ -589,7 +589,7 @@ static int faimtest_icbmparaminfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	params->maxmsglen = 8000;
 	params->minmsginterval = 0; /* in milliseconds */
 
-	aim_seticbmparam(sess, fr->conn, params);
+	aim_seticbmparam(sess, params);
 
 	return 1;
 }
@@ -690,7 +690,7 @@ static int faimtest_reportinterval(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_0002_000b(sess, fr->conn, sess->sn);
 #endif
 
-	aim_reqicbmparams(sess, fr->conn);
+	aim_reqicbmparams(sess);
 
 	return 1;
 }
@@ -980,7 +980,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (strstr(tmpstr, "goodday")) {
 
-		aim_send_im(sess, conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
+		aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
 
 	} else if (strstr(tmpstr, "haveicon") && priv->buddyicon) {
 		struct aim_sendimext_args args;
@@ -994,7 +994,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 		args.iconstamp = priv->buddyiconstamp;
 		args.iconsum = priv->buddyiconsum;
 
-		aim_send_im_ext(sess, conn, &args);
+		aim_send_im_ext(sess, &args);
 
 	} else if (strstr(tmpstr, "sendbin")) {
 		struct aim_sendimext_args args;
@@ -1030,7 +1030,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 		args.msg = data;
 		args.msglen = sizeof(data);
 
-		aim_send_im_ext(sess, conn, &args);
+		aim_send_im_ext(sess, &args);
 
 	} else if (strstr(tmpstr, "sendmulti")) {
 		struct aim_sendimext_args args;
@@ -1058,7 +1058,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 		args.flags = AIM_IMFLAGS_MULTIPART;
 		args.mpmsg = &mpm;
 
-		aim_send_im_ext(sess, conn, &args);
+		aim_send_im_ext(sess, &args);
 
 		aim_mpmsg_free(sess, &mpm);
 
@@ -1093,7 +1093,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 		args.flags = AIM_IMFLAGS_MULTIPART;
 		args.mpmsg = &mpm;
 
-		aim_send_im_ext(sess, conn, &args);
+		aim_send_im_ext(sess, &args);
 
 		aim_mpmsg_free(sess, &mpm);
 
@@ -1109,11 +1109,11 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 		args.features = features;
 		args.featureslen = sizeof(features);
 
-		aim_send_im_ext(sess, conn, &args);
+		aim_send_im_ext(sess, &args);
 
 	} else if (strstr(tmpstr, "sendicon") && priv->buddyicon) {
 
-		aim_send_icon(sess, conn, userinfo->sn, priv->buddyicon, priv->buddyiconlen, priv->buddyiconstamp, priv->buddyiconsum);
+		aim_send_icon(sess, userinfo->sn, priv->buddyicon, priv->buddyiconlen, priv->buddyiconstamp, priv->buddyiconsum);
 
 	} else if (strstr(tmpstr, "warnme")) {
 
@@ -1139,7 +1139,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 		if (!priv->ohcaptainmycaptain) {
 
-			aim_send_im(sess, conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!");
+			aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!");
 
 		} else 
 			getfile_start(sess, conn, (strlen(tmpstr) < 8)?priv->ohcaptainmycaptain:tmpstr+8);
@@ -1183,7 +1183,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 
-		aim_send_im(sess, conn, priv->ohcaptainmycaptain, 0, "sendmsg 7900");
+		aim_send_im(sess, priv->ohcaptainmycaptain, 0, "sendmsg 7900");
 
 	} else if (!strncmp(tmpstr, "reqauth", 7)) {
 
@@ -1217,7 +1217,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 			for (z = 0; z < i; z++)
 				newbuf[z] = (z % 10)+0x30;
 			newbuf[i] = '\0';
-			aim_send_im(sess, conn, userinfo->sn, 0, newbuf);
+			aim_send_im(sess, userinfo->sn, 0, newbuf);
 			free(newbuf);
 		}
 
@@ -1338,7 +1338,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	}
 
 	if (args->icbmflags & AIM_IMFLAGS_HASICON) {
-		aim_send_im(sess, conn, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");
+		aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");
 		dvprintf("faimtest: icbm: their icon: iconstamp = %ld, iconlen = 0x%08lx, iconsum = 0x%04x\n", args->iconstamp, args->iconlen, args->iconsum);
 	}
 
@@ -1359,7 +1359,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	}
 
 	if (priv->buddyicon && (args->icbmflags & AIM_IMFLAGS_BUDDYREQ))
-		aim_send_icon(sess, conn, userinfo->sn, priv->buddyicon, priv->buddyiconlen, priv->buddyiconstamp, priv->buddyiconsum);
+		aim_send_icon(sess, userinfo->sn, priv->buddyicon, priv->buddyiconlen, priv->buddyiconstamp, priv->buddyiconsum);
 
 	return 1;
 }

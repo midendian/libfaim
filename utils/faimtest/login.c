@@ -10,7 +10,7 @@ int logout(aim_session_t *sess)
 	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 
 	if (priv->ohcaptainmycaptain)
-		aim_send_im(sess, aim_getconn_type(sess, AIM_CONN_TYPE_BOS), priv->ohcaptainmycaptain, 0, "ta ta...");
+		aim_send_im(sess, priv->ohcaptainmycaptain, 0, "ta ta...");
 
 	aim_session_kill(sess);
 
