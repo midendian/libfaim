@@ -6,6 +6,7 @@
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h> 
 
 #ifndef _WIN32
@@ -176,8 +177,8 @@ faim_export void aim_conn_close(struct aim_conn_t *deadconn)
  * type found.
  *
  */
-faim_internal struct aim_conn_t *aim_getconn_type(struct aim_session_t *sess,
-						  int type)
+faim_export struct aim_conn_t *aim_getconn_type(struct aim_session_t *sess,
+						int type)
 {
   struct aim_conn_t *cur;
 
@@ -358,6 +359,37 @@ static int aim_proxyconnect(struct aim_session_t *sess,
   return fd;
 }
 
+faim_internal struct aim_conn_t *aim_cloneconn(struct aim_session_t *sess,
+					       struct aim_conn_t *src)
+{
+  struct aim_conn_t *conn;
+    struct aim_rxcblist_t *cur;
+
+  if (!(conn = aim_conn_getnext(sess)))
+    return NULL;
+  
+
+  faim_mutex_lock(&conn->active);
+
+  conn->fd = src->fd;
+  conn->type = src->type;
+  conn->subtype = src->subtype;
+  conn->seqnum = src->seqnum;
+  conn->priv = src->priv;
+  conn->lastactivity = src->lastactivity;
+  conn->forcedlatency = src->forcedlatency;
+
+  /* clone handler list */
+  for (cur = src->handlerlist; cur; cur = cur->next) {
+    aim_conn_addhandler(sess, conn, cur->family, cur->type, 
+			cur->handler, cur->flags);
+  }
+
+  faim_mutex_unlock(&conn->active);
+
+  return conn;
+}
+
 /**
  * aim_newconn - Open a new connection
  * @sess: Session to create connection in
@@ -451,26 +483,6 @@ faim_export int aim_conngetmaxfd(struct aim_session_t *sess)
   faim_mutex_unlock(&sess->connlistlock);
 
   return j;
-}
-
-/**
- * aim_countconn - Return the number of open connections in the session
- * @sess: Session to look at
- *
- * Returns the number of number connections in @sess.
- *
- */
-static int aim_countconn(struct aim_session_t *sess)
-{
-  int cnt = 0;
-  struct aim_conn_t *cur;
-
-  faim_mutex_lock(&sess->connlistlock);
-  for (cur = sess->connlist; cur; cur = cur->next)
-    cnt++;
-  faim_mutex_unlock(&sess->connlistlock);
-
-  return cnt;
 }
 
 /**

@@ -1,10 +1,13 @@
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 /*
  * aim_add_buddy()
  *
  * Adds a single buddy to your buddy list after login.
+ *
+ * XXX this should just be an extension of setbuddylist()
  *
  */
 faim_export unsigned long aim_add_buddy(struct aim_session_t *sess,
@@ -33,6 +36,11 @@ faim_export unsigned long aim_add_buddy(struct aim_session_t *sess,
    return sess->snac_nextid;
 }
 
+/*
+ * XXX generalise to support removing multiple buddies (basically, its
+ * the same as setbuddylist() but with a different snac subtype).
+ *
+ */
 faim_export unsigned long aim_remove_buddy(struct aim_session_t *sess,
 					   struct aim_conn_t *conn, 
 					   char *sn )

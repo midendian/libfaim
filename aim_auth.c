@@ -5,6 +5,7 @@
 
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h> 
 
 /* this just pushes the passed cookie onto the passed connection -- NO SNAC! */

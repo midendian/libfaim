@@ -1,3 +1,5 @@
+
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 /**

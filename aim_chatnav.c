@@ -1,12 +1,14 @@
 /*
+ * Handle ChatNav.
  *
- *
- *
+ * [The ChatNav(igation) service does various things to keep chat
+ *  alive.  It provides room information, room searching and creating, 
+ *  as well as giving users the right ("permission") to use chat.]
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
-
 
 /*
  * conn must be a chatnav connection!

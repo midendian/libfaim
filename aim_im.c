@@ -5,6 +5,7 @@
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 /*
@@ -441,14 +442,16 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	
 	type = aim_msgcookie_gettype(reqclass); /* XXX: fix this shitty code */
 
-	if ((cook = aim_uncachecookie(sess, cookie, type)) == NULL) {
-	  printf("faim: non-data rendezvous thats not in cache!\n");
-	  aim_freetlvchain(&list2);
-	  aim_freetlvchain(&tlvlist);
-	  return 1;
+	if(type != 17) {
+	  if ((cook = aim_uncachecookie(sess, cookie, type)) == NULL) {
+	    printf("faim: non-data rendezvous thats not in cache!\n");
+	    aim_freetlvchain(&list2);
+	    aim_freetlvchain(&tlvlist);
+	    return 1;
+	  }
 	}
 
-	if (cook->type == AIM_CAPS_SENDFILE) {
+	if (cook->type == AIM_COOKIETYPE_OFTGET) {
 	  struct aim_filetransfer_priv *ft;
 
 	  if (cook->data) {
@@ -456,25 +459,22 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 
 	    ft = (struct aim_filetransfer_priv *)cook->data;
 
-	    if (aim_gettlv(list2, 0x000b, 1))
-	      errorcode = aim_gettlv16(list2, 0x000b, 1);
-
-	    if (errorcode) {
-	      printf("faim: transfer from %s (%s) for %s cancelled (error code %d)\n", ft->sn, ft->ip, ft->fh.name, errorcode);
-	    } else if (status == 0x0002) { /* connection accepted */
-	      printf("faim: transfer from %s (%s) for %s accepted\n", ft->sn, ft->ip, ft->fh.name);
+	    if(status != 0x0002) {
+	      if (aim_gettlv(list2, 0x000b, 1))
+		errorcode = aim_gettlv16(list2, 0x000b, 1);
+	      
+	      if (errorcode)
+		printf("faim: transfer from %s (%s) for %s cancelled (error code %d)\n", ft->sn, ft->ip, ft->fh.name, errorcode);
 	    }
-	    free(cook->data);
 	  } else {
-	    printf("faim: not data attached to file transfer\n");
+	    printf("faim: no data attached to file transfer\n");
 	  }
 	} else if (cook->type == AIM_CAPS_VOICE) {
 	  printf("faim: voice request cancelled\n");
 	} else {
 	  printf("faim: unknown cookie cache type %d\n", cook->type);
 	}
-
-	free(cook);
+	
 	if (list2)
 	  aim_freetlvchain(&list2);
 	aim_freetlvchain(&tlvlist);

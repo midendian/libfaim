@@ -7,6 +7,7 @@
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 /*
@@ -515,10 +516,10 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	case 0x000a:  /* Family: User lookup */
 	  switch (subtype) {
 	  case 0x0001:
-	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000a, 0x0001, workingPtr);
+	    workingPtr->handled = aim_parse_searcherror(sess, workingPtr);
 	    break;
 	  case 0x0003:
-	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000a, 0x0003, workingPtr);
+	    workingPtr->handled = aim_parse_searchreply(sess, workingPtr);
 	    break;
 	  default:
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_LOK, AIM_CB_LOK_DEFAULT, workingPtr);

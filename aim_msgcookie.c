@@ -13,15 +13,15 @@
  * wrong, we get quirky behavior when cookies step on each others' toes.
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 /*
  * aim_cachecookie: 
  * appends a cookie to the cookie list for sess.
- * - if cookie->cookie for type cookie->type is found, addtime is updated.
+ * - if cookie->cookie for type cookie->type is found, -1 is returned
  * - copies cookie struct; you need to free() it afterwards;
  * - cookie->data is not copied, but passed along. don't free it.
- * - newcook->addtime is updated accordingly;
  * - cookie->type is just passed across.
  * 
  * returns -1 on error, 0 on success.  
@@ -31,29 +31,25 @@ faim_internal int aim_cachecookie(struct aim_session_t *sess,
 {
   struct aim_msgcookie_t *newcook;
 
-  if (!cookie)
+  if (!sess || !cookie)
     return -1;
 
-  if( (newcook = aim_checkcookie(sess, cookie->cookie, cookie->type)) ) {
-    newcook->addtime = time(NULL);
-    if(cookie->data != newcook->data) {
-      
-      printf("faim: cachecookie: matching cookie/type pair "
-	     "%x%x%x%x%x%x%x%x/%x has different *data. free()ing cookie copy..\n",
-	     cookie->cookie[0], cookie->cookie[1], cookie->cookie[2],
-	     cookie->cookie[3], cookie->cookie[4], cookie->cookie[5],
-	     cookie->cookie[6], cookie->cookie[7], cookie->type);
-      
-      free(cookie->data);
-    }
+  printf("\t\tCC cache %d %s", cookie->type, cookie->cookie);
+  if(cookie->type == AIM_COOKIETYPE_OFTGET) {
+    struct aim_filetransfer_priv *priv;
+    priv = cookie->data;
+    printf("%s\n", priv->sn);
+  } else
+    printf("\n");
 
-    return 0;
+  if( (newcook = aim_checkcookie(sess, cookie->cookie, cookie->type)) ) {
+    printf("aim_cachecookie: cookie already cached\n");
+    return -1;
   }
   
   if (!(newcook = malloc(sizeof(struct aim_msgcookie_t))))
     return -1;
   memcpy(newcook, cookie, sizeof(struct aim_msgcookie_t));
-  newcook->addtime = time(NULL);
   
   newcook->next = sess->msgcookies;
   sess->msgcookies = newcook;
@@ -69,76 +65,23 @@ faim_internal int aim_cachecookie(struct aim_session_t *sess,
  */
 faim_internal struct aim_msgcookie_t *aim_uncachecookie(struct aim_session_t *sess, unsigned char *cookie, int type)
 {
-  struct aim_msgcookie_t *cur;
+  struct aim_msgcookie_t *cur, **prev;
 
   if (!cookie || !sess->msgcookies)
     return NULL;
 
-  if ((sess->msgcookies->type == type) && 
-      (memcmp(sess->msgcookies->cookie, cookie, 8) == 0)) {
-    struct aim_msgcookie_t *tmp;
+  printf("\t\tCC uncache %d %s\n", type, cookie);
 
-    tmp = sess->msgcookies;
-    sess->msgcookies = sess->msgcookies->next;
-
-    return tmp;
-  } 
-
-  for (cur = sess->msgcookies; cur->next; cur = cur->next) {
-    if ((cur->next->type == type) &&
-	(memcmp(cur->next->cookie, cookie, 8) == 0)) {
-      struct aim_msgcookie_t *tmp;
-      
-      tmp = cur->next;
-      cur->next = cur->next->next;
-
-      return tmp;
+  for (prev = &sess->msgcookies; (cur = *prev); ) {
+    if ((cur->type == type) && 
+	(memcmp(cur->cookie, cookie, 8) == 0)) {
+      *prev = cur->next;
+      return cur;
     }
+    prev = &cur->next;
   }
 
   return NULL;
-}
-
-/*
- * aim_purgecookies:
- * purge out old cookies
- *
- * finds old cookies, calls uncache on them.  
- *
- * this is highly inefficient, but It Works. and i don't feel like
- * totally rewriting this. it might have some concurrency issues as
- * well, if i rewrite it.
- *
- * i'll avoid the puns.  
- */
-
-faim_export int aim_purgecookies(struct aim_session_t *sess, int maxage)
-{
-  struct aim_msgcookie_t *cur;
-  time_t curtime;
- 
-  curtime = time(NULL);
-
-  for (cur = sess->msgcookies; cur; cur = cur->next) {
-    if (cur->addtime > (time(NULL) - maxage)) {
-      struct aim_msgcookie_t *remed = NULL;
-
-#if 1
-      printf("aimmsgcookie: WARNING purged obsolete message cookie %x%x%x%x %x%x%x%x\n",
-	     cur->cookie[0], cur->cookie[1], cur->cookie[2], cur->cookie[3],
-	     cur->cookie[4], cur->cookie[5], cur->cookie[6], cur->cookie[7]);
-#endif
-
-      remed = aim_uncachecookie(sess, cur->cookie, cur->type);
-      if (remed) {
-	if (remed->data)
-	  free(remed->data);
-	free(remed);
-      }
-    }
-  }
-  
-  return 0;
 }
 
 faim_internal struct aim_msgcookie_t *aim_mkcookie(unsigned char *c, int type, void *data) 
@@ -158,20 +101,42 @@ faim_internal struct aim_msgcookie_t *aim_mkcookie(unsigned char *c, int type, v
   return cookie;
 }
   
-faim_internal struct aim_msgcookie_t *aim_checkcookie(struct aim_session_t *sess, unsigned char *cookie, int type)
+faim_internal struct aim_msgcookie_t *aim_checkcookie(struct aim_session_t *sess, const unsigned char *cookie, const int type)
 {
   struct aim_msgcookie_t *cur;
-  
+
+  printf("\t\tCC check %d %s\n", type, cookie);  
+
   for (cur = sess->msgcookies; cur; cur = cur->next) {
     if ((cur->type == type) && 
 	(memcmp(cur->cookie, cookie, 8) == 0))
-      return cur;
+      return cur;   
   }
 
   return NULL;
 }
 
-static int aim_freecookie(struct aim_msgcookie_t *cookie) {
+faim_internal int aim_freecookie(struct aim_session_t *sess, struct aim_msgcookie_t *cookie) {
+  struct aim_msgcookie_t *cur, **prev;
+
+  if (!sess || !cookie)
+    return -1;
+
+  /* 
+   * Make sure its not in the list somewhere still.
+   *
+   * If this actually happens, theres been a major coding failure 
+   * on my part. However, that does not reduce its occurance likelyhood.
+   */
+  for (prev = &sess->msgcookies; (cur = *prev); ) {
+    if (cur == cookie) {
+      *prev = cur->next;
+    } else
+      prev = &cur->next;
+  }
+
+  free(cookie);
+
   return 0;
 } 
 

@@ -1,6 +1,25 @@
 
 No release numbers
 ------------------
+ - Thu Feb  8 02:31:25 UTC 2001
+  - Remove aim_purgecookies() -- never used anyway
+  - Clean up a few bits of aim_msgcookie.c
+  - Remove AIM_CONN_MAX constant (hasn't been relevent in ages)
+  - Change commentary on synchro in aim.h
+  - Add NOPLOCKS and make them default
+  - Make faim/aim.h more of a mess; try to keep interfaces hiddenish.
+  - Add #define FAIM_INTERNAL to top of every file
+  - Remove aim_countconn (no one uses it anyway)
+  - Add aim_cloneconn() (cringe.)
+  - Throw in josh's getfile patch (and then munge it enough to break it)
+  - Add getopt() to faimtest.
+  - Remove aim_buildcode.h/mkbuildinfo.sh crap.
+  - Clean up aim_cleansnacs()
+  - There may have been other stuff too.  As always, the diff is the 
+    most accurate changelog there is.
+  - *** FT is currently more broken than it was before.  Also, this patch
+    introduces even more memory leaks.  You've been warned.
+
  - Sun Dec 17 07:19:04 UTC 2000
   - Update the capability block list
 

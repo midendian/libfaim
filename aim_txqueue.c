@@ -5,6 +5,7 @@
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 #ifndef _WIN32
@@ -206,7 +207,7 @@ faim_internal int aim_tx_printqueue(struct aim_session_t *sess)
 	  faimdprintf(2, "\t  %2x  %2x   %4x %4x   %1d    %1d\n", 
 		      cur->hdrtype,
 		      (cur->hdrtype==AIM_FRAMETYPE_OFT)?cur->hdr.oft.type:cur->hdr.oscar.type, 
-		      (cur->hdrtype==AIM_FRAMETYPE_OSCAR)?cur->seqnum:0, 
+		      (cur->hdrtype==AIM_FRAMETYPE_OSCAR)?cur->hdr.oscar.seqnum:0, 
 		      cur->commandlen, cur->lock, 
 		      cur->sent);
       }
@@ -311,12 +312,21 @@ faim_internal int aim_tx_sendframe(struct aim_session_t *sess, struct command_tx
   }
 
   if ((cur->hdrtype == AIM_FRAMETYPE_OFT) && cur->commandlen) {
+    int curposi;
+    for(curposi = 0; curposi < cur->commandlen; curposi++)
+      printf("%02x ", cur->data[curposi]);
+
     if (send(cur->conn->fd, cur->data, cur->commandlen, 0) != (int)cur->commandlen) {
       /* 
        * Theres nothing we can do about this since we've already sent the 
        * header!  The connection is unstable.
        */
+      faim_mutex_unlock(&cur->conn->active);
+      cur->sent = 1;
+      aim_conn_close(cur->conn);
+      return 0; /* bail out */
     }
+
   }
 
   cur->sent = 1; /* mark the struct as sent */
@@ -348,10 +358,6 @@ faim_export int aim_tx_flushqueue(struct aim_session_t *sess)
 {
   struct command_tx_struct *cur;
    
-#if debug > 1
-  int i = 0;
-#endif
-
   if (sess->queue_outgoing == NULL)
     return 0;
 
@@ -372,6 +378,7 @@ faim_export int aim_tx_flushqueue(struct aim_session_t *sess)
 	sleep((cur->conn->lastactivity + cur->conn->forcedlatency) - time(NULL));
       }
 
+      /* XXX XXX XXX this should call the custom "queuing" function!! */
       if (aim_tx_sendframe(sess, cur) == -1)
 	break;
     }

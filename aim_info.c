@@ -6,7 +6,7 @@
  *
  */
 
-
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 struct aim_priv_inforeq {

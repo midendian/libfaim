@@ -1,4 +1,3 @@
-
 /*
  *
  * Various SNAC-related dodads... 
@@ -13,6 +12,7 @@
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h>
 
 /*
@@ -131,7 +131,7 @@ faim_internal int aim_cleansnacs(struct aim_session_t *sess,
   int i;
 
   for (i = 0; i < FAIM_SNAC_HASH_SIZE; i++) {
-    struct aim_snac_t *cur = NULL, *next = NULL, *prev = NULL;
+    struct aim_snac_t *cur, **prev;
     time_t curtime;
 
     faim_mutex_lock(&sess->snac_hash_locks[i]);
@@ -142,24 +142,18 @@ faim_internal int aim_cleansnacs(struct aim_session_t *sess,
 
     curtime = time(NULL); /* done here in case we waited for the lock */
 
-    cur = sess->snac_hash[i];
-    while (cur) {
-      next = cur->next;
+    for (prev = &sess->snac_hash[i]; (cur = *prev); ) {
       if ((curtime - cur->issuetime) > maxage) {
-	if (sess->snac_hash[i] == cur)
-	  prev = sess->snac_hash[i] = next;
-	else
-	  prev->next = next;
+
+	*prev = cur->next;
 
 	/* XXX should we have destructors here? */
 	if (cur->data)
 	  free(cur->data);
 	free(cur);
 
-      } else {
-	prev = cur;
-      }
-      cur = next;
+      } else
+	prev = &cur->next;
     }
 
     faim_mutex_unlock(&sess->snac_hash_locks[i]);

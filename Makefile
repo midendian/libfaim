@@ -1,5 +1,6 @@
 
 include Makefile.rules
+CFLAGS += -DAIM_BUILDDATE=\"`date +%Y%m%d`\" -DAIM_BUILDTIME=\"`date +%H%M%S`\"
 
 SONAME = libfaim.so
 SOFILENAME = libfaim.so.0.90 # used for installation
@@ -30,10 +31,7 @@ LIBFAIM_OBJECTS = \
 
 all: libfaim allutils
 
-mkbuildinfo:
-	sh $$PWD/mkbuildinfo.sh
-
-libfaim: mkbuildinfo $(LIBFAIM_OBJECTS)
+libfaim: $(LIBFAIM_OBJECTS)
 	$(AR) cru libfaim.a $(LIBFAIM_OBJECTS)
 	$(RANLIB) libfaim.a
 ifdef SOLARIS

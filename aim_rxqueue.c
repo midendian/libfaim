@@ -6,6 +6,7 @@
  * aim_rxhandlers.c.
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h> 
 
 #ifndef _WIN32
@@ -72,8 +73,10 @@ faim_export int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *c
    */
   if (conn->type == AIM_CONN_TYPE_RENDEZVOUS) 
     return aim_get_command_rendezvous(sess, conn);
-  if (conn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) 
+  if (conn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
+    printf("out on fd %d\n", conn->fd);
     return 0; 
+  }
 
   /*
    * Read FLAP header.  Six bytes:

@@ -21,25 +21,6 @@
 #define debug 0
 
 /*
- * Maximum number of connections the library can simultaneously
- * handle per session structure.  Five is fairly arbitrary.  
- * 
- * Normally, only one connection gets used at a time.  However, if
- * chat is used, its easily possible for several connections to be
- * open simultaneously.
- *
- * Normal connection list looks like this:
- *   1 -- used for authentication at login (closed after login)
- *   1 -- used for BOS (general messaging) (stays open for entire session)
- *   1 -- used for chatnav (room creation, etc) (opened at random)
- *  1n -- used for n connected chat rooms (AOL limits to three)
- *
- * Default: 7
- *
- */
-#define AIM_CONN_MAX 7
-
-/*
  * USE_SNAC_FOR_IMS is an old feature that allowed better
  * tracking of error messages by caching SNAC IDs of outgoing
  * ICBMs and comparing them to incoming errors.  However,
@@ -81,19 +62,29 @@
 #define AIMUTIL_USEMACROS
 
 /*
- * Select whether or not to use POSIX thread functionality.
+ * What type of synchronisation to use.
  * 
- * We don't actually use threads, but we do use the POSIX mutex
+ * We don't actually use threads, but can use the POSIX mutex
  * in order to maintain thread safety.  You can use the fake locking
- * if you really don't like pthreads or you don't have it.
+ * if you really don't like pthreads (which I don't) or if you don't
+ * have it.
  *
- * Default: defined on Linux, otherwise use fake locks.
+ *   USEPTHREADS - Use POSIX mutecies
+ *   USEFAKELOCKS - Use little stub spinners to help find locking bugs
+ *   USENOPLOCKS - No-op out all synchro calls at compile time
+ * 
+ * Default: use noplocks by default.
+ *
+ * !!!NOTE: Even with USEPTHREADS turned on, libfaim is not fully thread
+ *          safe.  It will still take some effort to add locking calls to
+ *          the places that need them.  In fact, this feature in general
+ *          is in danger of being officially deprecated and removed from 
+ *          the code.
+ *
  */
-#ifdef __linux__
-#define FAIM_USEPTHREADS
-#else
-#define FAIM_USEFAKELOCKS
-#endif
+#undef FAIM_USEPTHREADS
+#undef FAIM_USEFAKELOCKS
+#define FAIM_USENOPLOCKS
 
 /*
  * Size of the SNAC caching hash.

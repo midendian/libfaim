@@ -5,6 +5,7 @@
  *
  */
 
+#define FAIM_INTERNAL
 #include <faim/aim.h> 
 
 faim_export char *aim_chat_getname(struct aim_conn_t *conn)
@@ -57,6 +58,7 @@ faim_export unsigned long aim_chat_send_im(struct aim_session_t *sess,
 
   int curbyte,i;
   struct command_tx_struct *newpacket;
+  struct aim_msgcookie_t *cookie;
 
   if (!sess || !conn || !msg)
     return 0;
@@ -76,7 +78,10 @@ faim_export unsigned long aim_chat_send_im(struct aim_session_t *sess,
   for (i=0;i<8;i++)
     curbyte += aimutil_put8(newpacket->data+curbyte, (u_char) rand());
 
-  aim_cachecookie(sess, aim_mkcookie(newpacket->data+curbyte-8, AIM_COOKIETYPE_CHAT, NULL));
+  cookie = aim_mkcookie(newpacket->data+curbyte-8, AIM_COOKIETYPE_CHAT, NULL);
+  cookie->data = strdup(conn->priv); /* chat hack dependent */
+
+  aim_cachecookie(sess, cookie);
 
   /*
    * metaTLV start.  -- i assume this is a metaTLV.  it could be the
@@ -554,6 +559,8 @@ faim_export unsigned long aim_chat_invite(struct aim_session_t *sess,
 {
   struct command_tx_struct *newpacket;
   int i,curbyte=0;
+  struct aim_msgcookie_t *cookie;
+  struct aim_invite_priv *priv;
 
   if (!sess || !conn || !sn || !msg || !roomname)
     return -1;
@@ -575,7 +582,16 @@ faim_export unsigned long aim_chat_invite(struct aim_session_t *sess,
     curbyte += aimutil_put8(newpacket->data+curbyte, (u_char)rand());
 
   /* XXX this should get uncached by the unwritten 'invite accept' handler */
-  aim_cachecookie(sess, aim_mkcookie(newpacket->data+curbyte-8, AIM_COOKIETYPE_CHAT, NULL));
+  if(!(priv = calloc(sizeof(struct aim_invite_priv), 1)))
+    return -1;
+  priv->sn = strdup(sn);
+  priv->roomname = strdup(roomname);
+  priv->exchange = exchange;
+  priv->instance = instance;
+
+  if(!(cookie = aim_mkcookie(newpacket->data+curbyte-8, AIM_COOKIETYPE_INVITE, priv)))
+    return -1;
+  aim_cachecookie(sess, cookie);
 
   /*
    * Channel (2)
