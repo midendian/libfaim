@@ -50,7 +50,8 @@ AC_CHECK_FUNCS(gethostname gettimeofday select socket strdup strstr strtol uname
 
 AC_CHECK_LIB(readline, rl_callback_handler_install,
 	READLINELIB="-lreadline",
-	AC_MSG_ERROR(unable to find GNU readline);
+	AC_MSG_ERROR(unable to find GNU readline),
+	"-lcurses"
 )
 
 AC_SUBST(CFLAGS)
