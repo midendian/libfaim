@@ -552,11 +552,11 @@ static int faimtest_icbmparaminfo(struct aim_session_t *sess, struct command_rx_
   va_list ap;
 
   va_start(ap, command);
-  maxchannel = va_arg(ap, unsigned short);
+  maxchannel = va_arg(ap, unsigned int);
   defflags = va_arg(ap, unsigned long);
-  maxicbmlen = va_arg(ap, unsigned short);
-  maxsenderwarn = va_arg(ap, unsigned short);
-  maxrecverwarn = va_arg(ap, unsigned short);
+  maxicbmlen = va_arg(ap, unsigned int);
+  maxsenderwarn = va_arg(ap, unsigned int);
+  maxrecverwarn = va_arg(ap, unsigned int);
   minmsginterval = va_arg(ap, unsigned long);
   va_end(ap);
 
