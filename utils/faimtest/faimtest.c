@@ -852,42 +852,59 @@ static int getaimdata(unsigned char **bufret, int *buflenret, unsigned long offs
   }
 
   if (stat(filename, &st) == -1) {
-    dperror("memrequest: stat");
-    free(filename);
-    return -1;
+    if (!modname) {
+      dperror("memrequest: stat");
+      free(filename);
+      return -1;
+    }
+    invalid = 1;
   }
 
-  if ((offset > st.st_size) || (len > st.st_size))
-    invalid = 1;
-  else if ((st.st_size - offset) < len)
-    len = st.st_size - offset;
-  else if ((st.st_size - len) < len)
-    len = st.st_size - len;
+  if (!invalid) {
+    if ((offset > st.st_size) || (len > st.st_size))
+      invalid = 1;
+    else if ((st.st_size - offset) < len)
+      len = st.st_size - offset;
+    else if ((st.st_size - len) < len)
+      len = st.st_size - len;
+  }
 
   if (!invalid && len)
     len %= 4096;
 
   if (invalid) {
+    int i;
 
     free(filename); /* not needed */
 
-    if (!(buf = malloc(8)))
+    dvprintf("memrequest: recieved invalid request for 0x%08lx bytes at 0x%08lx (file %s)\n", len, offset, modname);
+
+    i = 8;
+    if (modname)
+      i += strlen(modname);
+
+    if (!(buf = malloc(i)))
       return -1;
 
-    dvprintf("memrequest: recieved invalid request for 0x%08lx bytes at 0x%08lx\n", len, offset);
+    i = 0;
+
+    if (modname) {
+      memcpy(buf, modname, strlen(modname));
+      i += strlen(modname);
+    }
 
     /* Damn endianness. This must be little (LSB first) endian. */
-    buf[0] = offset & 0xff;
-    buf[1] = (offset >> 8) & 0xff;
-    buf[2] = (offset >> 16) & 0xff;
-    buf[3] = (offset >> 24) & 0xff;
-    buf[4] = len & 0xff;
-    buf[5] = (len >> 8) & 0xff;
-    buf[6] = (len >> 16) & 0xff;
-    buf[7] = (len >> 24) & 0xff;
+    buf[i++] = offset & 0xff;
+    buf[i++] = (offset >> 8) & 0xff;
+    buf[i++] = (offset >> 16) & 0xff;
+    buf[i++] = (offset >> 24) & 0xff;
+    buf[i++] = len & 0xff;
+    buf[i++] = (len >> 8) & 0xff;
+    buf[i++] = (len >> 16) & 0xff;
+    buf[i++] = (len >> 24) & 0xff;
 
     *bufret = buf;
-    *buflenret = 8;
+    *buflenret = i;
 
   } else {
 
