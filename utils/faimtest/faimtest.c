@@ -861,8 +861,8 @@ static void printuserflags(fu16_t flags)
 		dinlineprintf("AWAY ");
 	if (flags & AIM_FLAG_ICQ)
 		dinlineprintf("ICQ ");
-	if (flags & AIM_FLAG_UNKNOWN80)
-		dinlineprintf("UNKNOWN80 ");
+	if (flags & AIM_FLAG_WIRELESS)
+		dinlineprintf("WIRELESS ");
 	if (flags & AIM_FLAG_ACTIVEBUDDY)
 		dinlineprintf("ACTIVEBUDDY ");
 
@@ -1441,7 +1441,7 @@ static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 			(userinfo->flags&AIM_FLAG_FREE)?" FREE":"",
 			(userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
 			(userinfo->flags&AIM_FLAG_ICQ)?" ICQ":"",
-			(userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
+			(userinfo->flags&AIM_FLAG_WIRELESS)?" WIRELESS":"",
 			(userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present",
 			userinfo->capabilities);
 	return 1;
@@ -1466,7 +1466,7 @@ static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 			 (userinfo->flags&AIM_FLAG_FREE)?" FREE":"",
 			 (userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
 			 (userinfo->flags&AIM_FLAG_ICQ)?" ICQ":"",
-			 (userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
+			 (userinfo->flags&AIM_FLAG_WIRELESS)?" WIRELESS":"",
 			 (userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present",
 			 userinfo->capabilities);
 
