@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 rm -rf aim_meta.o aim_buildcode.h
 
 echo -n "#define AIM_BUILDDATE \"" > aim_buildcode.h
