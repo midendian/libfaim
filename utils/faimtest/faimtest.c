@@ -1185,7 +1185,5 @@ int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_stru
 
   printf("faimtest: warning from: %s\n", sn);
 
-  free(sn);
-
   return 1;
 };

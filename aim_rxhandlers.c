@@ -674,6 +674,8 @@ int aim_parse_evilnotify_middle(struct aim_session_t *sess, struct command_rx_st
   if ((userfunc = aim_callhandler(command->conn, 0x0001, 0x0010)))
     ret = userfunc(sess, command, sn);
   
+  free(sn);
+
   return ret;
 }
 
