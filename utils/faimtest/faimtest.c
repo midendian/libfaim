@@ -260,7 +260,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
   
     aim_bos_reqrights(sess, command->conn);  
     /* set group permissions -- all user classes */
-    aim_bos_setgroupperm(sess, command->conn, AIM_CLASS_ALLUSERS);
+    aim_bos_setgroupperm(sess, command->conn, AIM_FLAG_ALLUSERS);
     aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE|AIM_PRIVFLAGS_ALLOWMEMBERSINCE);
 
     break;  
@@ -506,6 +506,27 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
+static void printuserflags(unsigned short flags)
+{
+  if (flags & AIM_FLAG_UNCONFIRMED)
+    printf("UNCONFIRMED ");
+  if (flags & AIM_FLAG_ADMINISTRATOR)
+    printf("ADMINISTRATOR ");
+  if (flags & AIM_FLAG_AOL)
+    printf("AOL ");
+  if (flags & AIM_FLAG_OSCAR_PAY)
+      printf("OSCAR_PAY ");
+  if (flags & AIM_FLAG_FREE)
+    printf("FREE ");
+  if (flags & AIM_FLAG_AWAY)
+    printf("AWAY ");
+  if (flags & AIM_FLAG_UNKNOWN40)
+    printf("ICQ? ");
+  if (flags & AIM_FLAG_UNKNOWN80)
+    printf("UNKNOWN80 ");
+  return;
+}
+
 int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   struct aim_userinfo_s *userinfo;
@@ -523,32 +544,8 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
   
   printf("faimtest: userinfo: sn: %s\n", userinfo->sn);
   printf("faimtest: userinfo: warnlevel: 0x%04x\n", userinfo->warnlevel);
-  printf("faimtest: userinfo: class: 0x%04x = ", userinfo->class);
-
-  /*
-   *  00000000  (binary)
-   *         1  Trial  
-   *        2   Unknown
-   *       3    AOL
-   *      4     Unknown
-   *     5      Free
-   * 
-   * ORed together.
-   *
-   */
-
-  if (userinfo->class & 0x0001)
-    printf("TRIAL ");
-  if (userinfo->class & 0x0002)
-    printf("ADMINISTRATOR ");
-  if (userinfo->class & 0x0004)
-    printf("AOL ");
-  if (userinfo->class & 0x0008)
-    printf("OSCAR_PAY ");
-  if (userinfo->class & 0x0010)
-    printf("FREE ");
-  if (userinfo->class & 0x0040)
-    printf("ICQ? ");
+  printf("faimtest: userinfo: flags: 0x%04x = ", userinfo->flags);
+  printuserflags(userinfo->flags);
   printf("\n");
   
   printf("faimtest: userinfo: membersince: %lu\n", userinfo->membersince);
@@ -575,7 +572,7 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
  *  char *                      srcsn       the source name
  *  char *                      msg         message
  *  int                         warnlevel   warning/evil level
- *  int                         class       user class
+ *  int                         flags       flags
  *  ulong                       membersince time_t of date of signup
  *  ulong                       onsince     time_t of date of singon
  *  int                         idletime    min (sec?) idle
@@ -609,14 +606,10 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     
     printf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
     printf("faimtest: icbm: warnlevel = 0x%04x\n", userinfo->warnlevel);
-    printf("faimtest: icbm: class = 0x%04x ", userinfo->class);
-    if (userinfo->class & 0x0010)
-      printf("(FREE) ");
-    if (userinfo->class & 0x0001)
-      printf("(TRIAL) ");
-    if (userinfo->class & 0x0004)
-      printf("(AOL) ");
+    printf("faimtest: icbm: flags = 0x%04x = ", userinfo->flags);
+    printuserflags(userinfo->flags);
     printf("\n");
+
     printf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
     printf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
     printf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
@@ -719,14 +712,10 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       
       printf("faimtest: voice invitation: source sn = %s\n", userinfo->sn);
       printf("faimtest: voice invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
-      printf("faimtest: voice invitation: \tclass = 0x%04x ", userinfo->class);
-      if (userinfo->class & 0x0010)
-	printf("(FREE) ");
-      if (userinfo->class & 0x0001)
-	printf("(TRIAL) ");
-      if (userinfo->class & 0x0004)
-	printf("(AOL) ");
+      printf("faimtest: voice invitation: \tclass = 0x%04x = ", userinfo->flags);
+      printuserflags(userinfo->flags);
       printf("\n");
+
       /* we dont get membersince on chat invites! */
       printf("faimtest: voice invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
       printf("faimtest: voice invitation: \tidletime = 0x%04x\n", userinfo->idletime);
@@ -754,14 +743,10 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       
       printf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
       printf("faimtest: chat invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
-      printf("faimtest: chat invitation: \tclass = 0x%04x ", userinfo->class);
-      if (userinfo->class & 0x0010)
-	printf("(FREE) ");
-      if (userinfo->class & 0x0001)
-	printf("(TRIAL) ");
-      if (userinfo->class & 0x0004)
-	printf("(AOL) ");
+      printf("faimtest: chat invitation: \tclass = 0x%04x = ", userinfo->flags);
+      printuserflags(userinfo->flags);
       printf("\n");
+
       /* we dont get membersince on chat invites! */
       printf("faimtest: chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
       printf("faimtest: chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
@@ -949,16 +934,16 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   va_end(ap);
 
-  printf("\n%s is now online (class: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
-	 userinfo->sn, userinfo->class,
-	 (userinfo->class&AIM_CLASS_TRIAL)?" TRIAL":"",
-	 (userinfo->class&AIM_CLASS_ADMINISTRATOR)?" ADMINISTRATOR":"",
-	 (userinfo->class&AIM_CLASS_AOL)?" AOL":"",
-	 (userinfo->class&AIM_CLASS_OSCAR_PAY)?" OSCAR_PAY":"",
-	 (userinfo->class&AIM_CLASS_FREE)?" FREE":"",
-	 (userinfo->class&AIM_CLASS_AWAY)?" AWAY":"",
-	 (userinfo->class&AIM_CLASS_UNKNOWN40)?" UNKNOWN40":"",
-	 (userinfo->class&AIM_CLASS_UNKNOWN80)?" UNKNOWN80":"",
+  printf("\n%s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+	 userinfo->sn, userinfo->flags,
+	 (userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
+	 (userinfo->flags&AIM_FLAG_ADMINISTRATOR)?" ADMINISTRATOR":"",
+	 (userinfo->flags&AIM_FLAG_AOL)?" AOL":"",
+	 (userinfo->flags&AIM_FLAG_OSCAR_PAY)?" OSCAR_PAY":"",
+	 (userinfo->flags&AIM_FLAG_FREE)?" FREE":"",
+	 (userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
+	 (userinfo->flags&AIM_FLAG_UNKNOWN40)?" UNKNOWN40":"",
+	 (userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
 	 userinfo->capabilities);
   return 1;
 }
