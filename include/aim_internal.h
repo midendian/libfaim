@@ -203,7 +203,8 @@ faim_internal void aim_conn_kill_rend(aim_session_t *sess, aim_conn_t *conn);
 /* These are all handled internally now. */
 faim_internal int aim_setversions(aim_session_t *sess, aim_conn_t *conn);
 faim_internal int aim_reqrates(aim_session_t *, aim_conn_t *);
-faim_internal int aim_ratesack(aim_session_t *, aim_conn_t *);
+faim_internal int aim_rates_addparam(aim_session_t *, aim_conn_t *);
+faim_internal int aim_rates_delparam(aim_session_t *, aim_conn_t *);
 
 #ifndef FAIM_INTERNAL_INSANE
 #define printf() printf called inside libfaim

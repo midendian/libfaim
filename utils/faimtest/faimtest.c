@@ -368,7 +368,7 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 	snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", priv->ohcaptainmycaptain ? priv->ohcaptainmycaptain : "blah");
 	snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", priv->ohcaptainmycaptain);
 
-	aim_bos_reqpersonalinfo(sess, fr->conn);
+	aim_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
 	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_EVERYBUDDY);
 	aim_bos_reqbuddyrights(sess, fr->conn);
@@ -491,7 +491,7 @@ static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_adverts, 0);
-			aim_auth_sendcookie(sess, tstconn, cookie);
+			aim_sendcookie(sess, tstconn, cookie);
 			dprintf("sent cookie to adverts host\n");
 		}
 #endif
@@ -509,7 +509,7 @@ static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
 			/* Send the cookie to the Auth */
-			aim_auth_sendcookie(sess, tstconn, cookie);
+			aim_sendcookie(sess, tstconn, cookie);
 			dprintf("sent cookie to authorizer host\n");
 		}
 	} else if (serviceid == 0x000d) {  /* ChatNav */
@@ -625,8 +625,8 @@ static int faimtest_reportinterval(aim_session_t *sess, aim_frame_t *fr, ...)
 		priv->connected++;
 
 #if 0
-	aim_bos_reqservice(sess, fr->conn, 0x0005); /* adverts */
-	aim_bos_reqservice(sess, fr->conn, 0x000f); /* user directory */
+	aim_reqservice(sess, fr->conn, 0x0005); /* adverts */
+	aim_reqservice(sess, fr->conn, 0x000f); /* user directory */
 
 	/* Don't know what this does... */
 	/* XXX sess->sn should be normalized by the 0001/000f handler */
@@ -1089,7 +1089,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 		
 	} else if (!strncmp(tmpstr, "open chatnav", 12)) {
 
-		aim_bos_reqservice(sess, conn, AIM_CONN_TYPE_CHATNAV);
+		aim_reqservice(sess, conn, AIM_CONN_TYPE_CHATNAV);
 
 	} else if (!strncmp(tmpstr, "create", 6)) {
 
@@ -1130,23 +1130,23 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (!strncmp(tmpstr, "reqauth", 7)) {
 
-		aim_bos_reqservice(sess, conn, AIM_CONN_TYPE_AUTH);
+		aim_reqservice(sess, conn, AIM_CONN_TYPE_AUTH);
 
 	} else if (!strncmp(tmpstr, "reqconfirm", 10)) {
 
-		aim_auth_reqconfirm(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
+		aim_admin_reqconfirm(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
 
 	} else if (!strncmp(tmpstr, "reqemail", 8)) {
 
-		aim_auth_getinfo(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), 0x0011);
+		aim_admin_getinfo(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), 0x0011);
 
 	} else if (!strncmp(tmpstr, "changepass", 8)) {
 
-		aim_auth_changepasswd(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWPASSWORD", "OLDPASSWORD");
+		aim_admin_changepasswd(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWPASSWORD", "OLDPASSWORD");
 
 	} else if (!strncmp(tmpstr, "setemail", 8)) {
 
-		aim_auth_setemail(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWEMAILADDRESS");
+		aim_admin_setemail(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWEMAILADDRESS");
 
 	} else if (!strncmp(tmpstr, "sendmsg", 7)) {
 		int i;
@@ -1166,7 +1166,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (strstr(tmpstr, "seticqstatus")) {
 
-		aim_icq_setstatus(sess, conn, AIM_ICQ_STATE_DND);
+		aim_setextstatus(sess, conn, AIM_ICQ_STATE_DND);
 
 	} else {
 
@@ -1750,7 +1750,7 @@ static int migrate(aim_session_t *sess, aim_frame_t *fr, ...)
 	/* Login will happen all over again. */
 	addcb_bos(sess, bosconn);
 
-	aim_auth_sendcookie(sess, bosconn, cookie);
+	aim_sendcookie(sess, bosconn, cookie);
 
 	return 1;
 }

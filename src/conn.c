@@ -1045,3 +1045,22 @@ faim_export int aim_logoff(aim_session_t *sess)
 
 }
 
+/*
+ * aim_flap_nop()
+ *
+ * No-op.  WinAIM 4.x sends these _every minute_ to keep
+ * the connection alive.  
+ */
+faim_export int aim_flap_nop(aim_session_t *sess, aim_conn_t *conn)
+{
+	aim_frame_t *fr;
+
+	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x05, 0)))
+		return -ENOMEM;
+
+	aim_tx_enqueue(sess, fr);
+
+	return 0;
+}
+
+

@@ -209,7 +209,7 @@ void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_chat, 0);
 
-	aim_auth_sendcookie(sess, tstconn, cookie);
+	aim_sendcookie(sess, tstconn, cookie);
 
 	dprintf("chatnav: connected\n");
 
@@ -238,7 +238,7 @@ void chat_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie, con
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_chat, 0);
 
-	aim_auth_sendcookie(sess, tstconn, cookie);
+	aim_sendcookie(sess, tstconn, cookie);
 
 	return;	
 }

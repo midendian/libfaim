@@ -14,7 +14,6 @@ libfaim_la_SOURCES =	admin.c		\
 			info.c		\
 			invite.c	\
 			icq.c		\
-			login.c		\
 			meta.c		\
 			misc.c		\
 			msgcookie.c	\
@@ -22,6 +21,7 @@ libfaim_la_SOURCES =	admin.c		\
 			rxhandlers.c	\
 			rxqueue.c	\
 			search.c	\
+			service.c	\
 			snac.c		\
 			ssi.c		\
 			stats.c		\

@@ -135,7 +135,7 @@ static int faimtest_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	addcb_bos(sess, bosconn);
 
-	aim_auth_sendcookie(sess, bosconn, cookie);
+	aim_sendcookie(sess, bosconn, cookie);
 
 	return 1;
 }
