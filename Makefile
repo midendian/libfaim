@@ -27,7 +27,7 @@ LIBFAIM_OBJECTS = \
 all: libfaim allutils
 
 mkbuildinfo:
-	@mkbuildinfo.sh
+	@$$PWD/mkbuildinfo.sh
 
 libfaim: mkbuildinfo $(LIBFAIM_OBJECTS)
 	$(AR) cru libfaim.a $(LIBFAIM_OBJECTS)
