@@ -899,7 +899,9 @@ faim_export void aim_session_init(aim_session_t *sess, fu32_t flags, int debugle
 	aim__registermodule(sess, chat_modfirst);
 	/* missing 0x0f - 0x12 */
 	aim__registermodule(sess, ssi_modfirst);
-	/* missing 0x14 - 0x16 */
+	/* missing 0x14 */
+	aim__registermodule(sess, icq_modfirst);
+	/* missing 0x16 */
 	aim__registermodule(sess, auth_modfirst);
 
 	return;

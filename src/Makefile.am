@@ -13,6 +13,7 @@ libfaim_la_SOURCES =	admin.c		\
 			im.c		\
 			info.c		\
 			invite.c	\
+			icq.c		\
 			login.c		\
 			meta.c		\
 			misc.c		\
