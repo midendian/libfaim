@@ -39,6 +39,7 @@
  */
 
 #include "faimtest.h"
+#include <sys/stat.h>
 
 static char *dprintf_ctime(void)
 {
@@ -359,6 +360,7 @@ int main(int argc, char **argv)
       printf("    -c name       Screen name of owner\n");
       printf("    -o            Login at startup, then prompt\n");
       printf("    -O            Login, never give prompt\n");
+      printf("    -b path       Path to AIM 3.5.1670 binaries\n");
       exit(0);
     }
   }
@@ -797,13 +799,37 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
-static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, const char *modname)
+/*
+ * This is a little more complicated than it looks.  The module
+ * name (proto, boscore, etc) may or may not be given.  If it is
+ * not given, then use aim.exe.  If it is given, put ".ocm" on the
+ * end of it.
+ *
+ * Now, if the offset or length requested would cause a read past
+ * the end of the file, then the request is considered invalid.  Invalid
+ * requests are processed specially.  The value hashed is the
+ * the request, put into little-endian (eight bytes: offset followed
+ * by length).  
+ *
+ * Additionally, if the request is valid, the length is mod 4096.  It is
+ * important that the length is checked for validity first before doing
+ * the mod.
+ *
+ * Note to Bosco's Brigade: if you'd like to break this, put the 
+ * module name on an invalid request.
+ *
+ */
+static int getaimdata(unsigned char **bufret, int *buflenret, unsigned long offset, unsigned long len, const char *modname)
 {
   FILE *f;
   static const char defaultmod[] = "aim.exe";
   char *filename = NULL;
+  struct stat st;
+  unsigned char *buf;
+  int invalid = 0;
 
-  memset(buf, 0, buflen);
+  if (!bufret || !*bufret || !buflenret)
+    return -1;
 
   if (modname) {
 
@@ -825,33 +851,84 @@ static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, cons
 
   }
 
-  dvprintf("memrequest: loading %d bytes from 0x%08lx in \"%s\"...\n", buflen, offset, filename);
-
-  if (!(f = fopen(filename, "r"))) {
-    dperror("memrequest: fopen");
+  if (stat(filename, &st) == -1) {
+    dperror("memrequest: stat");
     free(filename);
     return -1;
   }
 
-  free(filename);
+  if ((offset > st.st_size) || (offset > st.st_size))
+    invalid = 1;
+  else if ((st.st_size - offset) < len)
+    len = st.st_size - offset;
+  else if ((st.st_size - len) < len)
+    len = st.st_size - len;
 
-  if (buflen) {
+  if (!invalid && len)
+    len %= 4096;
+
+  if (invalid) {
+
+    free(filename); /* not needed */
+
+    if (!(buf = malloc(8)))
+      return -1;
+
+    dvprintf("memrequest: recieved invalid request for 0x%08lx bytes at 0x%08lx\n", len, offset);
+
+    /* Damn endianness. This must be little (LSB first) endian. */
+    buf[0] = offset & 0xff;
+    buf[1] = (offset >> 8) & 0xff;
+    buf[2] = (offset >> 16) & 0xff;
+    buf[3] = (offset >> 24) & 0xff;
+    buf[4] = len & 0xff;
+    buf[5] = (len >> 8) & 0xff;
+    buf[6] = (len >> 16) & 0xff;
+    buf[7] = (len >> 24) & 0xff;
+
+    *bufret = buf;
+    *buflenret = 8;
+
+  } else {
+
+    if (!(buf = malloc(len))) {
+      free(filename);
+      return -1;
+    }
+
+    dvprintf("memrequest: loading %ld bytes from 0x%08lx in \"%s\"...\n", len, offset, filename);
+
+    if (!(f = fopen(filename, "r"))) {
+      dperror("memrequest: fopen");
+      free(filename);
+      free(buf);
+      return -1;
+    }
+
+    free(filename);
+
     if (fseek(f, offset, SEEK_SET) == -1) {
       dperror("memrequest: fseek");
       fclose(f);
+      free(buf);
       return -1;
     }
 
-    if (fread(buf, buflen, 1, f) != 1) {
+    if (fread(buf, len, 1, f) != 1) {
       dperror("memrequest: fread");
       fclose(f);
+      free(buf);
       return -1;
     }
+
+    fclose(f);
+
+    *bufret = buf;
+    *buflenret = len;
+
   }
 
-  fclose(f);
-
-  return buflen;
+  return 0; /* success! */
 }
 
 /*
@@ -865,8 +942,9 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
 {
   va_list ap;
   unsigned long offset, len;
-  unsigned char *buf;
   char *modname;
+  unsigned char *buf;
+  int buflen;
   
   va_start(ap, command);
   offset = va_arg(ap, unsigned long);
@@ -874,14 +952,11 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
   modname = va_arg(ap, char *);
   va_end(ap);
 
-  if (!(buf = malloc(len))) {
-    dperror("memrequest: malloc");
-    return 0;
-  }
+  if (aimbinarypath && (getaimdata(&buf, &buflen, offset, len, modname) == 0)) {
 
-  if (aimbinarypath && (getaimdata(buf, len, offset, modname) == len)) {
+    aim_sendmemblock(sess, command->conn, offset, buflen, buf, AIM_SENDMEMBLOCK_FLAG_ISREQUEST);
 
-    aim_sendmemblock(sess, command->conn, offset, len, buf, AIM_SENDMEMBLOCK_FLAG_ISREQUEST);
+    free(buf);
 
   } else {
 
@@ -890,8 +965,6 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
     aim_sendmemblock(sess, command->conn, offset, len, NULL, AIM_SENDMEMBLOCK_FLAG_ISREQUEST);
 
   }
-
-  free(buf);
 
   return 1;
 }
