@@ -999,7 +999,7 @@ static int incomingim_ch2_voice(aim_session_t *sess, aim_module_t *mod, aim_fram
 	/* XXX: implement all this */
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype))) 
-		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+		ret = userfunc(sess, rx, 0x0002, userinfo, args);
 
 	return ret;
 }
@@ -1026,7 +1026,7 @@ static int incomingim_ch2_chat(aim_session_t *sess, aim_module_t *mod, aim_frame
 		args->info.chat.lang = aim_gettlv_str(list2, 0x000e, 1);
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+		ret = userfunc(sess, rx, 0x0002, userinfo, args);
 
 	/* XXX free_roominfo */
 	free(args->info.chat.roominfo.name);
@@ -1077,7 +1077,7 @@ static int incomingim_ch2_getfile(aim_session_t *sess, aim_module_t *mod, aim_fr
 	memcpy(args->info.getfile.cookie, args->cookie, 8);
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		ret = userfunc(sess, rx, 0x0002, userinfo, &args);
+		ret = userfunc(sess, rx, 0x0002, userinfo, args);
 
 	return ret;
 }

@@ -1233,17 +1233,12 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
 /*
  * Channel 1: Standard Message
  */
-static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, va_list ap)
+static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch1_args *args)
 {
 	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 	char *tmpstr;
-	struct aim_incomingim_ch1_args *args;
 	int clienttype = AIM_CLIENTTYPE_UNKNOWN;
 	char realmsg[8192+1] = {""};
-
-	args = va_arg(ap, struct aim_incomingim_ch1_args *);
-	va_end(ap);
-
 	clienttype = aim_fingerprintclient(args->features, args->featureslen);
 
 	dvprintf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
@@ -1365,12 +1360,8 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 /*
  * Channel 2: Rendevous Request
  */
-static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, va_list ap)
+static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args)
 {
-	struct aim_incomingim_ch2_args *args;
-
-	args = va_arg(ap, struct aim_incomingim_ch2_args *);
-	va_end(ap);
 
 	if (args->reqclass == AIM_CAPS_VOICE) {
 
@@ -1440,15 +1431,26 @@ static int faimtest_parse_incoming_im(aim_session_t *sess, aim_frame_t *fr, ...)
 	int ret = 0;
 
 	va_start(ap, fr);
-	channel = va_arg(ap, fu16_t);
+	channel = (fu16_t)va_arg(ap, unsigned int);
 	userinfo = va_arg(ap, struct aim_userinfo_s *);
 
-	if (channel == 1)
-		ret = faimtest_parse_incoming_im_chan1(sess, fr->conn, userinfo, ap);
-	else if (channel == 2)
-		ret = faimtest_parse_incoming_im_chan2(sess, fr->conn, userinfo, ap);
-	else
+	if (channel == 1) {
+		struct aim_incomingim_ch1_args *args;
+
+		args = va_arg(ap, struct aim_incomingim_ch1_args *);
+
+		ret = faimtest_parse_incoming_im_chan1(sess, fr->conn, userinfo, args);
+
+	} else if (channel == 2) {
+		struct aim_incomingim_ch2_args *args;
+
+		args = va_arg(ap, struct aim_incomingim_ch2_args *);
+
+		ret = faimtest_parse_incoming_im_chan2(sess, fr->conn, userinfo, args);
+	} else
 		dvprintf("unsupported channel 0x%04x\n", channel);
+
+	va_end(ap);
 
 	dvprintf("faimtest: icbm: done with ICBM handling (ret = %d)\n", ret);
 

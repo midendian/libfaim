@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Tue Sep 11 16:41:11 PDT 2001
+  - Fix chat invites.
+  - Keep faimtest from passing va_list's. That scares me.
+
  - Tue Sep 11 04:42:28 PDT 2001
   - Fix faim_internal/export confusion for the TLV functions
   - Add aim_addtlvtochain_userinfo() (used by AP)
