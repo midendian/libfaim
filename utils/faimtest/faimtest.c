@@ -505,6 +505,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
     char buddies[128];
     /* this is the new profile */
     char profile[256];
+    char awaymsg[] = {"blah blah blah Ole! blah blah blah"};
 
     /* Caution: Buddy1 and Buddy2 are real people! (who I don't know) */
     snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", ohcaptainmycaptain?ohcaptainmycaptain:"blah");
@@ -513,7 +514,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
     aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response */
     aim_bos_reqpersonalinfo(sess, command->conn);
     aim_bos_reqlocaterights(sess, command->conn);
-    aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
+    aim_bos_setprofile(sess, command->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
     aim_bos_reqbuddyrights(sess, command->conn);
 
     /* send the buddy list and profile (required, even if empty) */
