@@ -13,3 +13,4 @@ ltmain.sh
 missing
 mkinstalldirs
 ltconfig
+depcomp

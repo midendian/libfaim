@@ -26,5 +26,5 @@ libfaim_la_SOURCES =	admin.c		\
 			util.c		\
 			md5.c
 
-CFLAGS += -I../include -DAIM_BUILDDATE=\"`date +%Y%m%d`\" -DAIM_BUILDTIME=\"`date +%H%M%S`\"
+CFLAGS += -I\$(top_srcdir)/include -DAIM_BUILDDATE=\"`date +%Y%m%d`\" -DAIM_BUILDTIME=\"`date +%H%M%S`\"
 
