@@ -90,8 +90,7 @@ int main(void)
   aim_register_callbacks(faimtest_callbacks);
 
 
-  //aim_login("a275081780", "1Fritz");  /* not real password :) */
-  aim_login("diputs 81", "1Fritz");
+  aim_login("NAME", "PASS");
   while (aim_select(NULL) > (struct aim_conn_t *)0)
     {
       if (aim_get_command() < 0)
@@ -230,7 +229,7 @@ int faimtest_authsvrready(struct command_rx_struct *command, ...)
    *   than you wanting to change your password.  You should 
    *   probably check that before actually doing it.
    */
-  //aim_auth_changepasswd(command->conn, "Fritz", "1Fritz");
+  //aim_auth_changepasswd(command->conn, "", "");
 
   return 0;
 }
