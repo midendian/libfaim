@@ -422,10 +422,11 @@ faim_internal int aim_chat_parse_incoming(struct aim_session_t *sess,
   struct aim_userinfo_s userinfo;
   rxcallback_t userfunc=NULL;	
   int ret = 1, i = 0, z = 0;
-  u_char cookie[8];
+  unsigned char cookie[8];
   int channel;
   struct aim_tlvlist_t *outerlist;
   char *msg = NULL;
+  struct aim_msgcookie_t *ck;
 
   memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
 
@@ -437,7 +438,11 @@ faim_internal int aim_chat_parse_incoming(struct aim_session_t *sess,
   for (z=0; z<8; z++,i++)
     cookie[z] = command->data[i];
 
-  aim_cachecookie(sess, aim_mkcookie(cookie, AIM_COOKIETYPE_ICBM, NULL));
+  if ((ck = aim_uncachecookie(sess, cookie, AIM_COOKIETYPE_CHAT))) {
+    if (ck->data)
+      free(ck->data);
+    free(ck);
+  }
 
   /*
    * Channel ID
@@ -583,6 +588,8 @@ faim_export unsigned long aim_chat_invite(struct aim_session_t *sess,
    */
   for (i=0;i<8;i++)
     curbyte += aimutil_put8(newpacket->data+curbyte, (u_char)rand());
+
+  /* XXX this should get uncached by the unwritten 'invite accept' handler */
   aim_cachecookie(sess, aim_mkcookie(newpacket->data+curbyte-8, AIM_COOKIETYPE_CHAT, NULL));
 
   /*
