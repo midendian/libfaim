@@ -152,6 +152,12 @@ struct aim_tlv_t {
   u_char *value;
 };
 
+struct aim_tlvlist_t {
+  struct aim_tlv_t *tlv;
+  struct aim_tlvlist_t *next;
+};
+struct aim_tlvlist_t *aim_readtlvchain(u_char *buf, int maxlen);
+void aim_freetlvchain(struct aim_tlvlist_t **list);
 struct aim_tlv_t *aim_grabtlv(u_char *src);
 struct aim_tlv_t *aim_grabtlvstr(u_char *src);
 int aim_puttlv (u_char *dest, struct aim_tlv_t *newtlv);
@@ -421,6 +427,7 @@ int aim_parse_generalerrs(struct command_rx_struct *command, ...);
 #define AIM_IMFLAGS_ACK 0x02 /* request a receipt notice */
 u_long aim_send_im(struct aim_conn_t *, char *, int, char *);
 int aim_parse_incoming_im_middle(struct command_rx_struct *);
+u_long aim_seticbmparam(struct aim_conn_t *conn);
 
 /* aim_info.c */
 u_long aim_getinfo(struct aim_conn_t *, const char *);
@@ -443,6 +450,7 @@ u_long aim_usersearch_address(struct aim_conn_t *, char *);
 
 /* aim_util.c */
 int aimutil_put8(u_char *, u_char);
+u_char aimutil_get8(u_char *buf);
 int aimutil_put16(u_char *, u_short);
 u_short aimutil_get16(u_char *);
 int aimutil_put32(u_char *, u_long);
@@ -452,6 +460,8 @@ int aimutil_tokslen(char *toSearch, int index, char dl);
 int aimutil_itemcnt(char *toSearch, char dl);
 char *aimutil_itemidx(char *toSearch, int index, char dl);
 
+struct aim_tlv_t *aim_gettlv(struct aim_tlvlist_t *list, u_short type, int nth);
+char *aim_gettlv_str(struct aim_tlvlist_t *list, u_short type, int nth);
 
 #endif /* __AIM_H__ */
 

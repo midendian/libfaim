@@ -1,6 +1,15 @@
 
 No release numbers
 ------------------
+ - Fri Dec 24 11:12:34 UTC 1999
+   - Cleaned up both outgoing and incoming ICBM handling.  Anything
+       that crashes around there is no longer libfaims fault!
+       - The encoding flags are now passed up to the client.
+   - Added several TLV routines to parse large blocks of continuous
+       TLV triplets.  Not terribly effecient, but quite elegent in usage.
+   - Added icbm_setparams() back in from way-back-long-ago.  It hasn't
+       been implemented in a long time, but I think we should still send it.
+
  - Fri Dec 24 01:23:06 UTC 1999
    - Fixed a very minor bug in aim_newconn().
    - Added aimutil_get{16,32}()

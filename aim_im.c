@@ -16,18 +16,11 @@
  *   AIM_IMFLAGS_ACK   -- Requests that the server send an ack
  *                        when the message is received (of type 0x0004/0x000c)
  *
- *
- * The first one is newer, but it seems to be broken.  Beware.  Use the 
- * second one for normal use...for now.
- *
- *
  */
-
-#if 0 /* preliminary new fangled routine */
 u_long aim_send_im(struct aim_conn_t *conn, char *destsn, int flags, char *msg)
 {   
 
-  int curbyte;
+  int curbyte,i;
   struct command_tx_struct newpacket;
   
   newpacket.lock = 1; /* lock struct */
@@ -37,48 +30,84 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, int flags, char *msg)
   else
     newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
 
-  newpacket.commandlen = 20+1+strlen(destsn)+1+1+2+7+2+4+strlen(msg)+2;
-
-  if (flags & AIM_IMFLAGS_ACK)
-    newpacket.commandlen += 4;
-  if (flags & AIM_IMFLAGS_AWAY)
-    newpacket.commandlen += 4;
+  /*
+   * Its simplest to set this arbitrarily large and waste
+   * space.  Precalculating is costly here.
+   */
+  newpacket.commandlen = 1152;
 
   newpacket.data = (char *) calloc(1, newpacket.commandlen);
 
   curbyte  = 0;
-  curbyte += aim_putsnac(newpacket.data+curbyte, 0x0004, 0x0006, 0x0000, aim_snac_nextid);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
+  curbyte += aim_putsnac(newpacket.data+curbyte, 
+			 0x0004, 0x0006, 0x0000, aim_snac_nextid);
+
+  /* 
+   * Generate a random message cookie 
+   */
+  for (i=0;i<8;i++)
+    curbyte += aimutil_put8(newpacket.data+curbyte, (u_char) random());
+
+  /*
+   * Channel ID
+   */
   curbyte += aimutil_put16(newpacket.data+curbyte,0x0001);
+
+  /* 
+   * Destination SN (prepended with byte length)
+   */
   curbyte += aimutil_put8(newpacket.data+curbyte,strlen(destsn));
   curbyte += aimutil_putstr(newpacket.data+curbyte, destsn, strlen(destsn));
 
+  /*
+   * metaTLV start.
+   */
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0002);
+  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(msg) + 0x0d);
+
+  /*
+   * Flag data?
+   */
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0501);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0101);
+  curbyte += aimutil_put8 (newpacket.data+curbyte, 0x01);
+
+  /* 
+   * Message block length.
+   */
+  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(msg) + 0x04);
+
+  /*
+   * Character set data? 
+   */
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+
+  /*
+   * Message.  Not terminated.
+   */
+  curbyte += aimutil_putstr(newpacket.data+curbyte,msg, strlen(msg));
+
+  /*
+   * Set the Request Acknowledge flag.  
+   */
   if (flags & AIM_IMFLAGS_ACK)
     {
       curbyte += aimutil_put16(newpacket.data+curbyte,0x0003);
       curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
     }
-
+  
+  /*
+   * Set the Autoresponse flag.
+   */
   if (flags & AIM_IMFLAGS_AWAY)
     {
       curbyte += aimutil_put16(newpacket.data+curbyte,0x0004);
       curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
     }
-
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0002);
-  curbyte += aimutil_put16(newpacket.data+curbyte,strlen(msg)+0xf);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0501);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0001);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0101);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0101);
-  curbyte += aimutil_put8(newpacket.data+curbyte,0x01);
-  curbyte += aimutil_put16(newpacket.data+curbyte,strlen(msg)+4);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-  curbyte += aimutil_putstr(newpacket.data+curbyte, msg, strlen(msg));
+  
+  newpacket.commandlen = curbyte;
 
   aim_tx_enqueue(&newpacket);
 
@@ -102,445 +131,239 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, int flags, char *msg)
 
   return (aim_snac_nextid++);
 }
-#else
-u_long aim_send_im(struct aim_conn_t *conn, char *destsn, int flags, char *msg)
+
+/*
+ * It can easily be said that parsing ICBMs is THE single
+ * most difficult thing to do in the in AIM protocol.  In
+ * fact, I think I just did say that.
+ *
+ * Below is the best damned solution I've come up with
+ * over the past sixteen months of battling with it. This
+ * can parse both away and normal messages from every client
+ * I have access to.  Its not fast, its not clean.  But it works.
+ *
+ * We should also support at least minimal parsing of 
+ * Channel 2, so that we can at least know the name of the
+ * room we're invited to, but obviously can't attend...
+ *
+ */
+int aim_parse_incoming_im_middle(struct command_rx_struct *command)
 {
+  struct aim_userinfo_s userinfo;
+  u_int i = 0, j = 0, y = 0, z = 0;
+  char *msg = NULL;
+  int isautoresponse = 0;
+  rxcallback_t userfunc = NULL;
+  u_char cookie[8];
+  int channel;
+  struct aim_tlvlist_t *tlvlist;
+  struct aim_tlv_t *msgblocktlv, *tmptlv;
+  u_char *msgblock;
+  u_short wastebits;
+  u_short flag1,flag2;
 
-  int i;
+  memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
+  
+  i = 10; /* Skip SNAC header */
+
+  /*
+   * Read ICBM Cookie.  And throw away.
+   */
+  for (z=0; z<8; z++,i++)
+    cookie[z] = command->data[i];
+  
+  /*
+   * Channel ID.
+   *
+   * Channel 0x0001 is the message channel.  There are 
+   * other channels for things called "rendevous"
+   * which represent chat and some of the other new
+   * features of AIM2/3/3.5.  We only support 
+   * standard messages; those on channel 0x0001.
+   */
+  channel = aimutil_get16(command->data+i);
+  i += 2;
+  if (channel != 0x0001)
+    {
+      printf("faim: icbm: ICBM received on an unsupported channel.  Ignoring.\n (chan = %04x)", channel);
+      return 1;
+    }
+
+  /*
+   * Source screen name.
+   */
+  memcpy(userinfo.sn, command->data+i+1, (int)command->data[i]);
+  userinfo.sn[(int)command->data[i]] = '\0';
+  i += 1 + (int)command->data[i];
+
+  /*
+   * Unknown bits.
+   */
+  wastebits = aimutil_get16(command->data+i);
+  i += 2;
+  wastebits = aimutil_get16(command->data+i);
+  i += 2;
+
+  /*
+   * Read block of TLVs.  All further data is derived
+   * from what is parsed here.
+   */
+  tlvlist = aim_readtlvchain(command->data+i, command->commandlen-i);
+
+  /*
+   * Check Autoresponse status.  If it is an autoresponse,
+   * it will contain a second type 0x0004 TLV, with zero length.
+   */
+  if (aim_gettlv(tlvlist, 0x0004, 2))
+    isautoresponse = 1;
+
+  /*
+   * Extract the various pieces of the userinfo struct.
+   */
+  /* Class. */
+  if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
+    userinfo.class = aimutil_get16(tmptlv->value);
+  /* Member-since date. */
+  if ((tmptlv = aim_gettlv(tlvlist, 0x0002, 1)))
+    {
+      /* If this is larger than 4, its probably the message block, skip */
+      if (tmptlv->length <= 4)
+	userinfo.membersince = aimutil_get32(tmptlv->value);
+    }
+  /* On-since date */
+  if ((tmptlv = aim_gettlv(tlvlist, 0x0003, 1)))
+    userinfo.onlinesince = aimutil_get32(tmptlv->value);
+  /* Idle-time */
+  if ((tmptlv = aim_gettlv(tlvlist, 0x0004, 1)))
+    userinfo.idletime = aimutil_get16(tmptlv->value);
+  /* Session Length (AIM) */
+  if ((tmptlv = aim_gettlv(tlvlist, 0x000f, 1)))
+    userinfo.sessionlen = aimutil_get16(tmptlv->value);
+  /* Session Length (AOL) */
+  if ((tmptlv = aim_gettlv(tlvlist, 0x0010, 1)))
+    userinfo.sessionlen = aimutil_get16(tmptlv->value);
+
+  /*
+   * Message block.
+   *
+   * XXX: Will the msgblock always be the second 0x0002? 
+   */
+  msgblocktlv = aim_gettlv(tlvlist, 0x0002, 1);
+  if (!msgblocktlv)
+    {
+      printf("faim: icbm: major error! no message block TLV found!\n");
+      aim_freetlvchain(&tlvlist);
+    }
+
+  /*
+   * Extracting the message from the unknown cruft.
+   * 
+   * This is a bit messy, and I'm not really qualified,
+   * even as the author, to comment on it.  At least
+   * its not as bad as a while loop shooting into infinity.
+   *
+   * "Do you believe in magic?"
+   *
+   */
+  msgblock = msgblocktlv->value;
+  j = 0;
+
+  wastebits = aimutil_get8(msgblock+j++);
+  wastebits = aimutil_get8(msgblock+j++);
+  
+  y = aimutil_get16(msgblock+j);
+  j += 2;
+  for (z = 0; z < y; z++)
+    wastebits = aimutil_get8(msgblock+j++);
+  wastebits = aimutil_get8(msgblock+j++);
+  wastebits = aimutil_get8(msgblock+j++);
+ 
+  /* 
+   * Message string length, including flag words.
+   */
+  i = aimutil_get16(msgblock+j);
+  j += 2;
+
+  /*
+   * Flag words.
+   *
+   * Its rumored that these can kick in some funky
+   * 16bit-wide char stuff that used to really kill
+   * libfaim.  Hopefully the latter is no longer true.
+   *
+   * Though someone should investiagte the former.
+   *
+   */
+  flag1 = aimutil_get16(msgblock+j);
+  j += 2;
+  flag2 = aimutil_get16(msgblock+j);
+  j += 2;
+
+  if (flag1 || flag2)
+    printf("faim: icbm: **warning: encoding flags are being used! {%04x, %04x}\n", flag1, flag2);
+
+  /* 
+   * Message string. 
+   */
+  i -= 4;
+  msg = (char *)malloc(i+1);
+  memcpy(msg, msgblock+j, i);
+  msg[i] = '\0';
+
+  /*
+   * Free up the TLV chain.
+   */
+  aim_freetlvchain(&tlvlist);
+
+  /*
+   * Call client.
+   */
+  userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+  if (userfunc)
+    i = userfunc(command, &userinfo, msg, isautoresponse, flag1, flag2);
+  else 
+    i = 0;
+
+  free(msg);
+
+  return 1;
+}
+
+/*
+ * Not real sure what this does, nor does anyone I've talk to.
+ *
+ * Didn't use to send it.  But now I think it might be a good
+ * idea. 
+ *
+ */
+u_long aim_seticbmparam(struct aim_conn_t *conn)
+{
   struct command_tx_struct newpacket;
+  int curbyte;
 
-  newpacket.lock = 1; /* lock struct */
-  newpacket.type = 0x02; /* IMs are always family 0x02 */
+  newpacket.lock = 1;
   if (conn)
     newpacket.conn = conn;
   else
     newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+  newpacket.type = 0x02;
 
-  i = strlen(destsn); /* used as offset later */
-  newpacket.commandlen = 20+1+strlen(destsn)+1+1+2+7+2+4+strlen(msg);
+  newpacket.commandlen = 10 + 16;
+  newpacket.data = (u_char *) malloc (newpacket.commandlen);
 
-  if (flags & AIM_IMFLAGS_ACK)
-    newpacket.commandlen += 4;
-  if (flags & AIM_IMFLAGS_AWAY)
-    newpacket.commandlen += 4;
-
-  newpacket.data = (char *) malloc(newpacket.commandlen);
-  memset(newpacket.data, 0x00, newpacket.commandlen);
-
-  aim_putsnac(newpacket.data, 0x0004, 0x0006, 0x0000, aim_snac_nextid);
-
-  newpacket.data[18] = 0x00;
-  newpacket.data[19] = 0x01;
-
-  newpacket.data[20] = i;
-  memcpy(&(newpacket.data[21]), destsn, i);
-
-  if (flags & AIM_IMFLAGS_ACK)
-    {
-      /* add TLV t(0004) l(0000) v(NULL) */
-      newpacket.data[21+i] = 0x00;
-      newpacket.data[22+i] = 0x03;
-      newpacket.data[23+i] = 0x00;
-      newpacket.data[24+i] = 0x00;
-      i += 4;
-    }
-  if (flags & AIM_IMFLAGS_AWAY)
-    {
-      /* add TLV t(0004) l(0000) v(NULL) */
-      newpacket.data[21+i] = 0x00;
-      newpacket.data[22+i] = 0x04;
-      newpacket.data[23+i] = 0x00;
-      newpacket.data[24+i] = 0x00;
-      i += 4;
-    }
-
-  newpacket.data[21+i] = 0x00;
-
-  newpacket.data[22+i] = 0x02;
-
-  newpacket.data[23+i] = (char) ( (strlen(msg) + 0xD) >> 8);
-  newpacket.data[24+i] = (char) ( (strlen(msg) + 0xD) & 0xFF);
-
-  newpacket.data[25+i] = 0x05;
-  newpacket.data[26+i] = 0x01;
-  newpacket.data[27+i] = 0x00;
-  newpacket.data[28+i] = 0x01;
-  newpacket.data[29+i] = 0x01;
-  newpacket.data[30+i] = 0x01;
-  newpacket.data[31+i] = 0x01;
-
-  newpacket.data[32+i] = (char) ( (strlen(msg) + 4) >> 8);
-  newpacket.data[33+i] = (char) ( (strlen(msg) + 4) & 0xFF);
-
-  memcpy(&(newpacket.data[38+i]), msg, strlen(msg));
+  curbyte = aim_putsnac(newpacket.data, 0x0004, 0x0002, 0x0000, aim_snac_nextid);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put32(newpacket.data+curbyte, 0x00000003);
+  curbyte += aimutil_put8(newpacket.data+curbyte,  0x1f);
+  curbyte += aimutil_put8(newpacket.data+curbyte,  0x40);
+  curbyte += aimutil_put8(newpacket.data+curbyte,  0x03);
+  curbyte += aimutil_put8(newpacket.data+curbyte,  0xe7);
+  curbyte += aimutil_put8(newpacket.data+curbyte,  0x03);
+  curbyte += aimutil_put8(newpacket.data+curbyte,  0xe7);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
 
   aim_tx_enqueue(&newpacket);
-#ifdef USE_SNAC_FOR_IMS
- {
-    struct aim_snac_t snac;
-
-    snac.id = aim_snac_nextid;
-    snac.family = 0x0004;
-    snac.type = 0x0006;
-    snac.flags = 0x0000;
-
-    snac.data = malloc(strlen(destsn)+1);
-    memcpy(snac.data, destsn, strlen(destsn)+1);
-
-    aim_newsnac(&snac);
-  }
-
- aim_cleansnacs(60); /* clean out all SNACs over 60sec old */
-#endif
 
   return (aim_snac_nextid++);
 }
-
-#endif
-
-#if 0 /* this is the prelim work on a new routine */
-int aim_parse_incoming_im_middle(struct command_rx_struct *command)
-{
-  int i = 0;
-  char *srcsn = NULL;
-  char *msg = NULL;
-  u_int msglen = 0;
-  int warninglevel = 0;
-  int tlvcnt = 0;
-  int class = 0;
-  u_long membersince = 0;
-  u_long onsince = 0;
-  int idletime = 0;
-  int isautoreply = 0;
-  rxcallback_t userfunc = NULL;
-
-  int unknown_f = -1;
-  int unknown_10 = -1;
-
-  i = 20; /* skip SNAC header and message cookie */
-  
-  srcsn = malloc(command->data[i] + 1);
-  memcpy(srcsn, &(command->data[i+1]), command->data[i]);
-  srcsn[(int)command->data[i]] = '\0';
-  
-  i += (int) command->data[i] + 1; /* add SN len */
-  
-  /* warning level */
-  warninglevel = (command->data[i] << 8);
-  warninglevel += (command->data[i+1]);
-  i += 2;
-  
-  /*
-   * This is suppose to be the number of TLVs that follow.  However,
-   * its not nearly as accurate as we need it to be, so we just run
-   * the TLV parser all the way to the end of the frame.  
-   */
-  tlvcnt = ((command->data[i++]) << 8) & 0xFF00;
-  tlvcnt += (command->data[i++]) & 0x00FF;
-  
-  /* a mini TLV parser */
-  {
-    int curtlv = 0;
-    int count_t4 = 0, count_t3 = 0, count_t2 = 0, count_t1 = 0;
-    
-    while (i+4 < command->commandlen)
-      {
-	if ((command->data[i] == 0x00) &&
-	    (command->data[i+1] == 0x01) )
-	  {
-	    if (count_t1 == 0)
-	      {
-		/* t(0001) = class */
-		if (command->data[i+3] != 0x02)
-		  printf("faim: userinfo: **warning: strange v(%x) for t(1)\n", command->data[i+3]);
-		class = ((command->data[i+4]) << 8) & 0xFF00;
-		class += (command->data[i+5]) & 0x00FF;
-	      }
-	    else
-	      printf("faim: icbm: unexpected extra TLV t(0001)\n");
-	    count_t1++;
-	  }
-	else if ((command->data[i] == 0x00) &&
-		 (command->data[i+1] == 0x02))
-	  {
-	    if (count_t2 == 0)
-	      {
-		/* t(0002) = member since date  */
-		if (command->data[i+3] != 0x04)
-		  printf("faim: userinfo: **warning: strange v(%x) for t(2)\n", command->data[i+3]);
-		
-		membersince = ((command->data[i+4]) << 24) &  0xFF000000;
-		membersince += ((command->data[i+5]) << 16) & 0x00FF0000;
-		membersince += ((command->data[i+6]) << 8) &  0x0000FF00;
-		membersince += ((command->data[i+7]) ) &      0x000000FF;
-	      }
-	    else if (count_t2 == 1)
-	      {
-		int biglen = 0, innerlen = 0;
-		int j;
-
-		/* message */
-
-		/* 
-		 * Check for message signature (0x0501).  I still don't really
-		 * like this, but it is better than the old way, and it does
-		 * seem to be consistent as long as AOL doesn't do any more
-		 * big changes.
-		 */
-		if ( (command->data[i+4] != 0x05) ||
-		     (command->data[i+5] != 0x01) )
-		  printf("faim: icbm: warning: message signature not present, trying to recover\n");
-		
-		biglen = ((command->data[i+2] << 8) + command->data[i+3]) & 0xffff;
-
-		printf("faim: icbm: biglen = %02x\n", biglen);
-
-		j = 0;
-		while (j+3 < (biglen-6))
-		  {
-		    if ( (command->data[i+6+j+0] == 0x00) &&
-			 (command->data[i+6+j+1] == 0x00) &&
-			 (command->data[i+6+j+2] == 0x00) )
-		      {
-			
-			innerlen = (command->data[i+6+j]<<8) + command->data[i+6+j+1];
-			break;
-		      }
-		    j++;
-		  }
-		if (!innerlen)
-		  {
-		    printf("faim: icbm: unable to find holy zeros; skipping message\n");
-		    msglen = 0;
-		    msg = NULL;
-		  }
-		else
-		  {
-		    printf("faim: icbm: innerlen = %d\n", innerlen);
-		    
-		    msglen = innerlen - 4;
-		    printf("faim: icbm: msglen = %u\n", msglen);
-		    
-		    msg = malloc(msglen +1);
-		    memcpy(msg, &(command->data[i+6+j+4+1]), msglen);
-		    msg[msglen] = '\0'; 
-		  }
-	      }
-	    else
-	      printf("faim: icbm: **warning: extra TLV t(0002)\n");
-	    count_t2++;
-	  }
-	else if ((command->data[i] == 0x00) &&
-		 (command->data[i+1] == 0x03))
-	  {
-	    if (count_t3 == 0)
-	      {
-		/* t(0003) = on since date  */
-		if (command->data[i+3] != 0x04)
-		  printf("faim: userinfo: **warning: strange v(%x) for t(3)\n", command->data[i+3]);
-		
-		onsince = ((command->data[i+4]) << 24) &  0xFF000000;
-		onsince += ((command->data[i+5]) << 16) & 0x00FF0000;
-		onsince += ((command->data[i+6]) << 8) &  0x0000FF00;
-		onsince += ((command->data[i+7]) ) &      0x000000FF;
-	      }
-	    else if (count_t3 == 1)
-	      printf("faim: icbm: request for acknowledgment ignored\n");
-	    else
-	      printf("faim: icbm: unexpected extra TLV t(0003)\n");
-	    count_t3++;
-	  }
-	else if ((command->data[i] == 0x00) &&
-		 (command->data[i+1] == 0x04) )
-	  {
-	    if (count_t4 == 0)
-	      {
-		/* t(0004) = idle time */
-		if (command->data[i+3] != 0x02)
-		  printf("faim: userinfo: **warning: strange v(%x) for t(4)\n", command->data[i+3]);
-		idletime = ((command->data[i+4]) << 8) & 0xFF00;
-		idletime += (command->data[i+5]) & 0x00FF;
-	      }
-	    else if ((count_t4 == 1) && (((command->data[i+2]<<8)+command->data[i+3])==0x0000))
-	      isautoreply = 1;
-	    else
-	      printf("faim: icbm: unexpected extra TLV t(0004)\n");
-	    count_t4++;
-	  } 
-	else if ((command->data[i] == 0x00) &&
-		 (command->data[i+1] == 0x0f))
-	  {
-	    /* t(000f) = unknown...usually from AIM3 users */
-	    if (command->data[i+3] != 0x04)
-	      printf("faim: userinfo: **warning: strange v(%x) for t(f)\n", command->data[i+3]);
-	    unknown_f = (command->data[i+4] << 24) & 0xff000000;
-	    unknown_f += (command->data[i+5] << 16) & 0x00ff0000;
-	    unknown_f += (command->data[i+6] <<  8) & 0x0000ff00;
-	    unknown_f += (command->data[i+7]) & 0x000000ff;
-	  }
-        else if ((command->data[i] == 0x00) &&
-                 (command->data[i+1] == 0x10))
-          {
-            /* t(0010) = unknown...usually from AOL users */
-            if (command->data[i+3] != 0x04)
-              printf("faim: userinfo: **warning: strange v(%x) for t(10)\n", command->data[i+3]);
-            unknown_10 = (command->data[i+4] << 24) & 0xff000000;
-            unknown_10 += (command->data[i+5] << 16) & 0x00ff0000;
-            unknown_10 += (command->data[i+6] <<  8) & 0x0000ff00;
-            unknown_10 += (command->data[i+7]) & 0x000000ff;
-          }
-	else
-	  {
-	    printf("faim: userinfo: **warning: unexpected TLV t(%02x%02x) l(%02x%02x)\n", command->data[i], command->data[i+1], command->data[i+2], command->data[i+3]);
-	  }
-	i += (2 + 2 + ((command->data[i+2] << 8) + command->data[i+3]));
-	curtlv++;
-      }
-  }
-
-#if 0
-  {
-    /* detect if this is an auto-response or not */
-    /*   auto-responses can be detected by the presence of a *second* TLV with
-	 t(0004), but of zero length (and therefore no value portion) */
-    struct aim_tlv_t *tsttlv = NULL;
-    tsttlv = aim_grabtlv((u_char *) &(command->data[i]));
-    if (tsttlv->type == 0x04)
-      isautoreply = 1;
-    aim_freetlv(&tsttlv);
-  }
-
-  i += 2;
-  
-  i += 2; /* skip first msglen */
-  i += 7; /* skip garbage */
-  i -= 4;
-
-  /* oh boy is this terrible...  this comes from a specific of the spec */
-  while(1)
-    {
-      if ( ( (command->data[i] == 0x00) &&
-	     (command->data[i+1] == 0x00) &&
-	     (command->data[i+2] == 0x00) &&
-	     (command->data[i+3] == 0x00) ) &&
-	   (i < command->commandlen) ) /* prevent infinity */
-	break;
-      else
-	i++;
-    }
-
-  i -= 2;
-  
-  if ( (command->data[i] == 0x00) &&
-       (command->data[i+1] == 0x00) )
-    i += 2;
-
-  msglen = ( (( (u_int) command->data[i]) & 0xFF ) << 8);
-  msglen += ( (u_int) command->data[i+1]) & 0xFF; /* mask off garbage */
-  i += 2;
-
-  msglen -= 4; /* skip four 0x00s */
-  i += 4;
-  
-  msg = malloc(msglen +1);
-  
-  memcpy(msg, &(command->data[i]), msglen);
-  msg[msglen] = '\0'; 
-#endif
-  userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
-  if (userfunc)
-    i = userfunc(command, srcsn, msg, warninglevel, class, membersince, onsince, idletime, isautoreply, unknown_f, unknown_10);
-  else 
-    i = 0;
-
-  free(srcsn);
-  free(msg);
-
-  return i;
-}
-#else /* older routine, with new fixes */
-int aim_parse_incoming_im_middle(struct command_rx_struct *command)
-{
-  struct aim_userinfo_s userinfo;
-  u_int i = 0;
-  char *msg = NULL;
-  u_int msglen = 0;
-  int isautoreply = 0;
-  rxcallback_t userfunc = NULL;
-
-  i = 20;
-  i += aim_extractuserinfo(command->data+i, &userinfo);
-
-  {
-    /* 
-     *  Auto-responses can be detected by the presence of a *second* TLV with
-     *  t(0004), but of zero length (and therefore no value portion) 
-     */
-    struct aim_tlv_t *tsttlv = NULL;
-    tsttlv = aim_grabtlv((u_char *) &(command->data[i]));
-    if (tsttlv->type == 0x04)
-      isautoreply = 1;
-#if 0
-    else if (tsttlv->type == 0x03)
-      {
-	printf("faim: icbm: ack requested, ignored\n");
-	i += 2 + 2 + tsttlv->length;
-	aim_freetlv(&tsttlv);
-	tsttlv = aim_grabtlv((u_char *) &(command->data[i]));
-	if (tsttlv->type == 0x04)
-	  isautoreply = 1;
-      }
-#endif
-    aim_freetlv(&tsttlv);
-  }
-  
-  i += 2;
-  
-  i += 2; /* skip first msglen */
-  i += 7; /* skip garbage */
-  i -= 4;
-
-  /* oh boy is this terrible...  this comes from a specific of the spec */
-  while(1)
-    {
-      /* 
-       * We used to look for four zeros; I've reduced this to three
-       * as it seems AOL changed it with Mac AIM 3.0 clients.
-       */
-      if ( ( (command->data[i] == 0x00) &&
-	     (command->data[i+1] == 0x00) &&
-	     (command->data[i+2] == 0x00) ) &&
-	   (i+2 < command->commandlen) ) /* prevent infinity */
-	break;
-      else
-	i++;
-    }
-
-  i -= 2;
-  
-  if (aimutil_get16(&command->data[i]) == 0x0000)
-    i += 2;
-
-  msglen = aimutil_get16(&command->data[i]);
-  i += 2;
-
-  msglen -= 4; /* skip four 0x00s */
-  i += 4;
-  
-  msg = malloc(msglen +1);
-  
-  memcpy(msg, &(command->data[i]), msglen);
-  msg[msglen] = '\0'; 
-
-  userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
-
-  if (userfunc)
-    i = userfunc(command, &userinfo, msg, isautoreply);
-  else 
-    i = 0;
-
-  free(msg);
-
-  return i;
-}
-#endif

@@ -1,5 +1,109 @@
 #include <aim.h>
 
+struct aim_tlvlist_t *aim_readtlvchain(u_char *buf, int maxlen)
+{
+  int pos;
+  struct aim_tlvlist_t *list;
+  struct aim_tlvlist_t *cur;
+  
+  u_short type;
+  u_short length;
+
+  if (!buf)
+    return NULL;
+
+  list = NULL;
+  
+  pos = 0;
+
+  while (pos < maxlen)
+    {
+      type = aimutil_get16(buf+pos);
+      pos += 2;
+
+      if (pos < maxlen)
+	{
+	  length = aimutil_get16(buf+pos);
+	  pos += 2;
+	  
+	  if ((pos+length) <= maxlen)
+	    {
+	      cur = (struct aim_tlvlist_t *)malloc(sizeof(struct aim_tlvlist_t));
+	      memset(cur, 0x00, sizeof(struct aim_tlvlist_t));
+
+	      cur->tlv = aim_createtlv();
+	      cur->tlv->type = type;
+	      cur->tlv->length = length;
+	      cur->tlv->value = (u_char *)malloc(length*sizeof(u_char));
+	      memcpy(cur->tlv->value, buf+pos, length);
+	      
+	      cur->next = list;
+	      list = cur;
+	      
+	      pos += length;
+	    }
+	}
+    }
+
+  return list;
+}
+
+void aim_freetlvchain(struct aim_tlvlist_t **list)
+{
+  struct aim_tlvlist_t *cur, *cur2;
+
+  if (!list || !(*list))
+    return;
+
+  cur = *list;
+  while (cur)
+    {
+      aim_freetlv(&cur->tlv);
+      cur2 = cur->next;
+      free(cur);
+      cur = cur2;
+    }
+  list = NULL;
+  return;
+}
+
+/*
+ * Grab the Nth TLV of type type in the TLV list list.
+ */
+struct aim_tlv_t *aim_gettlv(struct aim_tlvlist_t *list, u_short type, int nth)
+{
+  int i;
+  struct aim_tlvlist_t *cur;
+  
+  i = 0;
+  for (cur = list; cur != NULL; cur = cur->next)
+    {
+      if (cur && cur->tlv)
+	{
+	  if (cur->tlv->type == type)
+	    i++;
+	  if (i >= nth)
+	    return cur->tlv;
+	}
+    }
+  return NULL;
+}
+
+char *aim_gettlv_str(struct aim_tlvlist_t *list, u_short type, int nth)
+{
+  struct aim_tlv_t *tlv;
+  char *newstr;
+
+  if (!(tlv = aim_gettlv(list, type, nth)))
+    return NULL;
+  
+  newstr = (char *) malloc(tlv->length + 1);
+  memcpy(newstr, tlv->value, tlv->length);
+  *(newstr + tlv->length) = '\0';
+
+  return newstr;
+}
+
 struct aim_tlv_t *aim_grabtlv(u_char *src)
 {
   struct aim_tlv_t *dest = NULL;

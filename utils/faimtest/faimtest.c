@@ -61,50 +61,9 @@ int faimtest_authsvrready(struct command_rx_struct *command, ...);
 int faimtest_pwdchngdone(struct command_rx_struct *command, ...);
 int faimtest_serverready(struct command_rx_struct *command, ...);
 int faimtest_parse_misses(struct command_rx_struct *command, ...);
+
 int main(void)
 {
-
-#if 0
-  /*
-    specify your custom command handlers here.  I recommend
-    at least overriding the login_phase3d_f handler so that
-    you can have your own buddy list and profile.  The
-    rest are probably only useful to override for UI
-    reasons.
-   */
-  rxcallback_t faimtest_callbacks[] = {
-    faimtest_parse_incoming_im, /* incoming IM 0 */
-    faimtest_parse_oncoming, /* oncoming buddy 1 */
-    faimtest_parse_offgoing, /* offgoing buddy 2 */
-    faimtest_parse_misses, /* AIM_CB_MISSED_IM 3 */
-    faimtest_parse_misses, /* AIM_CB_MISSED_CALL 4 */
-    NULL, /* login phase 4 packet C command 1 -- depricated 5 */
-    NULL, /* login phase 4 packet C command 2 -- depricated 6 */
-    NULL, /* login phase 2, first resp -- depricated 7 */
-    faimtest_serverready, /* server ready -- **HANDLING REQUIRED** 8 */
-    NULL, /* login phase 3 packet B -- depricated 9 */
-    NULL, /* login phase 3D packet A -- depricated 10 */
-    NULL, /* login phase 3D packet B -- depricated 11 */
-    NULL, /* login phase 3D packet C -- depricated 12 */
-    NULL, /* login phase 3D packet D -- depricated 13 */
-    NULL, /* login phase 3D packet E -- depricated 14 */
-    faimtest_handleredirect, /* redirect -- **HANDLING REQUIRED** 15 */
-    faimtest_parse_misses, /* AIM_CB_RATECHANGE 16 */
-    faimtest_parse_misses, /* AIM_CB_USERERROR 17 */
-    NULL, /* completely unknown command 18 */
-    faimtest_parse_userinfo, /* user info response 19 */
-    NULL, /* user search by address response 20 */
-    NULL, /* user serach by name response 21 */
-    NULL, /* user search fail 22 */
-    faimtest_auth_error, /* 23 */
-    faimtest_auth_success, /* 24 */
-    faimtest_authsvrready, /* 25 */
-    NULL, /* 26 */
-    faimtest_pwdchngdone, /* 27 */
-    faimtest_serverready, /* 28 */
-    0x00 /* terminating NULL -- REQUIRED 29 */
-  };
-#endif
 
   struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 90, 42, "us", "en"};
   struct aim_conn_t *authconn = NULL;
@@ -453,11 +412,14 @@ int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
   int isautoreply = 0;
   va_list ap;
   char *tmpstr = NULL;
+  u_short flag1, flag2;
 
   va_start(ap, command);
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   msg = va_arg(ap, char *);
   isautoreply = va_arg(ap, int);
+  flag1 = va_arg(ap, u_short);
+  flag2 = va_arg(ap, u_short);
   va_end(ap);
 
   printf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
@@ -475,6 +437,7 @@ int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
   printf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
   printf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
   printf("faimtest: icbm: isautoreply = %s\n", isautoreply ? "TRUE" : "FALSE");  
+  printf("faimtest: icbm: encoding flags = {%04x, %04x}\n", flag1, flag2);
 
   printf("faimtest: icbm: message: %s\n", msg);
 

@@ -12,6 +12,11 @@ int aimutil_put8(u_char *buf, u_char data)
   return 1;
 }
 
+u_char aimutil_get8(u_char *buf)
+{
+  return buf[0];
+}
+
 /*
  * Endian-ness issues here?
  */
