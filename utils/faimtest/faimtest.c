@@ -995,6 +995,107 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
 
 		aim_send_im_ext(sess, conn, &args);
 
+	} else if (strstr(tmpstr, "sendbin")) {
+		struct aim_sendimext_args args;
+		static const unsigned char data[] = {
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+			0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+			0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+		};
+
+		/*
+		 * I put this here as a demonstration of how to send 
+		 * arbitrary binary data via OSCAR ICBM's without the need
+		 * for escape or baseN encoding of any sort.  
+		 *
+		 * Apparently if you set the charset to something WinAIM
+		 * doesn't recognize, it will completly ignore the message.
+		 * That is, it will not display anything in the conversation
+		 * window for the user that recieved it.
+		 *
+		 * HOWEVER, if they do not have a conversation window open
+		 * for you, a new one will be created, but it will not have
+		 * any messages in it.  Therefore sending these things could
+		 * be a great way to seemingly subliminally convince people
+		 * to talk to you...
+		 *
+		 */
+		args.destsn = userinfo->sn;
+		args.flags = AIM_IMFLAGS_CUSTOMCHARSET;
+		args.charset = args.charsubset = 0x4242;
+		args.msg = data;
+		args.msglen = sizeof(data);
+
+		aim_send_im_ext(sess, conn, &args);
+
+	} else if (strstr(tmpstr, "sendmulti")) {
+		struct aim_sendimext_args args;
+		aim_mpmsg_t mpm;
+		static const fu16_t unidata[] = { /* "UNICODE." */
+			0x0055, 0x004e, 0x0049, 0x0043,
+			0x004f, 0x0044, 0x0045, 0x002e,
+		};
+		static const int unidatalen = 8;
+
+		/*
+		 * This is how multipart messages should be sent.
+		 *
+		 * This should render as:
+		 *        "Part 1, ASCII.  UNICODE.Part 3, ASCII.  "
+		 */
+
+		aim_mpmsg_init(sess, &mpm);
+
+		aim_mpmsg_addascii(sess, &mpm, "Part 1, ASCII.  ");
+		aim_mpmsg_addunicode(sess, &mpm, unidata, unidatalen);
+		aim_mpmsg_addascii(sess, &mpm, "Part 3, ASCII.  ");
+
+		args.destsn = userinfo->sn;
+		args.flags = AIM_IMFLAGS_MULTIPART;
+		args.mpmsg = &mpm;
+
+		aim_send_im_ext(sess, conn, &args);
+
+		aim_mpmsg_free(sess, &mpm);
+
+	} else if (strstr(tmpstr, "sendprebin")) {
+		static const unsigned char data[] = {
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+			0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+			0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+		};
+		struct aim_sendimext_args args;
+		aim_mpmsg_t mpm;
+
+		/*
+		 * This demonstrates sending a human-readable preamble,
+		 * and then arbitrary binary data.
+		 *
+		 * This means that you can very inconspicuously send binary
+		 * attachments to other users.  In WinAIM, this appears as
+		 * though it only had the ASCII portion.
+		 *
+		 */
+
+		aim_mpmsg_init(sess, &mpm);
+
+		aim_mpmsg_addascii(sess, &mpm, "This message has binary data.");
+		aim_mpmsg_addraw(sess, &mpm, 0x4242, 0x4242, data, sizeof(data));
+
+		args.destsn = userinfo->sn;
+		args.flags = AIM_IMFLAGS_MULTIPART;
+		args.mpmsg = &mpm;
+
+		aim_send_im_ext(sess, conn, &args);
+
+		aim_mpmsg_free(sess, &mpm);
+
 	} else if (strstr(tmpstr, "havefeat")) {
 		struct aim_sendimext_args args;
 		static const char featmsg[] = {"I have nifty features."};
@@ -1168,7 +1269,8 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 		dinlineprintf("hasicon ");
 	dinlineprintf("\n");
 
-	dvprintf("faimtest: icbm: encoding flags = {%04x, %04x}\n", args->flag1, args->flag2);
+	if (args->icbmflags & AIM_IMFLAGS_CUSTOMCHARSET)
+		dvprintf("faimtest: icbm: encoding flags = {%04x, %04x}\n", args->charset, args->charsubset);
 
 	/*
 	 * Quickly convert it to eight bit format, replacing non-ASCII UNICODE 
@@ -1219,6 +1321,21 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	}
 
 	dvprintf("faimtest: icbm: message: %s\n", realmsg);
+
+	if (args->icbmflags & AIM_IMFLAGS_MULTIPART) {
+		aim_mpmsg_section_t *sec;
+		int z;
+
+		dvprintf("faimtest: icbm: multipart: this message has %d parts\n", args->mpmsg.numparts);
+
+		for (sec = args->mpmsg.parts, z = 0; sec; sec = sec->next, z++) {
+			if ((sec->charset == 0x0000) || (sec->charset == 0x0003) || (sec->charset == 0xffff)) {
+				dvprintf("faimtest: icbm: multipart:   part %d: charset 0x%04x, subset 0x%04x, msg = %s\n", z, sec->charset, sec->charsubset, sec->data);
+			} else {
+				dvprintf("faimtest: icbm: multipart:   part %d: charset 0x%04x, subset 0x%04x, binary or UNICODE data\n", z, sec->charset, sec->charsubset);
+			}
+		}
+	}
 
 	if (args->icbmflags & AIM_IMFLAGS_HASICON)
 		aim_send_im(sess, conn, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");

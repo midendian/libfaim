@@ -1,6 +1,14 @@
 
 No release numbers
 ------------------
+ - Tue Sep 11 04:42:28 PDT 2001
+  - Fix faim_internal/export confusion for the TLV functions
+  - Add aim_addtlvtochain_userinfo() (used by AP)
+  - Clean up ICBM Channel 1 parsing ever so slightly
+  - Add multipart message support in both directions, and some 
+      fun examples of it in faimtest.
+  - Yes, I'm insane.
+
  - Mon Sep 10 06:15:43 PDT 2001
   - Remove $Id line from md5.h. I really really hate those things.
   - Remove all that locking crap. It never worked right anyway.
