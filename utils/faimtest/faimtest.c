@@ -252,6 +252,10 @@ int faimtest_init(void)
 
 int logout(void)
 {
+
+  if (ohcaptainmycaptain)
+    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...");
+
   aim_logoff(&aimsess);
 
   if (faimtest_init() == -1)
@@ -911,19 +915,143 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
+static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_struct *command, struct aim_userinfo_s *userinfo, char *tmpstr)
+{
+
+  if (!strncmp(tmpstr, "disconnect", 10)) {
+
+    logout();
+
+  } else if (strstr(tmpstr, "goodday")) {
+
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
+
+  } else if (strstr(tmpstr, "warnme")) {
+
+    dprintf("faimtest: icbm: sending non-anon warning\n");
+    aim_send_warning(sess, command->conn, userinfo->sn, 0);
+
+  } else if (strstr(tmpstr, "anonwarn")) {
+
+    dprintf("faimtest: icbm: sending anon warning\n");
+    aim_send_warning(sess, command->conn, userinfo->sn, AIM_WARN_ANON);
+
+  } else if (strstr(tmpstr, "setdirectoryinfo")) {
+
+    dprintf("faimtest: icbm: sending backwards profile data\n");
+    aim_setdirectoryinfo(sess, command->conn, "tsrif", "elddim", "tsal", "nediam", "emankcin", "teerts", "ytic", "etats", "piz", 0, 1);
+
+  } else if (strstr(tmpstr, "setinterests")) {
+
+    dprintf("faimtest: icbm: setting fun interests\n");
+    aim_setuserinterests(sess, command->conn, "interest1", "interest2", "interest3", "interest4", "interest5", 1);
+
+  } else if (!strncmp(tmpstr, "getfile", 7)) {
+
+    if (!ohcaptainmycaptain) {
+
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!");
+
+    } else {
+      struct aim_conn_t *newconn;
+
+      newconn = aim_getfile_initiate(sess, command->conn, (strlen(tmpstr) < 8)?ohcaptainmycaptain:tmpstr+8);
+      dvprintf("faimtest: getting file listing from %s\n", (strlen(tmpstr) < 8)?ohcaptainmycaptain:tmpstr+8);
+      aim_conn_addhandler(sess, newconn,  AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEINITIATE, faimtest_getfile_initiate,0);
+    }
+
+  } else if (!strncmp(tmpstr, "open chatnav", 12)) {
+
+    aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
+
+  } else if (!strncmp(tmpstr, "create", 6)) {
+
+    aim_chatnav_createroom(sess,aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV), (strlen(tmpstr) < 7)?"WorldDomination":tmpstr+7, 0x0004);
+
+  } else if (!strncmp(tmpstr, "close chatnav", 13)) {
+    struct aim_conn_t *chatnavconn;
+
+    chatnavconn = aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV);
+    aim_conn_kill(sess, &chatnavconn);
+
+  } else if (!strncmp(tmpstr, "join", 4)) {
+
+    aim_chat_join(sess, command->conn, 0x0004, "worlddomination");
+
+  } else if (!strncmp(tmpstr, "leave", 5)) {
+
+    aim_chat_leaveroom(sess, "worlddomination");
+
+  } else if (!strncmp(tmpstr, "getinfo", 7)) {
+
+    aim_getinfo(sess, command->conn, "75784102", AIM_GETINFO_GENERALINFO);
+    aim_getinfo(sess, command->conn, "15853637", AIM_GETINFO_AWAYMESSAGE);
+
+  } else if (!strncmp(tmpstr, "open directim", 13)) {
+    struct aim_conn_t *newconn;
+
+    printf("faimtest: opening directim to %s\n", (strlen(tmpstr) < 14)?userinfo->sn:tmpstr+14);
+    newconn = aim_directim_initiate(sess, command->conn, NULL, (strlen(tmpstr) < 14)?userinfo->sn:tmpstr+14);
+    if(!newconn || newconn->fd == -1)
+      printf("connection failed!\n");
+    aim_conn_addhandler(sess, newconn,  AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINITIATE, faimtest_directim_initiate,0);
+
+  } else if(!(strncmp(tmpstr, "lookup", 6))) {
+
+    aim_usersearch_address(sess, command->conn, tmpstr+7);
+
+  } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
+
+    aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900");
+
+  } else if (!strncmp(tmpstr, "reqauth", 7)) {
+
+    aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_AUTH);
+
+  } else if (!strncmp(tmpstr, "reqconfirm", 10)) {
+
+    aim_auth_reqconfirm(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
+
+  } else if (!strncmp(tmpstr, "reqemail", 8)) {
+
+    aim_auth_getinfo(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), 0x0011);
+
+  } else if (!strncmp(tmpstr, "changepass", 8)) {
+
+    aim_auth_changepasswd(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWPASSWORD", "OLDPASSWORD");
+
+  } else if (!strncmp(tmpstr, "setemail", 8)) {
+
+    aim_auth_setemail(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWEMAILADDRESS");
+
+  } else if (!strncmp(tmpstr, "sendmsg", 7)) {
+    int i;
+    i = atoi(tmpstr+8);
+    if (i < 10000) {
+      char *newbuf;
+      int z;
+
+      newbuf = malloc(i+1);
+      for (z = 0; z < i; z++) {
+	newbuf[z] = (z % 10)+0x30;
+      }
+      newbuf[i] = '\0';
+      aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf);
+      free(newbuf);
+    }
+
+  } else {
+
+    dprintf("unknown command.\n");
+    aim_add_buddy(sess, command->conn, userinfo->sn);
+
+  }  
+
+  return 0;
+}
+
 /*
  * The user-level Incoming ICBM callback.
- *
- * Arguments:
- *  struct command_rx_struct *  command     if you feel like doing it yourself
- *  char *                      srcsn       the source name
- *  char *                      msg         message
- *  int                         warnlevel   warning/evil level
- *  int                         flags       flags
- *  ulong                       membersince time_t of date of signup
- *  ulong                       onsince     time_t of date of singon
- *  int                         idletime    min (sec?) idle
- *  u_int                       icbmflags   sets AIM_IMFLAGS_{AWAY,ACK}
  *
  */
 int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_struct *command, ...)
@@ -993,93 +1121,8 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       }
       tmpstr = msg+i;
 
-      dvprintf("tmpstr = %s\n", tmpstr);
-      
-      if ( (strlen(tmpstr) >= 10) &&
-	   (!strncmp(tmpstr, "disconnect", 10)) ) {
-	if (ohcaptainmycaptain)
-	  aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "ta ta...");
-	aim_logoff(sess);
-      } else if (strstr(tmpstr, "goodday")) {
-	dprintf("faimtest: icbm: sending response\n");
-	aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
-      } else if (strstr(tmpstr, "warnme")) {
-	dprintf("faimtest: icbm: sending non-anon warning\n");
-	aim_send_warning(sess, command->conn, userinfo->sn, 0);
-      } else if (strstr(tmpstr, "anonwarn")) {
-	dprintf("faimtest: icbm: sending anon warning\n");
-	aim_send_warning(sess, command->conn, userinfo->sn, AIM_WARN_ANON);
-      } else if (strstr(tmpstr, "setdirectoryinfo")) {
-	dprintf("faimtest: icbm: sending backwards profile data\n");
-	aim_setdirectoryinfo(sess, command->conn, "tsrif", "elddim", "tsal", "nediam", "emankcin", "teerts", "ytic", "etats", "piz", 0, 1);
-      } else if (strstr(tmpstr, "setinterests")) {
-	dprintf("faimtest: icbm: setting fun interests\n");
-	aim_setuserinterests(sess, command->conn, "interest1", "interest2", "interest3", "interest4", "interest5", 1);
-      } else if (!strncmp(tmpstr, "getfile", 7)) {
-	if (!ohcaptainmycaptain) {
-	  aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!");
-	} else {
-	  struct aim_conn_t *newconn;
-	  newconn = aim_getfile_initiate(sess, command->conn, (strlen(tmpstr) < 8)?ohcaptainmycaptain:tmpstr+8);
-	  dvprintf("faimtest: getting file listing from %s\n", (strlen(tmpstr) < 8)?ohcaptainmycaptain:tmpstr+8);
-	  aim_conn_addhandler(sess, newconn,  AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEINITIATE, faimtest_getfile_initiate,0);
-	}
-      } else if (!strncmp(tmpstr, "open chatnav", 12)) {
-	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
-      } else if (!strncmp(tmpstr, "create", 6)) {
-	aim_chatnav_createroom(sess,aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV), (strlen(tmpstr) < 7)?"WorldDomination":tmpstr+7, 0x0004);
-      } else if (!strncmp(tmpstr, "close chatnav", 13)) {
-	struct aim_conn_t *chatnavconn;
-	chatnavconn = aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV);
-	aim_conn_kill(sess, &chatnavconn);
-      } else if (!strncmp(tmpstr, "join", 4)) {
-	  aim_chat_join(sess, command->conn, 0x0004, "worlddomination");
-      } else if (!strncmp(tmpstr, "leave", 5))
-	    aim_chat_leaveroom(sess, "worlddomination");
-      else if (!strncmp(tmpstr, "getinfo", 7)) {
-	aim_getinfo(sess, command->conn, "75784102", AIM_GETINFO_GENERALINFO);
-	aim_getinfo(sess, command->conn, "15853637", AIM_GETINFO_AWAYMESSAGE);
-      } else if (!strncmp(tmpstr, "open directim", 13)) {
-	struct aim_conn_t *newconn;
-	printf("faimtest: opening directim to %s\n", (strlen(tmpstr) < 14)?userinfo->sn:tmpstr+14);
-       	newconn = aim_directim_initiate(sess, command->conn, NULL, (strlen(tmpstr) < 14)?userinfo->sn:tmpstr+14);
-	if(!newconn || newconn->fd == -1)
-	  printf("connection failed!\n");
-	aim_conn_addhandler(sess, newconn,  AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINITIATE, faimtest_directim_initiate,0);
-      } else if(!(strncmp(tmpstr, "lookup", 6))) {
-	aim_usersearch_address(sess, command->conn, tmpstr+7);
-      } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
-	aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900");
-      } else if (!strncmp(tmpstr, "reqauth", 7)) {
-	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_AUTH);
-      } else if (!strncmp(tmpstr, "reqconfirm", 10)) {
-	aim_auth_reqconfirm(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
-      } else if (!strncmp(tmpstr, "reqemail", 8)) {
-	aim_auth_getinfo(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), 0x0011);
-      } else if (!strncmp(tmpstr, "changepass", 8)) {
-	aim_auth_changepasswd(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWPASSWORD", "OLDPASSWORD");
-      } else if (!strncmp(tmpstr, "setemail", 8)) {
-	aim_auth_setemail(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWEMAILADDRESS");
-      } else if (!strncmp(tmpstr, "sendmsg", 7)) {
-	int i;
-	i = atoi(tmpstr+8);
-	if (i < 10000) {
-	  char *newbuf;
-	  int z;
+      faimtest_handlecmd(sess, command, userinfo, tmpstr);
 
-	  newbuf = malloc(i+1);
-	  for (z = 0; z < i; z++) {
-	    newbuf[z] = (z % 10)+0x30;
-	  }
-	  newbuf[i] = '\0';
-	  aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf);
-	  free(newbuf);
-	}
-      } else {
-	dprintf("unknown command.\n");
-	aim_add_buddy(sess, command->conn, userinfo->sn);
-      }
-      
     }
   }
   /*

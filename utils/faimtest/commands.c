@@ -8,6 +8,10 @@ static int cmd_quit(char *arg);
 static int cmd_login(char *arg);
 static int cmd_logout(char *arg);
 static int cmd_connlist(char *arg);
+static int cmd_goodday(char *arg);
+static int cmd_warn(char *arg);
+static int cmd_anonwarn(char *arg);
+static int cmd_sendmsg(char *arg);
 
 struct {
   char *name;
@@ -17,8 +21,12 @@ struct {
   { "help", cmd_help, "Help"},
   { "quit", cmd_quit, "Quit"},
   { "login", cmd_login, "Log into AIM"},
-  { "logout", cmd_login, "Log out of AIM"},
+  { "logout", cmd_logout, "Log out of AIM"},
   { "connlist", cmd_connlist, "List open connections"},
+  { "goodday", cmd_goodday, "Say goodday to arg"},
+  { "warn", cmd_warn, "Warn arg"},
+  { "anonwarn", cmd_anonwarn, "Anonymously warn arg"},
+  { "sendmsg", cmd_sendmsg, "Send arg[0] bytes to arg[1]"},
   { (char *)NULL, (Function *)NULL, (char *)NULL }
 };
 
@@ -141,7 +149,7 @@ void cmd_init(void)
 
   printf("Welcome to faimtest.\n");
 
-  rl_callback_handler_install("faimtest>", fullline);
+  rl_callback_handler_install("faimtest> ", fullline);
 
   return;
 }
@@ -198,13 +206,69 @@ static int cmd_logout(char *arg)
 
 static int cmd_connlist(char *arg)
 {
-  extern struct aim_session_t aimsess;
   struct aim_conn_t *cur;
 
   printf("Open connections:\n");
   for (cur = aimsess.connlist; cur; cur = cur->next) {
     printf(" fd=%d  type=0x%02x\n", cur->fd, cur->type);
   }
+
+  return 0;
+}
+
+static int cmd_goodday(char *arg)
+{
+  if (arg && strlen(arg) && (strlen(arg) < MAXSNLEN))
+    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), arg, AIM_IMFLAGS_ACK, "Good day to you too.");
+  else
+    printf("no one to say hello to!\n");
+
+  return 0;
+}
+
+static int cmd_warn(char *arg)
+{
+  if (arg && strlen(arg) && (strlen(arg) < MAXSNLEN))
+    aim_send_warning(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), arg, 0);
+  else
+    printf("no one to warn!\n");
+
+  return 0;
+}
+
+static int cmd_anonwarn(char *arg)
+{
+  if (arg && strlen(arg) && (strlen(arg) < MAXSNLEN))
+    aim_send_warning(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), arg, AIM_WARN_ANON);
+  else
+    printf("no one to anonwarn!\n");
+
+  return 0;
+}
+
+static int cmd_sendmsg(char *arg)
+{
+  int len = 0, z;
+  char sn[MAXSNLEN+1], *newbuf = NULL;
+
+  if ((sscanf(arg, "%d %32s", &len, sn) != 2) || 
+      (len >= 10000) || (strlen(sn) > MAXSNLEN)) {
+    printf("invalid args\n");
+    return 0;
+  }
+
+  printf("sending %d bytes to %s\n", len, sn);
+
+  if (!(newbuf = malloc(len+1)))
+    return 0;
+
+  for (z = 0; z < len; z++)
+    newbuf[z] = (z % 10)+0x30;
+  newbuf[len] = '\0';
+
+  aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), sn, AIM_IMFLAGS_ACK, newbuf);
+
+  free(newbuf);
 
   return 0;
 }

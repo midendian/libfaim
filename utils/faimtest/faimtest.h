@@ -4,6 +4,8 @@
 #include <aim.h> 
 
 extern int keepgoing;
+extern struct aim_session_t aimsess;
+
 int login(const char *sn, const char *passwd);
 int logout(void);
 
