@@ -907,20 +907,22 @@ faim_internal int aim_negchan_middle(struct aim_session_t *sess,
 faim_internal int aim_parse_generalerrs(struct aim_session_t *sess,
 					struct command_rx_struct *command, ...)
 {
-  u_short family;
-  u_short subtype;
+  unsigned short family;
+  unsigned short subtype;
+  int ret = 1;
+  int error = 0;
+  rxcallback_t userfunc = NULL;
   
   family = aimutil_get16(command->data+0);
   subtype= aimutil_get16(command->data+2);
   
-  switch(family)
-    {
-    default:
-      /* Unknown family */
-      return aim_callhandler_noparam(sess, command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, command);
-    }
+  if (command->commandlen > 10)
+    error = aimutil_get16(command->data+10);
 
-  return 1;
+  if ((userfunc = aim_callhandler(command->conn, family, subtype))) 
+    ret = userfunc(sess, command, error);
+
+  return ret;
 }
 
 

@@ -88,6 +88,7 @@ int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_buddyrights(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_genericerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 static char *msgerrreasons[] = {
   "Invalid error",
@@ -674,8 +675,13 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
     
+  aim_conn_addhandler(sess, bosconn, 0x0001, 0x0001, faimtest_parse_genericerr, 0);
+  aim_conn_addhandler(sess, bosconn, 0x0003, 0x0001, faimtest_parse_genericerr, 0);
+  aim_conn_addhandler(sess, bosconn, 0x0009, 0x0001, faimtest_parse_genericerr, 0);
+
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, faimtest_parse_connerr, 0);
-    
+
+
   aim_auth_sendcookie(sess, bosconn, cookie);
 
   return 1;
@@ -1206,6 +1212,20 @@ int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *co
   if (!connected)
     connected++;
 
+  return 1;
+}
+
+int faimtest_parse_genericerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  unsigned short reason;
+
+  va_start(ap, command);
+  reason = va_arg(ap, int);
+  va_end(ap);
+
+  printf("faimtest: snac threw error (reason 0x%04x: %s)\n", reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+  
   return 1;
 }
 

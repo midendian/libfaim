@@ -1,6 +1,12 @@
 
 No release numbers
 ------------------
+ - Fri Dec 15 23:35:01 UTC 2000
+  - Add genericerr callback/middle. 
+   - This is for catching the errors that come back, for instance, from
+     sending a SNAC that isn't supported by the host (such as the
+     Watcher Request SNAC).
+
  - Fri Dec 15 21:51:32 UTC 2000
   - Add more info to evilnotify callback
   - Add a few values to aim_cbtypes.h
