@@ -703,9 +703,9 @@ int aim_parse_unknown(struct aim_session_t *sess,
   for (i = 0; i < command->commandlen; i++)
     {
       if ((i % 8) == 0)
-	printf("\n\t");
+	faimdprintf(1, "\n\t");
 
-      printf("0x%2x ", command->data[i]);
+      faimdprintf(1, "0x%2x ", command->data[i]);
     }
   
   printf("\n\n");
