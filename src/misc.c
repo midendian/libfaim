@@ -187,10 +187,21 @@ faim_export int aim_bos_setprofile(aim_session_t *sess, aim_conn_t *conn, const 
 		aim_addtlvtochain_raw(&tl, 0x0001, strlen(defencoding), defencoding);
 		aim_addtlvtochain_raw(&tl, 0x0002, strlen(profile), profile);
 	}
-	
+
+	/*
+	 * So here's how this works:
+	 *   - You are away when you have a non-zero-length type 4 TLV stored.
+	 *   - You become unaway when you clear the TLV with a zero-length
+	 *       type 4 TLV.
+	 *   - If you do not send the type 4 TLV, your status does not change
+	 *       (that is, if you were away, you'll remain away).
+	 */
 	if (awaymsg) {
-		aim_addtlvtochain_raw(&tl, 0x0003, strlen(defencoding), defencoding);
-		aim_addtlvtochain_raw(&tl, 0x0004, strlen(awaymsg), awaymsg);
+		if (strlen(awaymsg)) {
+			aim_addtlvtochain_raw(&tl, 0x0003, strlen(defencoding), defencoding);
+			aim_addtlvtochain_raw(&tl, 0x0004, strlen(awaymsg), awaymsg);
+		} else
+			aim_addtlvtochain_noval(&tl, 0x0004);
 	}
 
 	aim_addtlvtochain_caps(&tl, 0x0005, caps);

@@ -370,7 +370,7 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	aim_bos_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST);
+	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_EVERYBUDDY);
 	aim_bos_reqbuddyrights(sess, fr->conn);
 
 	/* send the buddy list and profile (required, even if empty) */
@@ -1160,7 +1160,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 			for (z = 0; z < i; z++)
 				newbuf[z] = (z % 10)+0x30;
 			newbuf[i] = '\0';
-			aim_send_im(sess, userinfo->sn, 0, newbuf);
+			aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_ACK | AIM_IMFLAGS_OFFLINE, newbuf);
 			free(newbuf);
 		}
 
@@ -1206,6 +1206,8 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 		dinlineprintf("away ");
 	if (args->icbmflags & AIM_IMFLAGS_ACK)
 		dinlineprintf("ackrequest ");
+	if (args->icbmflags & AIM_IMFLAGS_OFFLINE)
+		dinlineprintf("offline ");
 	if (args->icbmflags & AIM_IMFLAGS_BUDDYREQ)
 		dinlineprintf("buddyreq ");
 	if (args->icbmflags & AIM_IMFLAGS_HASICON)
