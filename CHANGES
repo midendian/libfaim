@@ -1,6 +1,14 @@
 
 No release numbers
 ------------------
+ - Sun Feb 11 01:07:36 UTC 2001
+  - Make secondary connections to the authorizer work again
+  - Make aim_auth_changepasswd() work again.
+  - Add aim_auth_setversions(), aim_auth_getinfo(), aim_auth_setemail(),
+    aim_auth_reqconfirm()
+  - Add middle handlers for responses to all of above.
+  - Add examples of above to faimtest (start with 'reqauth')
+ 
  - Fri Feb  9 22:31:22 UTC 2001
   - Add aim_tx_setenqueue().
 

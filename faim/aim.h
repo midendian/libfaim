@@ -482,6 +482,8 @@ faim_internal int aim_tx_enqueue(struct aim_session_t *, struct command_tx_struc
 faim_internal int aim_tx_printqueue(struct aim_session_t *);
 faim_internal int aim_parse_hostonline(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 faim_internal int aim_parse_hostversions(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+faim_internal int aim_parse_accountconfirm(struct aim_session_t *sess, struct command_rx_struct *command);
+faim_internal int aim_parse_infochange(struct aim_session_t *sess, struct command_rx_struct *command);
 #endif /* FAIM_INTERNAL */
 
 #define AIM_TX_QUEUED    0 /* default */
@@ -580,6 +582,10 @@ faim_export unsigned long aim_bos_reqlocaterights(struct aim_session_t *, struct
 faim_export unsigned long aim_bos_reqicbmparaminfo(struct aim_session_t *, struct aim_conn_t *);
 faim_export unsigned long aim_addicbmparam(struct aim_session_t *sess,struct aim_conn_t *conn);
 faim_export unsigned long aim_setversions(struct aim_session_t *sess, struct aim_conn_t *conn);
+faim_export unsigned long aim_auth_setversions(struct aim_session_t *sess, struct aim_conn_t *conn);
+faim_export unsigned long aim_auth_reqconfirm(struct aim_session_t *sess, struct aim_conn_t *conn);
+faim_export unsigned long aim_auth_getinfo(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned short info);
+faim_export unsigned long aim_auth_setemail(struct aim_session_t *sess, struct aim_conn_t *conn, char *newemail);
 faim_export unsigned long aim_setdirectoryinfo(struct aim_session_t *sess, struct aim_conn_t *conn, char *first, char *middle, char *last, char *maiden, char *nickname, char *street, char *city, char *state, char *zip, int country, unsigned short privacy);
 faim_export unsigned long aim_setuserinterests(struct aim_session_t *sess, struct aim_conn_t *conn, char *interest1, char *interest2, char *interest3, char *interest4, char *interest5, unsigned short privacy);
 faim_export unsigned long aim_icq_setstatus(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned long status);
@@ -601,6 +607,22 @@ faim_internal int aim_handleredirect_middle(struct aim_session_t *, struct comma
 faim_internal int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *, ...);
 faim_internal int aim_parse_generalerrs(struct aim_session_t *, struct command_rx_struct *command, ...);
 faim_internal int aim_parsemotd_middle(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+
+/* these are used by aim_*_clientready */
+#define AIM_TOOL_JAVA   0x0001
+#define AIM_TOOL_MAC    0x0002
+#define AIM_TOOL_WIN16  0x0003
+#define AIM_TOOL_WIN32  0x0004
+#define AIM_TOOL_MAC68K 0x0005
+#define AIM_TOOL_MACPPC 0x0006
+#define AIM_TOOL_NEWWIN 0x0010
+struct aim_tool_version {
+  unsigned short group;
+  unsigned short version;
+  unsigned short tool;
+  unsigned short toolversion;
+};
+
 #endif /* FAIM_INTERNAL */
 
 #define AIM_RATE_CODE_CHANGE     0x0001

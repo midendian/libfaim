@@ -83,8 +83,7 @@ int faimtest_parse_authresp(struct aim_session_t *, struct command_rx_struct *, 
 int faimtest_parse_incoming_im(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_userinfo(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_handleredirect(struct aim_session_t *, struct command_rx_struct *command, ...);
-int faimtest_authsvrready(struct aim_session_t *, struct command_rx_struct *command, ...);
-int faimtest_pwdchngdone(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_infochange(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_serverready(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_hostversions(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -429,6 +428,11 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
 
     break;  
   }
+  case AIM_CONN_TYPE_AUTH:
+    aim_bos_ackrateresp(sess, command->conn);
+    aim_auth_clientready(sess, command->conn);
+    dprintf("faimtest: connected to authorization/admin service\n");
+    break;
 
   default: 
     dvprintf("faimtest: got rate response for unhandled connection type %04x\n", command->conn->type);
@@ -459,6 +463,20 @@ int faimtest_hostversions(struct aim_session_t *sess, struct command_rx_struct *
   return 1;
 }
 
+int faimtest_accountconfirm(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  int status;
+  va_list ap;
+
+  va_start(ap, command);
+  status = va_arg(ap, int); /* status code of confirmation request */
+  va_end(ap);
+
+  dvprintf("account confirmation returned status 0x%04x (%s)\n", status, (status==0x0000)?"email sent":"unknown");
+
+  return 1;
+}
+
 int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   int famcount, i;
@@ -476,6 +494,13 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
   dinlineprintf("\n");
 
   switch (command->conn->type) {
+  case AIM_CONN_TYPE_AUTH:
+    aim_auth_setversions(sess, command->conn);
+    aim_bos_reqrate(sess, command->conn); /* request rate info */
+
+    dprintf("faimtest: done with auth ServerReady\n");
+    break;
+
   case AIM_CONN_TYPE_BOS:
 
     aim_setversions(sess, command->conn);
@@ -508,7 +533,7 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
     break;
 
   default:
-    dprintf("faimtest: unknown connection type on Server Ready\n");
+    dvprintf("faimtest: unknown connection type on Host Online (0x%04x)\n", command->conn->type);
   }
 
   return 1;
@@ -595,6 +620,25 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
  
   switch(serviceid)
     {
+    case 0x0005: /* Adverts */
+      {
+	struct aim_conn_t *tstconn;
+
+	tstconn = aim_newconn(sess, AIM_CONN_TYPE_ADS, ip);
+	if ((tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
+	  dprintf("faimtest: unable to reconnect with authorizer\n");
+	} else {
+	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
+	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
+	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+	  aim_auth_sendcookie(sess, tstconn, cookie);
+	  dprintf("sent cookie to adverts host\n");
+	}
+
+      }  
+      break;
     case 0x0007: /* Authorizer */
       {
 	struct aim_conn_t *tstconn;
@@ -605,8 +649,15 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	} else {
 	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
+	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0007, 0x0007, faimtest_accountconfirm, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
+	  aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
 	  /* Send the cookie to the Auth */
 	  aim_auth_sendcookie(sess, tstconn, cookie);
+	  dprintf("sent cookie to authorizer host\n");
 	}
 
       }  
@@ -958,6 +1009,16 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	aim_usersearch_address(sess, command->conn, tmpstr+7);
       } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 	aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900");
+      } else if (!strncmp(tmpstr, "reqauth", 7)) {
+	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_AUTH);
+      } else if (!strncmp(tmpstr, "reqconfirm", 10)) {
+	aim_auth_reqconfirm(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
+      } else if (!strncmp(tmpstr, "reqemail", 8)) {
+	aim_auth_getinfo(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), 0x0011);
+      } else if (!strncmp(tmpstr, "changepass", 8)) {
+	aim_auth_changepasswd(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWPASSWORD", "OLDPASSWORD");
+      } else if (!strncmp(tmpstr, "setemail", 8)) {
+	aim_auth_setemail(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "NEWEMAILADDRESS");
       } else if (!strncmp(tmpstr, "sendmsg", 7)) {
 	int i;
 	i = atoi(tmpstr+8);
@@ -1221,29 +1282,26 @@ int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struc
   return 1;
 }
 
-int faimtest_authsvrready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+int faimtest_infochange(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  dvprintf("faimtest_authsvrready: called (contype: %d)\n", command->conn->type);
-  sleep(10);
-  /* should just be able to tell it we're ready too... */
-  aim_auth_clientready(sess, command->conn);
+  unsigned short change = 0;
+  int perms, type, length, str;
+  char *val;
+  va_list ap;
 
-#if 0
-  /*
-   * This is where you'd really begin changing your password.
-   *   However, this callback may get called for reasons other
-   *   than you wanting to change your password.  You should 
-   *   probably check that before actually doing it.
-   */
-  aim_auth_changepasswd(sess, command->conn, "PWD1", "PWD2");
-#endif
+  va_start(ap, command);
+  perms = va_arg(ap, int);
+  type = va_arg(ap, int);
+  length = va_arg(ap, int);
+  val = va_arg(ap, char *);
+  str = va_arg(ap, int);
+  va_end(ap);
 
-  return 1;
-}
+  if (aimutil_get16(command->data+2) == 0x0005)
+    change = 1;
 
-int faimtest_pwdchngdone(struct aim_session_t *sess, struct command_rx_struct *command, ...)
-{
-  dprintf("PASSWORD CHANGE SUCCESSFUL!!!\n");
+  dvprintf("info%s: perms = %d, type = %x, length = %d, val = %s\n", change?" change":"", perms, type, length, str?val:"(not string)");
+
   return 1;
 }
 

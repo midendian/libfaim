@@ -306,18 +306,7 @@ faim_internal int aim_parse_bosrights(struct aim_session_t *sess,
 faim_export unsigned long aim_bos_clientready(struct aim_session_t *sess,
 					      struct aim_conn_t *conn)
 {
-#define AIM_TOOL_JAVA   0x0001
-#define AIM_TOOL_MAC    0x0002
-#define AIM_TOOL_WIN16  0x0003
-#define AIM_TOOL_WIN32  0x0004
-#define AIM_TOOL_MAC68K 0x0005
-#define AIM_TOOL_MACPPC 0x0006
-  struct aim_tool_version {
-    unsigned short group;
-    unsigned short version;
-    unsigned short tool;
-    unsigned short toolversion;
-  } tools[] = {
+  struct aim_tool_version tools[] = {
     {0x0001, 0x0003,    AIM_TOOL_WIN32, 0x0686},
     {0x0002, 0x0001,    AIM_TOOL_WIN32, 0x0001}, 
     {0x0003, 0x0001,    AIM_TOOL_WIN32, 0x0001},

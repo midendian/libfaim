@@ -371,16 +371,27 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	    else
 	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0xffff, workingPtr);
 	    break;
+
 	  case 0x0001:
 	    if (subtype == 0x0003)
 	      workingPtr->handled = aim_parse_hostonline(sess, workingPtr);
+	    else if (subtype == 0x0007)
+	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0007, workingPtr);
+	    else if (subtype == 0x0018)
+	      workingPtr->handled = aim_parse_hostversions(sess, workingPtr);
 	    else
-	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0xffff, workingPtr);
+	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0xffff, workingPtr);
 	    break;
+
 	  case 0x0007:
-	    if (subtype == 0x0005)
-	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_ADM, AIM_CB_ADM_INFOCHANGE_REPLY, workingPtr);
+	    if (subtype == 0x0003)
+	      workingPtr->handled = aim_parse_infochange(sess, workingPtr);
+	    else if (subtype == 0x0005)
+	      workingPtr->handled = aim_parse_infochange(sess, workingPtr);
+	    else if (subtype == 0x0007)
+	      workingPtr->handled = aim_parse_accountconfirm(sess, workingPtr);
 	    break;
+
 	  case AIM_CB_FAM_SPECIAL:
 	    if (subtype == AIM_CB_SPECIAL_DEBUGCONN_CONNECT) {
 	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
@@ -388,6 +399,7 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	    } else
 	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0xffff, workingPtr);
 	    break;
+
 	  default:
 	    break;
 	  }
@@ -547,6 +559,22 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	} /* switch(family) */
 	break;
       } /* AIM_CONN_TYPE_BOS */
+      case AIM_CONN_TYPE_ADS: {
+	unsigned short family;
+	unsigned short subtype;
+
+	family = aimutil_get16(workingPtr->data);
+	subtype= aimutil_get16(workingPtr->data+2);
+
+	if ((family == 0x0000) && (subtype == 0x00001)) {
+	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, workingPtr);
+	} else if ((family == 0x0001) && (subtype == 0x0003)) {
+	  workingPtr->handled = aim_parse_hostonline(sess, workingPtr);
+	} else {
+	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
+	}
+	break;
+      }
       case AIM_CONN_TYPE_CHATNAV: {
 	u_short family;
 	u_short subtype;
@@ -832,6 +860,78 @@ faim_internal int aim_parse_hostonline(struct aim_session_t *sess,
   free(families);
 
   return ret;  
+}
+
+faim_internal int aim_parse_accountconfirm(struct aim_session_t *sess,
+					   struct command_rx_struct *command)
+{
+  rxcallback_t userfunc = NULL;
+  int ret = 1;
+  int status = -1;
+
+  status = aimutil_get16(command->data+10);
+
+  if ((userfunc = aim_callhandler(command->conn, 0x0007, 0x0007)))
+    ret = userfunc(sess, command, status);
+
+  return ret;  
+}
+
+faim_internal int aim_parse_infochange(struct aim_session_t *sess,
+				       struct command_rx_struct *command)
+{
+  unsigned short subtype; /* called for both reply and change-reply */
+  int i;
+
+  subtype = aimutil_get16(command->data+2);
+
+  /*
+   * struct {
+   *    unsigned short perms;
+   *    unsigned short tlvcount;
+   *    aim_tlv_t tlvs[tlvcount];
+   *  } admin_info[n];
+   */
+  for (i = 10; i < command->commandlen; ) {
+    int perms, tlvcount;
+
+    perms = aimutil_get16(command->data+i);
+    i += 2;
+
+    tlvcount = aimutil_get16(command->data+i);
+    i += 2;
+
+    while (tlvcount) {
+      rxcallback_t userfunc;
+      struct aim_tlv_t *tlv;
+      int str = 0;
+
+      if ((aimutil_get16(command->data+i) == 0x0011) ||
+	  (aimutil_get16(command->data+i) == 0x0004))
+	str = 1;
+
+      if (str)
+	tlv = aim_grabtlvstr(command->data+i);
+      else
+	tlv = aim_grabtlv(command->data+i);
+
+      /* XXX fix so its only called once for the entire packet */
+      if ((userfunc = aim_callhandler(command->conn, 0x0007, subtype)))
+	userfunc(sess, command, perms, tlv->type, tlv->length, tlv->value, str);
+
+      if (tlv)
+	i += 2+2+tlv->length;
+
+      if (tlv && tlv->value)
+	free(tlv->value);
+      if (tlv)
+	free(tlv);
+
+      tlvcount--;
+    }
+  }
+
+  return 1;
 }
 
 faim_internal int aim_parse_hostversions(struct aim_session_t *sess,
