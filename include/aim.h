@@ -130,48 +130,42 @@ typedef fu16_t flap_seqnum_t;
 #define AIM_MD5_STRING "AOL Instant Messenger (SM)"
 
 /*
- * Client info.  Filled in by the client and passed
- * in to aim_login().  The information ends up
- * getting passed to OSCAR through the initial
- * login command.
- *
- * XXX: Should this be per-session? -mid
+ * Client info.  Filled in by the client and passed in to 
+ * aim_send_login().  The information ends up getting passed to OSCAR
+ * through the initial login command.
  *
  */
 struct client_info_s {
-	char clientstring[100]; /* arbitrary size */
+	const char *clientstring;
+	fu16_t clientid;
 	int major;
 	int minor;
+	int point;
 	int build;
-	char country[3];
-	char lang[3];
-	int major2;
-	int minor2;
-	long unknown;
+	const char *country; /* two-letter abbrev */
+	const char *lang; /* two-letter abbrev */
 };
 
 #define AIM_CLIENTINFO_KNOWNGOOD_3_5_1670 { \
 	"AOL Instant Messenger (SM), version 3.5.1670/WIN32", \
+	0x0004, \
 	0x0003, \
 	0x0005, \
+	0x0000, \
 	0x0686, \
 	"us", \
 	"en", \
-	0x0004, \
-	0x0000, \
-	0x0000002a, \
 }
 
 #define AIM_CLIENTINFO_KNOWNGOOD_4_1_2010 { \
 	  "AOL Instant Messenger (SM), version 4.1.2010/WIN32", \
 	  0x0004, \
+	  0x0004, \
 	  0x0001, \
+	  0x0000, \
 	  0x07da, \
 	  "us", \
 	  "en", \
-	  0x0004, \
-	  0x0000, \
-	  0x0000004b, \
 }
 
 /*
@@ -465,6 +459,7 @@ faim_internal fu8_t aim_gettlv8(aim_tlvlist_t *list, const fu16_t type, const in
 faim_internal fu16_t aim_gettlv16(aim_tlvlist_t *list, const fu16_t t, const int n);
 faim_internal fu32_t aim_gettlv32(aim_tlvlist_t *list, const fu16_t t, const int n);
 faim_internal int aim_writetlvchain(aim_bstream_t *bs, aim_tlvlist_t **list);
+faim_internal int aim_addtlvtochain8(aim_tlvlist_t **list, const fu16_t t, const fu8_t v);
 faim_internal int aim_addtlvtochain16(aim_tlvlist_t **list, const fu16_t t, const fu16_t v);
 faim_internal int aim_addtlvtochain32(aim_tlvlist_t **list, const fu16_t type, const fu32_t v);
 faim_internal int aim_addtlvtochain_raw(aim_tlvlist_t **list, const fu16_t t, const fu16_t l, const fu8_t *v);
