@@ -1,6 +1,19 @@
 
 No release numbers
 ------------------
+ - Sun Apr  2 01:45:15 UTC 2000
+   - Increased AIM_CONN_MAX from 5 to 7.  Precausionary only
+   - Removed deprecated TIS_TELNET_PROXY from faim/faimconfig.h
+   - Added macros for the simple integer functions in aim_util.c
+   - Removed usage of aim_failsaferead() 
+      - Still not sure why I had it to begin with.  I think it 
+        was a remament from when we used non-blocking sockets
+        (which I don't know why I did either)
+   - Removed some of the oddities in aim_get_command()
+      - gprof showed this taking 20kns on my k6-300.  Should be faster now.
+      - Added conn parameter.  This should prevent aim_select() from
+        getting called too many times in a row.
+
  - Thu Mar 23 08:45:40 UTC 2000
    - Removed aim_countconn() > 0 check in aim_select(), its logically redundent
    - Added aim_putuserinfo() (inverse of aim_extractuserinfo())

@@ -1,175 +1,92 @@
 /*
-  aim_rxqueue.c
-
-  This file contains the management routines for the receive
-  (incoming packet) queue.  The actual packet handlers are in
-  aim_rxhandlers.c.
-
+ *  aim_rxqueue.c
+ *
+ * This file contains the management routines for the receive
+ * (incoming packet) queue.  The actual packet handlers are in
+ * aim_rxhandlers.c.
  */
 
 #include <faim/aim.h> 
 
-
 /*
- * This is a modified read() to make SURE we get the number
- * of bytes we are told to, otherwise block.
- *
- * Modified to count errno (Sébastien Carpe <scarpe@atos-group.com>)
- * 
-*/
-int aim_failsaferead(int fd, u_char *buf, int len)
-{
-  int i = 0;
-  int j = 0;
-  int err_count=0;
-  
-  while ((i < len) && (!(i < 0)))
-    {
-      j = read(fd, &(buf[i]), len-i);
-      if ( (j < 0) && (errno != EAGAIN))
-        return -errno; /* fail */
-      else if (j==0) 
-	{
-	  err_count++;
-	  if (err_count> MAX_READ_ERROR)  {
-	    /*
-	     * Reached maximum number of allowed read errors.
-	     *
-	     * Lets suppose the connection is lost and errno didn't
-	     * know it.
-	     *
-	     */
-          return (-1); 
-	}
-      } 
-      else
-        i += j; /* success, continue */
-    }
-  return i;
-}
-
-/*  
- * Grab as many command sequences as we can off the socket, and enqueue
- * each command in the incoming event queue in a seperate struct.
+ * Grab a single command sequence off the socket, and enqueue
+ * it in the incoming event queue in a seperate struct.
  */
-int aim_get_command(struct aim_session_t *sess)
+int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
 {
-  int i, readgood, j, isav, err;
-  int s;
-  fd_set fds;
-  struct timeval tv;
-  char generic[6]; 
-  struct command_rx_struct *workingStruct = NULL;
-  struct aim_conn_t *conn = NULL;
-  int selstat = 0;
+  u_char generic[6]; 
+  struct command_rx_struct *newrx = NULL;
 
-  faimdprintf(1, "Reading generic/unknown response...");
-
-  /* dont wait at all (ie, never call this unless something is there) */
-  tv.tv_sec = 0; 
-  tv.tv_usec = 0;
-  conn = aim_select(sess, &tv, &selstat);
-
-  if (conn==NULL) 
-    return 0;  /* nothing waiting */
-
-  s = conn->fd;
-
-  if (s < 3) 
+  if (!sess || !conn)
     return 0;
 
-  FD_ZERO(&fds);
-  FD_SET(s, &fds);
-  tv.tv_sec = 0;  /* wait, but only for 10us */
-  tv.tv_usec = 10;
-  
-  generic[0] = 0x00;  
+  if (conn->fd < 3)  /* can happen when people abuse the interface */
+    return 0;
 
-  readgood = 0;
-  i = 0;
-  j = 0;
-  /* read first 6 bytes (the FLAP header only) off the socket */
-  while ( (select(s+1, &fds, NULL, NULL, &tv) == 1) && (i < 6))
-    {
-      if ((err = aim_failsaferead(s, &(generic[i]), 1)) < 0)
-	{
-	  /* error is probably not recoverable...(must be a pessimistic day) */
-	  /* aim_conn_close(conn); */
-	  return err;
-   	}
-
-      if (readgood == 0)
-	{
-	  if (generic[i] == 0x2a)
-	  {
-	    readgood = 1;
-	    faimdprintf(1, "%x ", generic[i]);
-	    i++;
-	  }
-	  else
-	    {
-	      faimdprintf(1, "skipping 0x%d ", generic[i]);
-	      j++;
-	    }
-	}
-      else
-	{
-	  faimdprintf(1, "%x ", generic[i]);
-	  i++;
-	}
-      FD_ZERO(&fds);
-      FD_SET(s, &fds);
-      tv.tv_sec= 2;
-      tv.tv_usec= 2;
-    }
+  /*
+   * Read FLAP header.  Six bytes:
+   *    
+   *   0 char  -- Always 0x2a
+   *   1 char  -- Channel ID.  Usually 2 -- 1 and 4 are used during login.
+   *   2 short -- Sequence number 
+   *   4 short -- Number of data bytes that follow.
+   */
+  if (read(conn->fd, generic, 6) < 6){
+    aim_conn_close(conn);
+    return -1;
+  }
 
   /*
    * This shouldn't happen unless the socket breaks, the server breaks,
    * or we break.  We must handle it just in case.
    */
   if (generic[0] != 0x2a) {
-    printf("Bad incoming data!");
+    faimdprintf(1, "Bad incoming data!");
     return -1;
   }	
 
-  isav = i;
-
   /* allocate a new struct */
-  workingStruct = (struct command_rx_struct *) malloc(sizeof(struct command_rx_struct));
-  memset(workingStruct, 0x00, sizeof(struct command_rx_struct));
+  newrx = (struct command_rx_struct *)malloc(sizeof(struct command_rx_struct));
+  if (!newrx)
+    return -1;
+  memset(newrx, 0x00, sizeof(struct command_rx_struct));
 
-  workingStruct->lock = 1;  /* lock the struct */
+  newrx->lock = 1;  /* lock the struct */
 
   /* store channel -- byte 2 */
-  workingStruct->type = (char) generic[1];
+  newrx->type = (char) generic[1];
 
   /* store seqnum -- bytes 3 and 4 */
-  workingStruct->seqnum = aimutil_get16(generic+2);
+  newrx->seqnum = aimutil_get16(generic+2);
 
   /* store commandlen -- bytes 5 and 6 */
-  workingStruct->commandlen = aimutil_get16(generic+4);
+  newrx->commandlen = aimutil_get16(generic+4);
 
-  workingStruct->nofree = 0; /* free by default */
+  newrx->nofree = 0; /* free by default */
 
   /* malloc for data portion */
-  workingStruct->data = (u_char *) malloc(workingStruct->commandlen);
+  newrx->data = (u_char *) malloc(newrx->commandlen);
+  if (!newrx->data) {
+    free(newrx);
+    return -1;
+  }
 
   /* read the data portion of the packet */
-  if (aim_failsaferead(s, workingStruct->data, workingStruct->commandlen) < 0){
+  if (read(conn->fd, newrx->data, newrx->commandlen) < newrx->commandlen){
+    free(newrx->data);
+    free(newrx);
     aim_conn_close(conn);
     return -1;
   }
 
-  faimdprintf(1, " done. (%db+%db read, %db skipped)\n", isav, i, j);
+  newrx->conn = conn;
 
-  workingStruct->conn = conn;
-
-  workingStruct->next = NULL;  /* this will always be at the bottom */
-  workingStruct->lock = 0; /* unlock */
+  newrx->next = NULL;  /* this will always be at the bottom */
+  newrx->lock = 0; /* unlock */
 
   /* enqueue this packet */
   if (sess->queue_incoming == NULL) {
-    sess->queue_incoming = workingStruct;
+    sess->queue_incoming = newrx;
   } else {
     struct command_rx_struct *cur;
 
@@ -181,10 +98,10 @@ int aim_get_command(struct aim_session_t *sess)
      */
     for (cur = sess->queue_incoming; cur->next; cur = cur->next)
       ;
-    cur->next = workingStruct;
+    cur->next = newrx;
   }
   
-  workingStruct->conn->lastactivity = time(NULL);
+  newrx->conn->lastactivity = time(NULL);
 
   return 0;  
 }

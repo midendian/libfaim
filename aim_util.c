@@ -7,13 +7,18 @@
 #include <faim/aim.h>
 #include <ctype.h>
 
-int aimutil_put8(u_char *buf, u_char data)
+#define AIMUTIL_USEMACROS
+
+#ifdef AIMUTIL_USEMACROS
+/* macros in faim/aim.h */
+#else
+inline int aimutil_put8(u_char *buf, u_char data)
 {
   buf[0] = (u_char)data&0xff;
   return 1;
 }
 
-u_char aimutil_get8(u_char *buf)
+inline u_char aimutil_get8(u_char *buf)
 {
   return buf[0];
 }
@@ -21,14 +26,14 @@ u_char aimutil_get8(u_char *buf)
 /*
  * Endian-ness issues here?
  */
-int aimutil_put16(u_char *buf, u_short data)
+inline int aimutil_put16(u_char *buf, u_short data)
 {
   buf[0] = (u_char)(data>>8)&0xff;
   buf[1] = (u_char)(data)&0xff;
   return 2;
 }
 
-u_short aimutil_get16(u_char *buf)
+inline u_short aimutil_get16(u_char *buf)
 {
   u_short val;
   val = (buf[0] << 8) & 0xff00;
@@ -36,7 +41,7 @@ u_short aimutil_get16(u_char *buf)
   return val;
 }
 
-int aimutil_put32(u_char *buf, u_long data)
+inline int aimutil_put32(u_char *buf, u_long data)
 {
   buf[0] = (u_char)(data>>24)&0xff;
   buf[1] = (u_char)(data>>16)&0xff;
@@ -45,7 +50,7 @@ int aimutil_put32(u_char *buf, u_long data)
   return 4;
 }
 
-u_long aimutil_get32(u_char *buf)
+inline u_long aimutil_get32(u_char *buf)
 {
   u_long val;
   val = (buf[0] << 24) & 0xff000000;
@@ -54,8 +59,9 @@ u_long aimutil_get32(u_char *buf)
   val+= (buf[3]      ) & 0x000000ff;
   return val;
 }
+#endif /* AIMUTIL_USEMACROS */
 
-int aimutil_putstr(u_char *dest, const u_char *src, int len)
+inline int aimutil_putstr(u_char *dest, const u_char *src, int len)
 {
   memcpy(dest, src, len);
   return len;
@@ -174,8 +180,7 @@ int aim_snlen(const char *sn)
     return 0;
 
   curPtr = sn;
-  while ( (*curPtr) != (char) NULL)
-    {
+  while ( (*curPtr) != (char) NULL) {
       if ((*curPtr) != ' ')
 	i++;
       curPtr++;
@@ -206,23 +211,19 @@ int aim_sncmp(const char *sn1, const char *sn2)
 
   curPtr1 = sn1;
   curPtr2 = sn2;
-  while ( (*curPtr1 != (char) NULL) && (*curPtr2 != (char) NULL) )
-    {
-      if ( (*curPtr1 == ' ') || (*curPtr2 == ' ') )
-	{
-	  if (*curPtr1 == ' ')
-	    curPtr1++;
-	  if (*curPtr2 == ' ')
-	    curPtr2++;
-	}
-      else
-	{
-	  if ( toupper(*curPtr1) != toupper(*curPtr2))
-	      return 1;
-	  curPtr1++;
-	  curPtr2++;
-	}
+  while ( (*curPtr1 != (char) NULL) && (*curPtr2 != (char) NULL) ) {
+    if ( (*curPtr1 == ' ') || (*curPtr2 == ' ') ) {
+      if (*curPtr1 == ' ')
+	curPtr1++;
+      if (*curPtr2 == ' ')
+	curPtr2++;
+    } else {
+      if ( toupper(*curPtr1) != toupper(*curPtr2))
+	return 1;
+      curPtr1++;
+      curPtr2++;
     }
+  }
 
   return 0;
 }

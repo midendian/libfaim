@@ -8,6 +8,23 @@
 #include <faim/aim.h>
 
 /*
+ * Allocate a new tx frame.
+ *
+ * This is more for looks than anything else.
+ */
+struct command_tx_struct *aim_tx_new(void)
+{
+  struct command_tx_struct *new;
+
+  new = (struct command_tx_struct *)malloc(sizeof(struct command_tx_struct));
+  if (!new)
+    return NULL;
+  memset(new, 0, sizeof(struct command_tx_struct));
+
+  return new;
+}
+
+/*
  * aim_tx_enqeue()
  *
  * The overall purpose here is to enqueue the passed in command struct

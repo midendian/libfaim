@@ -262,7 +262,7 @@ int aim_counttlvchain(struct aim_tlvlist_t **list);
  * Get command from connections / Dispatch commands
  * already in queue.
  */
-int aim_get_command(struct aim_session_t *);
+int aim_get_command(struct aim_session_t *, struct aim_conn_t *);
 int aim_rxdispatch(struct aim_session_t *);
 
 int aim_logoff(struct aim_session_t *);
@@ -299,6 +299,7 @@ int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *command,
 int aim_parse_missed_im(struct aim_session_t *, struct command_rx_struct *, ...);
 int aim_parse_last_bad(struct aim_session_t *, struct command_rx_struct *, ...);
 
+struct command_tx_struct *aim_tx_new(void);
 int aim_tx_enqueue(struct aim_session_t *, struct command_tx_struct *);
 u_int aim_get_next_txseqnum(struct aim_conn_t *);
 int aim_tx_flushqueue(struct aim_session_t *);
@@ -400,6 +401,7 @@ int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s *info);
 int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_userinfo_s *info);
 int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
 
+
 /* aim_auth.c */
 int aim_auth_sendcookie(struct aim_session_t *, struct aim_conn_t *, u_char *);
 u_long aim_auth_clientready(struct aim_session_t *, struct aim_conn_t *);
@@ -449,12 +451,37 @@ u_long aim_chatnav_createroom(struct aim_session_t *sess, struct aim_conn_t *con
 int aim_chat_leaveroom(struct aim_session_t *sess, char *name);
 
 /* aim_util.c */
+#ifdef AIMUTIL_USEMACROS
+/*
+ * These are really ugly.  You'd think this was LISP.  I wish it was.
+ */
+#define aimutil_put8(buf, data) ((*(buf) = (u_char)(data)&0xff),1)
+#define aimutil_get8(buf) ((*(buf))&0xff)
+#define aimutil_put16(buf, data) ( \
+                                  (*(buf) = (u_char)((data)>>8)&0xff), \
+				  (*((buf)+1) = (u_char)(data)&0xff),  \
+				  2)
+#define aimutil_get16(buf) ((((*(buf))<<8)&0xff00) + ((*((buf)+1)) & 0xff))
+#define aimutil_put32(buf, data) ( \
+                                  (*((buf)) = (u_char)((data)>>24)&0xff), \
+				  (*((buf)+1) = (u_char)((data)>>16)&0xff), \
+				  (*((buf)+2) = (u_char)((data)>>8)&0xff), \
+				  (*((buf)+3) = (u_char)(data)&0xff), \
+                                  4)
+#define aimutil_get32(buf) ((((*(buf))<<24)&0xff000000) + \
+                            (((*((buf)+1))<<16)&0x00ff0000) + \
+                            (((*((buf)+2))<< 8)&0x0000ff00) + \
+                            (((*((buf)+3)    )&0x000000ff)))
+#else
+#warning Not using aimutil macros.  May have performance problems.
 int aimutil_put8(u_char *, u_char);
 u_char aimutil_get8(u_char *buf);
 int aimutil_put16(u_char *, u_short);
 u_short aimutil_get16(u_char *);
 int aimutil_put32(u_char *, u_long);
 u_long aimutil_get32(u_char *);
+#endif
+
 int aimutil_putstr(u_char *, const u_char *, int);
 int aimutil_tokslen(char *toSearch, int index, char dl);
 int aimutil_itemcnt(char *toSearch, char dl);

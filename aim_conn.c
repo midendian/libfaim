@@ -176,6 +176,9 @@ struct aim_conn_t *aim_select(struct aim_session_t *sess,
   fd_set fds;
   int i;
 
+  if (aim_countconn(sess) <= 0)
+    return 0;
+
   /* 
    * If we have data waiting to be sent, return immediatly
    */

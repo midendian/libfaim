@@ -65,12 +65,12 @@ int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struc
 int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
-static char *screenname,*password;
+static char *screenname,*password,*server=NULL;
 
 int main(void)
 {
   struct aim_session_t aimsess;
-  struct aim_conn_t *authconn = NULL;
+  struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
   int keepgoing = 1, stayconnected = 1;
   struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
   int selstat = 0;
@@ -84,12 +84,14 @@ int main(void)
       return -1;
     }
 
+  server = getenv("AUTHSERVER");
+
   /*
    * (I used a goto-based loop here because n wanted quick proof
    *  that reconnecting without restarting was actually possible...)
    */
  enter:
-  authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, FAIM_LOGIN_SERVER);
+  authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER);
 
   if (authconn == NULL)
     {
@@ -122,7 +124,7 @@ int main(void)
     }
 
   while (keepgoing) {
-    aim_select(&aimsess, NULL, &selstat);
+    waitingconn = aim_select(&aimsess, NULL, &selstat);
 
     switch(selstat) {
     case -1: /* error */
@@ -137,7 +139,7 @@ int main(void)
       break;
 
     case 2: /* incoming data pending */
-      if (aim_get_command(&aimsess) < 0) {
+      if (aim_get_command(&aimsess, waitingconn) < 0) {
 	  printf("\afaimtest: connection error!\n");
       } else
 	aim_rxdispatch(&aimsess);

@@ -247,16 +247,16 @@ int aim_chat_readroominfo(u_char *buf, struct aim_chat_roominfo *outinfo)
 int aim_chat_parse_infoupdate(struct aim_session_t *sess,
 			      struct command_rx_struct *command)
 {
-  struct aim_userinfo_s *userinfo;
+  struct aim_userinfo_s *userinfo = NULL;
   rxcallback_t userfunc=NULL;	
   int ret = 1, i = 0;
   int usercount = 0;
   u_char detaillevel = 0;
-  char *roomname;
+  char *roomname = NULL;
   struct aim_chat_roominfo roominfo;
   u_short tlvcount = 0;
   struct aim_tlvlist_t *tlvlist;
-  char *roomdesc;
+  char *roomdesc = NULL;
 
   i = 10;
   i += aim_chat_readroominfo(command->data+i, &roominfo);
