@@ -17,9 +17,167 @@ int bleck(struct aim_session_t *sess,struct command_rx_struct *workingPtr, ...)
 {
   u_short family;
   u_short subtype;
-  family = (workingPtr->data[0] << 8) + workingPtr->data[1];
-  subtype = (workingPtr->data[2] << 8) + workingPtr->data[3];
-  printf("bleck: null handler for %04x/%04x\n", family, subtype);
+
+  u_short maxf;
+  u_short maxs;
+
+  /* XXX: this is ugly. and big just for debugging. */
+  char *literals[14][25] = {
+    {"Invalid", 
+     NULL
+    },
+    {"General", 
+     "Invalid",
+     "Error",
+     "Client Ready",
+     "Server Ready",
+     "Service Request",
+     "Redirect",
+     "Rate Information Request",
+     "Rate Information",
+     "Rate Information Ack",
+     NULL,
+     "Rate Information Change",
+     "Server Pause",
+     NULL,
+     "Server Resume",
+     "Request Personal User Information",
+     "Personal User Information",
+     "Evil Notification",
+     NULL,
+     "Migration notice",
+     "Message of the Day",
+     "Set Privacy Flags",
+     "Well Known URL",
+     "NOP"
+    },
+    {"Location", 
+      "Invalid",
+      "Error",
+      "Request Rights",
+      "Rights Information", 
+      "Set user information", 
+      "Request User Information", 
+      "User Information", 
+      "Watcher Sub Request",
+      "Watcher Notification"
+    },
+    {"Buddy List Management", 
+      "Invalid", 
+      "Error", 
+      "Request Rights",
+      "Rights Information",
+      "Add Buddy", 
+      "Remove Buddy", 
+      "Watcher List Query", 
+      "Watcher List Response", 
+      "Watcher SubRequest", 
+      "Watcher Notification", 
+      "Reject Notification", 
+      "Oncoming Buddy", 
+      "Offgoing Buddy"
+    },
+    {"Messeging", 
+      "Invalid",
+      "Error", 
+      "Add ICBM Parameter",
+      "Remove ICBM Parameter", 
+      "Request Parameter Information",
+      "Parameter Information",
+      "Outgoing Message", 
+      "Incoming Message",
+      "Evil Request",
+      "Evil Reply", 
+      "Missed Calls",
+      "Message Error", 
+      "Host Ack"
+    },
+    {"Advertisements", 
+      "Invalid", 
+      "Error", 
+      "Request Ad",
+      "Ad Data (GIFs)"
+    },
+    {"Invitation / Client-to-Client", 
+     "Invalid",
+     "Error",
+     "Invite a Friend",
+     "Invitation Ack"
+    },
+    {"Administrative", 
+      "Invalid",
+      "Error",
+      "Information Request",
+      "Information Reply",
+      "Information Change Request",
+      "Information Chat Reply",
+      "Account Confirm Request",
+      "Account Confirm Reply",
+      "Account Delete Request",
+      "Account Delete Reply"
+    },
+    {"Popups", 
+      "Invalid",
+      "Error",
+      "Display Popup"
+    },
+    {"BOS", 
+      "Invalid",
+      "Error",
+      "Request Rights",
+      "Rights Response",
+      "Set group permission mask",
+      "Add permission list entries",
+      "Delete permission list entries",
+      "Add deny list entries",
+      "Delete deny list entries",
+      "Server Error"
+    },
+    {"User Lookup", 
+      "Invalid",
+      "Error",
+      "Search Request",
+      "Search Response"
+    },
+    {"Stats", 
+      "Invalid",
+      "Error",
+      "Set minimum report interval",
+      "Report Events"
+    },
+    {"Translate", 
+      "Invalid",
+      "Error",
+      "Translate Request",
+      "Translate Reply",
+    },
+    {"Chat Navigation", 
+      "Invalid",
+      "Error",
+      "Request rights",
+      "Request Exchange Information",
+      "Request Room Information",
+      "Request Occupant List",
+      "Search for Room",
+      "Outgoing Message", 
+      "Incoming Message",
+      "Evil Request", 
+      "Evil Reply", 
+      "Chat Error",
+    }
+  };
+
+  maxf = sizeof(literals) / sizeof(literals[0]);
+  maxs = sizeof(literals[0]) / sizeof(literals[0][0]);
+
+  family = aimutil_get16(workingPtr->data+0);
+  subtype= aimutil_get16(workingPtr->data+2);
+
+  if((family < maxf) && (subtype+1 < maxs) && (literals[family][subtype] != NULL))
+    printf("bleck: null handler for %04x/%04x (%s)\n", family, subtype, literals[family][subtype+1]);
+  else
+    printf("bleck: null handler for %04x/%04x (no literal)\n",family,subtype);
+
   return 1;
 }
 
@@ -169,8 +327,43 @@ int aim_rxdispatch(struct aim_session_t *sess)
 		  }
 		else
 		  {
-		    /* any user callbacks will be called from here */
-		    workingPtr->handled = aim_authparse(sess, workingPtr);
+		    u_short family,subtype;
+
+		    family = aimutil_get16(workingPtr->data);
+		    subtype = aimutil_get16(workingPtr->data+2);
+		    
+		    switch (family)
+		      {
+			/* New login protocol */
+#ifdef SNACLOGIN
+		      case 0x0017:
+			if (subtype == 0x0001)
+			  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0x0001, workingPtr);
+			else if (subtype == 0x0003)
+			  workingPtr->handled = aim_authparse(sess, workingPtr);
+			else if (subtype == 0x0007)
+			  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0x0007, workingPtr);
+			else
+			  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0xffff, workingPtr);
+			break;
+#else
+			/* XXX: this isnt foolproof */
+		      case 0x0001:
+			if (subtype == 0x0003)
+			  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, workingPtr);
+			else
+			  workingPtr->handled = aim_authparse(sess, workingPtr);
+			break;
+		      case 0x0007:
+			if (subtype == 0x0005)
+			  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_ADM, AIM_CB_ADM_INFOCHANGE_REPLY, workingPtr);
+			break;
+		      default:
+			/* Old login protocol */
+			/* any user callbacks will be called from here */
+			workingPtr->handled = aim_authparse(sess, workingPtr);
+#endif
+		      }
 		  }
 	      }
 	      break;
@@ -212,7 +405,7 @@ int aim_rxdispatch(struct aim_session_t *sess)
 			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x000f, workingPtr);
 			break;
 		      case 0x0013:
-			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0013, workingPtr);
+			workingPtr->handled = aim_parsemotd_middle(sess, workingPtr);
 			break;
 		      default:
 			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_DEFAULT, workingPtr);
@@ -344,192 +537,65 @@ int aim_rxdispatch(struct aim_session_t *sess)
   return 0;
 }
 
-/*
- * TODO: check and cure memory leakage in this function.
- * TODO: update to use new tlvlist routines
- */
-int aim_authparse(struct aim_session_t *sess, 
-		  struct command_rx_struct *command)
+int aim_parsemotd_middle(struct aim_session_t *sess,
+			      struct command_rx_struct *command, ...)
 {
   rxcallback_t userfunc = NULL;
-  int iserror = 0;
-  struct aim_tlv_t *tlv = NULL;
-  char *errorurl = NULL;
-  short errorcode = 0x00;
-  u_int z = 0;
-  u_short family,subtype;
+  char *msg;
+  int ret=1;
+  struct aim_tlvlist_t *tlvlist;
+  u_short id;
 
-  family = aimutil_get16(command->data);
-  subtype= aimutil_get16(command->data+2);
+  /*
+   * Dunno.
+   */
+  id = aimutil_get16(command->data+10);
+
+  /* 
+   * TLVs follow 
+   */
+  tlvlist = aim_readtlvchain(command->data+12, command->commandlen-12);
   
-  if ( (family == 0x0001) && 
-       (subtype== 0x0003) )
-    {
-      /* "server ready"  -- can be ignored */
-      userfunc = aim_callhandler(command->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY);
-    }
-  else if ( (family == 0x0007) &&
-	    (subtype== 0x0005) )
-    {
-      /* "information change reply" */
-      userfunc = aim_callhandler(command->conn, AIM_CB_FAM_ADM, AIM_CB_ADM_INFOCHANGE_REPLY);
-    }
-  else
-    {
-      /* anything else -- usually used for login; just parse as pure TLVs */
-
-      /*
-       * Free up the loginstruct first.
-       */
-      sess->logininfo.screen_name[0] = '\0';
-      if (sess->logininfo.BOSIP)
-	{
-	  free(sess->logininfo.BOSIP);
-	  sess->logininfo.BOSIP = NULL;
-	}
-      if (sess->logininfo.email)
-	{
-	  free(sess->logininfo.email);
-	  sess->logininfo.email = NULL;
-	}
-      sess->logininfo.regstatus = 0;
-
-      /* all this block does is figure out if it's an
-	 error or a success, nothing more */
-      while (z < command->commandlen)
-	{
-	  tlv = aim_grabtlvstr(&(command->data[z]));
-	  switch(tlv->type) 
-	    {
-	    case 0x0001: /* screen name */
-	      if (tlv->length >= MAXSNLEN)
-		{
-		  /* SN too large... truncate */
-		  printf("faim: login: screen name from OSCAR too long! (%d)\n", tlv->length);
-		  strncpy(sess->logininfo.screen_name, tlv->value, MAXSNLEN);
-		}
-	      else
-		strncpy(sess->logininfo.screen_name, tlv->value, tlv->length);
-	      z += 2 + 2 + tlv->length;
-	      free(tlv);
-	      tlv = NULL;
-	      break;
-	    case 0x0004: /* error URL */
-	      errorurl = tlv->value;
-	      z += 2 + 2 + tlv->length;
-	      free(tlv);
-	      tlv = NULL;
-	      break;
-	    case 0x0005: /* BOS IP */
-	      sess->logininfo.BOSIP = tlv->value;
-	      z += 2 + 2 + tlv->length;
-	      free(tlv);
-	      tlv = NULL;
-	      break;
-	    case 0x0006: /* auth cookie */
-	      memcpy(sess->logininfo.cookie, tlv->value, AIM_COOKIELEN);
-	      z += 2 + 2 + tlv->length;
-	      free(tlv);
-	      tlv=NULL;
-	      break;
-	    case 0x0011: /* email addy */
-	      sess->logininfo.email = tlv->value;
-	      z += 2 + 2 + tlv->length;
-	      free(tlv);
-	      tlv = NULL;
-	      break;
-	    case 0x0013: /* registration status */
-	      sess->logininfo.regstatus = *(tlv->value);
-	      z += 2 + 2 + tlv->length;
-	      aim_freetlv(&tlv);
-	      break;
-	    case 0x0008: /* error code */
-	      errorcode = *(tlv->value);
-	      z += 2 + 2 + tlv->length;
-	      aim_freetlv(&tlv);
-	      iserror = 1;
-	      break;
-	    default:
-	  z += 2 + 2 + tlv->length;
-	  aim_freetlv(&tlv);
-	  /* dunno */
-	    }
-	}
-
-      if (iserror && 
-	  errorurl)
-	{
-	  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_ERROR);
-	  if (userfunc)
-	    return userfunc(sess, command, errorurl, errorcode);
-	  return 0;
-	}
-      else if (sess->logininfo.screen_name[0] && 
-	       sess->logininfo.cookie[0] && sess->logininfo.BOSIP)
-	{
-	  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS);
-	  if (userfunc)
-	    return userfunc(sess, command);
-	  return 0;
-	}
-      else
-	userfunc = aim_callhandler(command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHOTHER);
-    }
-
+  msg = aim_gettlv_str(tlvlist, 0x000b, 1);
+  
+  userfunc = aim_callhandler(command->conn, 0x0001, 0x0013);
   if (userfunc)
-    return userfunc(sess, command);
-  printf("handler not available!\n");
-  return 0;
+    ret =  userfunc(sess, command, id, msg);
+
+  aim_freetlvchain(&tlvlist);
+
+  return ret;
+  
 }
 
-/*
- * TODO: check for and cure any memory leaks here.
- */
 int aim_handleredirect_middle(struct aim_session_t *sess,
 			      struct command_rx_struct *command, ...)
 {
-  struct aim_tlv_t *tlv = NULL;
-  u_int z = 10;
+  struct aim_tlv_t *tmptlv = NULL;
   int serviceid = 0x00;
-  char *cookie = NULL;
+  char cookie[AIM_COOKIELEN];
   char *ip = NULL;
   rxcallback_t userfunc = NULL;
+  struct aim_tlvlist_t *tlvlist;
+  int ret = 1;
+  
+  tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10);
+  
+  tmptlv = aim_gettlv(tlvlist, 0x000d, 1);
+  serviceid = aimutil_get16(tmptlv->value);
 
-  while (z < command->commandlen)
-    {
-      tlv = aim_grabtlvstr(&(command->data[z]));
-      switch(tlv->type)
-	{
-	case 0x000d:  /* service id */
-	  aim_freetlv(&tlv);
-	  /* regrab as an int */
-	  tlv = aim_grabtlv(&(command->data[z]));
-	  serviceid = aimutil_get16(tlv->value);
-	  z += 2 + 2 + tlv->length;
-	  aim_freetlv(&tlv);
-	  break;
-	case 0x0005:  /* service server IP */
-	  ip = tlv->value;
-	  z += 2 + 2 + tlv->length;
-	  free(tlv);
-	  tlv = NULL;
-	  break;
-	case 0x0006: /* auth cookie */
-	  cookie = tlv->value;
-	  z += 2 + 2 + tlv->length;
-	  free(tlv);
-	  tlv = NULL;
-	  break;
-	default:
-	  /* dunno */
-	  z += 2 + 2 + tlv->length;
-	  aim_freetlv(&tlv);
-	}
-    }
+  ip = aim_gettlv_str(tlvlist, 0x0005, 1);
+  
+  tmptlv = aim_gettlv(tlvlist, 0x0006, 1);
+  memcpy(cookie, tmptlv->value, AIM_COOKIELEN);
+
   userfunc = aim_callhandler(command->conn, 0x0001, 0x0005);
   if (userfunc)
-    return userfunc(sess, command, serviceid, ip, cookie);
-  return 0;
+    ret =  userfunc(sess, command, serviceid, ip, cookie);
+
+  aim_freetlvchain(&tlvlist);
+
+  return ret;
 }
 
 int aim_parse_unknown(struct aim_session_t *sess,

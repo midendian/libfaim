@@ -188,3 +188,26 @@ int aim_puttlv_16(u_char *buf, u_short t, u_short v)
   curbyte += aimutil_put16(buf+curbyte, (u_short)(v&0xffff));
   return curbyte;
 }
+
+int aim_puttlv_32(u_char *buf, u_short t, u_long v)
+{
+  int curbyte=0;
+  curbyte += aimutil_put16(buf+curbyte, (u_short)(t&0xffff));
+  curbyte += aimutil_put16(buf+curbyte, (u_short)0x0004);
+  curbyte += aimutil_put32(buf+curbyte, (u_long)(v&0xffffffff));
+  return curbyte;
+}
+
+int aim_puttlv_str(u_char *buf, u_short t, u_short l, u_char *v)
+{
+  int curbyte;
+  if (!v || !buf)
+    return 0;
+  
+  curbyte  = 0;
+  curbyte += aimutil_put16(buf+curbyte, (u_short)(t&0xffff));
+  curbyte += aimutil_put16(buf+curbyte, (u_short)(l&0xffff));
+  memcpy(buf+curbyte, v, l);
+  curbyte += l;
+  return curbyte;
+}

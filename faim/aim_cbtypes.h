@@ -23,6 +23,7 @@
 #define AIM_CB_FAM_TRN 0x000c
 #define AIM_CB_FAM_CTN 0x000d /* ChatNav */
 #define AIM_CB_FAM_CHT 0x000e /* Chat */
+#define AIM_CB_FAM_ATH 0x0017
 #define AIM_CB_FAM_SPECIAL 0xffff /* Internal libfaim use */
 
 /*
@@ -159,6 +160,18 @@
  */ 
 #define AIM_CB_CHT_ERROR 0x0001
 #define AIM_CB_CHT_DEFAULT 0xffff
+
+/*
+ * SNAC Family: Authorizer
+ *
+ * Used only in protocol versions three and above.
+ *
+ */
+#define AIM_CB_ATH_ERROR 0x0001
+#define AIM_CB_ATH_LOGINREQEST 0x0002
+#define AIM_CB_ATH_LOGINRESPONSE 0x0003
+#define AIM_CB_ATH_AUTHREQ 0x0006
+#define AIM_CB_ATH_AUTHRESPONSE 0x0007
 
 /*
  * SNAC Family: Internal Messages

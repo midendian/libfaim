@@ -62,6 +62,8 @@ struct aim_login_struct {
   char cookie[AIM_COOKIELEN];
   char *email;
   u_short regstatus;
+  char *errorurl;
+  u_short errorcode;
 };
 
 /*
@@ -225,6 +227,8 @@ int aim_puttlv (u_char *dest, struct aim_tlv_t *newtlv);
 struct aim_tlv_t *aim_createtlv(void);
 int aim_freetlv(struct aim_tlv_t **oldtlv);
 int aim_puttlv_16(u_char *, u_short, u_short);
+int aim_puttlv_32(u_char *, u_short, u_long);
+int aim_puttlv_str(u_char *buf, u_short t, u_short l, u_char *v);
 
 
 /*
@@ -245,6 +249,8 @@ u_long aim_genericreq_l(struct aim_session_t *, struct aim_conn_t *conn, u_short
 u_long aim_genericreq_s(struct aim_session_t *, struct aim_conn_t *conn, u_short family, u_short subtype, u_short *);
 
 /* aim_login.c */
+int aim_sendconnack(struct aim_session_t *sess, struct aim_conn_t *conn);
+int aim_request_login (struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
 int aim_send_login (struct aim_session_t *, struct aim_conn_t *, char *, char *, struct client_info_s *);
 int aim_encode_password(const char *, u_char *);
 
@@ -335,6 +341,7 @@ int aim_handleredirect_middle(struct aim_session_t *, struct command_rx_struct *
 int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *, ...);
 int aim_parse_last_bad(struct aim_session_t *, struct command_rx_struct *, ...);
 int aim_parse_generalerrs(struct aim_session_t *, struct command_rx_struct *command, ...);
+int aim_parsemotd_middle(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 /* aim_im.c */
 #define AIM_IMFLAGS_AWAY 0x01 /* mark as an autoreply */

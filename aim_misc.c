@@ -309,15 +309,45 @@ u_long aim_bos_clientready(struct aim_session_t *sess,
      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
      0xff, 0xff, 
      /* real data */
-                 0x00, 0x01, 0x00, 0x02, 0x00, 0x01,
-     0x00, 0x13, 0x00, 0x09, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x04, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x08, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x06, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x0a, 0x00, 0x01, 0x00, 0x01,
-     0x00, 0x01, 0x00, 0x0b, 0x00, 0x01, 0x00, 0x01,
+     0x00, 0x01,   
+     0x00, 0x03, 
+     0x00, 0x04, 
+     0x06, 0x86,  
+     0x00, 0x02, 
+     0x00, 0x01,  
+     0x00, 0x04, 
+     0x00, 0x01, 
+ 
+     0x00, 0x03, 
+     0x00, 0x01,  
+     0x00, 0x04, 
+     0x00, 0x01, 
+     0x00, 0x04, 
+     0x00, 0x01, 
+     0x00, 0x04,
+     0x00, 0x01,
+ 
+     0x00, 0x06, 
+     0x00, 0x01, 
+     0x00, 0x04,  
+     0x00, 0x01, 
+     0x00, 0x08, 
+     0x00, 0x01, 
+     0x00, 0x04,
+     0x00, 0x01,
+ 
+     0x00, 0x09, 
+     0x00, 0x01, 
+     0x00, 0x04,
+     0x00, 0x01, 
+     0x00, 0x0a, 
+     0x00, 0x01, 
+     0x00, 0x04,
+     0x00, 0x01,
+ 
+     0x00, 0x0b,
+     0x00, 0x01, 
+     0x00, 0x04,
      0x00, 0x01
   };
   int command_2_len = 0x52;
@@ -433,10 +463,70 @@ u_long aim_bos_reqpersonalinfo(struct aim_session_t *sess,
   newpacket.data[10] = 0x0d;
   newpacket.data[11] = 0xda;
 
+  newpacket.lock = 0;
   aim_tx_enqueue(sess, &newpacket);
 
   return (sess->snac_nextid++);
 }
+
+u_long aim_setversions(struct aim_session_t *sess,
+                               struct aim_conn_t *conn)
+{
+  struct command_tx_struct newpacket;
+  int i,j;
+
+  newpacket.lock = 1;
+  if (conn)
+    newpacket.conn = conn;
+  else
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+  newpacket.type = 0x02;
+  newpacket.commandlen = 10 + (4*13);
+
+  newpacket.data = (char *) malloc(newpacket.commandlen);
+  i = aim_putsnac(newpacket.data, 0x0001, 0x0017, 0x0000, sess->snac_nextid);
+
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0003);
+  i += aimutil_put16(newpacket.data+i, 0x0002);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0003);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0004);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0006);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0008);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0009);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x000a);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x000b);
+  i += aimutil_put16(newpacket.data+i, 0x0002);
+  i += aimutil_put16(newpacket.data+i, 0x000c);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0015);
+  i += aimutil_put16(newpacket.data+i, 0x0003);
+  i += aimutil_put16(newpacket.data+i, 0x000f);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put16(newpacket.data+i, 0x0005);
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+
+#if 0
+  for (j = 0; j < 0x10; j++)
+A
+    {
+      i += aimutil_put16(newpacket.data+i, j); /* family */
+      i += aimutil_put16(newpacket.data+i, 0x0003); /* version */
+    }
+#endif
+  newpacket.lock = 0;
+  aim_tx_enqueue(sess, &newpacket);
+
+  return (sess->snac_nextid++);
+}
+
 
 /*
  * aim_bos_reqservice(serviceid)

@@ -44,8 +44,8 @@
 
  */
 
-#define FAIMTEST_SCREENNAME "ScreenName"
-#define FAIMTEST_PASSWORD "PASS"
+#define FAIMTEST_SCREENNAME "SCREENNAME"
+#define FAIMTEST_PASSWORD "PASSWORD"
 
 #include <faim/aim.h> 
 
@@ -53,7 +53,7 @@ int faimtest_parse_oncoming(struct aim_session_t *, struct command_rx_struct *, 
 int faimtest_parse_offgoing(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_login_phase3d_f(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_auth_error(struct aim_session_t *, struct command_rx_struct *, ...);
-int faimtest_auth_success(struct aim_session_t *, struct command_rx_struct *, ...);
+int faimtest_parse_authresp(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_incoming_im(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_userinfo(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_handleredirect(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -61,14 +61,16 @@ int faimtest_authsvrready(struct aim_session_t *, struct command_rx_struct *comm
 int faimtest_pwdchngdone(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_serverready(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_parse_motd(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_parse_login(struct aim_session_t *, struct command_rx_struct *command, ...);
 
 int main(void)
 {
   struct aim_session_t aimsess;
-  struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 90, 42, "us", "en"};
   struct aim_conn_t *authconn = NULL;
   int stayconnected = 1;
-  
+  struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
+    
   aim_session_init(&aimsess);
 
   /*
@@ -76,7 +78,7 @@ int main(void)
    *  that reconnecting without restarting was actually possible...)
    */
  enter:
-  authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, "127.0.0.1:5190");
+  authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, FAIM_LOGIN_SERVER);
 
   if (authconn == NULL)
     {
@@ -93,10 +95,19 @@ int main(void)
     }
   else
     {
-      aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_ERROR, faimtest_auth_error, 0);
-      aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_auth_success, 0);
+#ifdef SNACLOGIN
+      /* new login code -- not default -- pending new password encryption algo */
+      aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
+      aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);
+
+      aim_sendconnack(&aimsess, authconn);
+      aim_request_login(&aimsess, authconn, FAIMTEST_SCREENNAME);
+#else
+      aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_parse_authresp, 0);
       aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
       aim_send_login(&aimsess, authconn, FAIMTEST_SCREENNAME, FAIMTEST_PASSWORD, &info);
+ 
+#endif
     }
 
   while (aim_select(&aimsess, NULL) > (struct aim_conn_t *)0)
@@ -144,6 +155,7 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
       
       /* Request advertisement service -- see comment in handleredirect */
       aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_ADS);
+      aim_setversions(sess, command->conn);
 
 #if 0
       aim_bos_reqrights(sess, command->conn);
@@ -269,6 +281,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
+#if 0
 int faimtest_auth_error(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
@@ -288,15 +301,28 @@ int faimtest_auth_error(struct aim_session_t *sess, struct command_rx_struct *co
   
   return 0;
 }
+#endif
 
-int faimtest_auth_success(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   struct aim_conn_t *bosconn = NULL;
   
+
   printf("Screen name: %s\n", sess->logininfo.screen_name);
+
+  /*
+   * Check for error.
+   */
+  if (sess->logininfo.errorcode)
+    {
+      printf("Login Error Code 0x%04x\n", sess->logininfo.errorcode);
+      printf("Error URL: %s\n", sess->logininfo.errorurl);
+      aim_conn_close(command->conn);
+      exit(0); /* XXX: should return in order to let the above things get free()'d. */
+    }
+
   printf("Reg status: %2d\n", sess->logininfo.regstatus);
   printf("Email: %s\n", sess->logininfo.email);
-  printf("Cookie len: %d\n", sizeof(sess->logininfo.cookie));
   printf("BOS IP: %s\n", sess->logininfo.BOSIP);
 
   printf("Closing auth connection...\n");
@@ -316,7 +342,6 @@ int faimtest_auth_success(struct aim_session_t *sess, struct command_rx_struct *
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
-      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, NULL, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, NULL, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
@@ -329,6 +354,7 @@ int faimtest_auth_success(struct aim_session_t *sess, struct command_rx_struct *
 
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
       aim_auth_sendcookie(sess, bosconn, sess->logininfo.cookie);
     }
   return 1;
@@ -539,6 +565,21 @@ int faimtest_parse_offgoing(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
+int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  char *msg;
+  u_short id;
+  va_list ap;
+  
+  va_start(ap, command);
+  id = va_arg(ap, u_short);
+  msg = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: motd: %s\n", msg);
+
+  return 1;
+}
 
 /* 
  * Handles callbacks for: AIM_CB_RATECHANGE, AIM_CB_USERERROR, 
@@ -579,7 +620,21 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
   return 0;
 }
 
+#ifdef SNACLOGIN
+int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
+  u_char authcookie[11];
+  int i;
+  
+  for (i = 0; i < (int)command->data[11]; i++)
+    authcookie[i] = command->data[12+i];
+  authcookie[i] = '\0';
 
-
-
-
+  printf("faimtest: logincookie: %s\n", authcookie);
+  
+  aim_send_login(sess, command->conn, FAIMTEST_SCREENNAME, FAIMTEST_PASSWORD, &info);
+ 
+  return 1;
+}
+#endif

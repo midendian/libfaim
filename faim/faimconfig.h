@@ -22,9 +22,9 @@
 
 /*
  * Maximum number of connections the library can simultaneously
- * handle.  Five is fairly arbitrary.  Only one client that I 
- * know of uses more than one concurrently anyway (which means
- * its only lightly tested too).  
+ * handle per session structure.  Five is fairly arbitrary.  
+ * Only one client that I know of uses more than one concurrently 
+ * anyway (which means its only lightly tested too).  
  *
  * Default: 5
  *
@@ -49,10 +49,26 @@
  * its a helluvalot of overhead for something that should
  * rarely happen.  
  *
- * Default: defined.
+ * Default: defined.  This is now defined by default
+ * because it should be stable and its not too bad.  
+ * And Josh wanted it.
  *
  */
 #define USE_SNAC_FOR_IMS
+
+/*
+ * As of AIM 3.5 or so, AOL as added a better way of
+ * logging in.  Define this to use it instead of the 
+ * old Version 1.0 way.  
+ *
+ * The largest caveat here is that I have no idea
+ * how to encode passwords using the new 3.5 way.
+ * Until someone figures that out the...
+ *
+ * Default: Undefined.
+ *
+ */
+#undef SNACLOGIN
 
 /*
  * Default Authorizer server name and TCP port for the OSCAR farm.  

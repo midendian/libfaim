@@ -1,5 +1,5 @@
 
-CFLAGS = -Wstrict-prototypes -Wall -I. 
+CFLAGS = -Wstrict-prototypes -Wall -I. -g 
 
 ifdef LIBFAIM_INC
 CFLAGS += -I$(LIBFAIM_INC)

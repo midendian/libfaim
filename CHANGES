@@ -1,6 +1,19 @@
 
 No release numbers
 ------------------
+ - Wed Dec 29 04:17:03 UTC 1999
+   - Added -g to CFLAGS
+   - Added aim_sendconnack() to aim_login.c (needed for newer login)
+   - Added code for the new SNAC-based login/auth procedure. (see SNACLOGIN
+       in faim/faimconfig.h for why its not enabled)
+   - Reimplemented aim_authparse(), aim_handleredirect() using TLVlists
+       - The old auth_failed callback is now integrated into the
+           success one.  If there was an error, logininfo->errorcode is nonzero
+   - Fiddled with version information.  Added aim_setversions()
+   - Added table of SNAC names for showing unknown snacs (jbm)
+   - Added a middle handler for MOTD
+   - Added new authorization SNACs to faim/aim_cbtypes.h
+   
  - Sun Dec 26 22:59:10 UTC 1999
    - Renamed login_phase1_struct to aim_login_struct
    - Changed cookie and sn to be static arrays in aim_login_struct

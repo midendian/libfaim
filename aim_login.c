@@ -15,6 +15,69 @@
 #include "tis_telnet_proxy.h"
 #endif
 
+int aim_sendconnack(struct aim_session_t *sess,
+		      struct aim_conn_t *conn)
+{
+  int curbyte=0;
+  
+  struct command_tx_struct newpacket;
+
+  if (conn)
+    newpacket.conn = conn;
+  else
+    return -1;
+
+  newpacket.commandlen = 2+2;
+  newpacket.data = (u_char *) calloc (1,  newpacket.commandlen );
+  newpacket.lock = 1;
+  newpacket.type = 0x01;
+  
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
+
+  newpacket.lock = 0;
+  aim_tx_enqueue(sess, &newpacket);
+
+  return 0;
+}
+
+#ifdef SNACLOGIN
+/*
+ * In AIM 3.5 protocol, the first stage of login is to request
+ * login from the Authorizer, passing it the screen name
+ * for verification.  If the name is invalid, a 0017/0003 
+ * is spit back, with the standard error contents.  If valid,
+ * a 0017/0007 comes back, which is the signal to send
+ * it the main login command (0017/0002).  
+ */
+int aim_request_login(struct aim_session_t *sess,
+		      struct aim_conn_t *conn, 
+		      char *sn)
+{
+  int curbyte=0;
+  
+  struct command_tx_struct newpacket;
+
+  if (conn)
+    newpacket.conn = conn;
+  else
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
+
+  newpacket.commandlen = 10+2+2+strlen(sn);
+  newpacket.data = (u_char *) calloc (1,  newpacket.commandlen );
+  newpacket.lock = 1;
+  newpacket.type = 0x02;
+  
+  curbyte += aim_putsnac(newpacket.data+curbyte, 0x0017, 0x0006, 0x0000, 0x00010000);
+  curbyte += aim_puttlv_str(newpacket.data+curbyte, 0x0001, strlen(sn), sn);
+
+  newpacket.lock = 0;
+  aim_tx_enqueue(sess, &newpacket);
+
+  return 0;
+}
+#endif /* SNACLOGIN */
+
 /*
  * send_login(int socket, char *sn, char *password)
  *  
@@ -34,18 +97,52 @@ int aim_send_login (struct aim_session_t *sess,
 
   struct command_tx_struct newpacket;
 
+  if (!clientinfo || !sn || !password)
+    return -1;
+
   if (conn)
     newpacket.conn = conn;
   else
     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
 
+#ifdef SNACLOGIN 
+  newpacket.commandlen = 10;
+  newpacket.commandlen += 2 + 2 + strlen(sn);
+  newpacket.commandlen += 2 + 2 + strlen(password);
+  newpacket.commandlen += 2 + 2 + strlen(clientinfo->clientstring);
+  newpacket.commandlen += 56;
+  
+  newpacket.data = (u_char *) calloc (1,  newpacket.commandlen );
+  newpacket.lock = 1;
+  newpacket.type = 0x02;
+
+  curbyte = aim_putsnac(newpacket.data+curbyte, 0x0017, 0x0002, 0x0000, 0x00010000);
+  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0001, strlen(sn), sn);
+  password_encoded = (u_char *) malloc(strlen(password));
+  aim_encode_password(password, password_encoded);
+  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0002, strlen(password), password_encoded);
+  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0003, 
+			   strlen(clientinfo->clientstring), 
+			   clientinfo->clientstring);
+  /* XXX: should use clientinfo provided version info */
+  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0016, 0x0004);
+  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0017, 0x0003);
+  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0018, 0x0005);
+  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0019, 0x0000);
+  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x001a, 0x0686);
+  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0001, 0x0002, clientinfo->country);
+  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0001, 0x0002, clientinfo->lang);
+  curbyte+= aim_puttlv_32(newpacket.data+curbyte, 0x0014, 0x0000002a);
+  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0009, 0x0015);
+#else
+  
   newpacket.commandlen = 4 + 4+strlen(sn) + 4+strlen(password) + 6;
  
   if (clientinfo)
     {
       if (strlen(clientinfo->clientstring))
 	newpacket.commandlen += 4+strlen(clientinfo->clientstring);
-      newpacket.commandlen += 6+6+6;
+      newpacket.commandlen += 6+6+6+6;
       if (strlen(clientinfo->country))
 	newpacket.commandlen += 4+strlen(clientinfo->country);
       if (strlen(clientinfo->lang))
@@ -70,7 +167,7 @@ int aim_send_login (struct aim_session_t *sess,
   curbyte += aimutil_putstr(newpacket.data+curbyte, password_encoded, strlen(password));
   free(password_encoded);
   
-  curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0016, 0x0001);
+  curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0016, 0x0004);
   
   if (clientinfo)
     {
@@ -80,9 +177,10 @@ int aim_send_login (struct aim_session_t *sess,
 	  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(clientinfo->clientstring));
 	  curbyte += aimutil_putstr(newpacket.data+curbyte, clientinfo->clientstring, strlen(clientinfo->clientstring));
 	}
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0017, 0x0001);
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0018, 0x0001);
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x001a, 0x0013);
+      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0017, clientinfo->major /*0x0001*/);
+      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0018, clientinfo->minor /*0x0001*/);
+      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0019, 0x0000);
+      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x001a, clientinfo->build /*0x0013*/);
       if (strlen(clientinfo->country))
 	{
 	  curbyte += aimutil_put16(newpacket.data+curbyte, 0x000e);
@@ -98,6 +196,7 @@ int aim_send_login (struct aim_session_t *sess,
     }
 
   curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0009, 0x0015);
+#endif
 
   newpacket.lock = 0;
   aim_tx_enqueue(sess, &newpacket);
@@ -138,6 +237,98 @@ int aim_encode_password(const char *password, u_char *encoded)
   return 0;
 }
 
+/*
+ * This is sent back as a general response to the login command.
+ * It can be either an error or a success, depending on the
+ * precense of certain TLVs.  
+ *
+ * The client should check the value of logininfo->errorcode. If
+ * its nonzero, there was an error.
+ *
+ */
+int aim_authparse(struct aim_session_t *sess, 
+		  struct command_rx_struct *command)
+{
+  struct aim_tlvlist_t *tlvlist;
+  int ret = 1;
+  char *sn;
+  rxcallback_t userfunc = NULL;
 
+  memset(&sess->logininfo, 0x00, sizeof(sess->logininfo));
 
+  /*
+   * Read block of TLVs.  All further data is derived
+   * from what is parsed here.
+   */
+#ifdef SNACLOGIN
+  tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10);
+#else
+  tlvlist = aim_readtlvchain(command->data, command->commandlen);
+#endif
+  /*
+   * No matter what, we should have a screen name.
+   */
+  sn = aim_gettlv_str(tlvlist, 0x0001, 1);
+  memcpy(sess->logininfo.screen_name, sn, strlen(sn));
+  sn[(strlen(sn))] = '\0';
+  
+  /*
+   * Check for an error code.  If so, we should also
+   * have an error url.
+   */
+  if (aim_gettlv(tlvlist, 0x0008, 1))
+    {
+      struct aim_tlv_t *errtlv;
+      errtlv = aim_gettlv(tlvlist, 0x0008, 1);
+      sess->logininfo.errorcode = aimutil_get16(errtlv->value);
+      sess->logininfo.errorurl = aim_gettlv_str(tlvlist, 0x0004, 1);
+    }
+  /* 
+   * If we have both an IP number (0x0005) and a cookie (0x0006),
+   * then the login was successful.
+   */
+  else if (aim_gettlv(tlvlist, 0x0005, 1) && aim_gettlv(tlvlist, 0x0006, 1))
+    {
+      struct aim_tlv_t *tmptlv;
 
+      /*
+       * IP address of BOS server.
+       */
+      sess->logininfo.BOSIP = aim_gettlv_str(tlvlist, 0x0005, 1);
+
+      /*
+       * Authorization Cookie
+       */
+      tmptlv = aim_gettlv(tlvlist, 0x0006, 1);
+      memcpy(sess->logininfo.cookie, tmptlv->value, AIM_COOKIELEN);
+
+      /*
+       * The email address attached to this account
+       */
+      sess->logininfo.email = aim_gettlv_str(tlvlist, 0x0011, 1);
+
+      /*
+       * The registration status.  (Not real sure what it means.)
+       */
+      tmptlv = aim_gettlv(tlvlist, 0x0013, 1);
+      sess->logininfo.regstatus = aimutil_get16(tmptlv->value);
+      
+    }
+
+#ifdef SNACLOGIN
+  userfunc = aim_callhandler(command->conn, 0x0017, 0x0003);
+#else
+  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS);
+#endif
+  if (userfunc)
+    ret = userfunc(sess, command);
+
+  aim_freetlvchain(&tlvlist);
+
+  /* These have been clobbered by the freetlvchain */
+  sess->logininfo.BOSIP = NULL;
+  sess->logininfo.email = NULL;
+  sess->logininfo.errorurl = NULL;
+
+  return ret;
+}
