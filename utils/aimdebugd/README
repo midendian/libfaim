@@ -1,0 +1,70 @@
+
+aimdebugd.  Slightly ambiguous name.  Basically, its a
+micro-aim-server thats meant to be hacked.  Its completely useless the
+way it is, but it does let you poke and prod at clients while they're
+in their main loop.  It won't help for debugging the login process,
+but it will allow you to test various ICBM types, etc -- anything you
+want to implement packet handlers and transmitters for.  
+
+How to make your client work with aimdebugd
+-------------------------------------------
+	1. Create a handler for the debug connection SNAC like this:
+
+int debugconn_connect_handler(struct aim_session_t *sess, struct command_rx_struct *command, ...) {
+
+	printf("connecting to an aimdebugd!\n");
+
+	/* convert the authorizer connection to a BOS connection */
+	command->conn->type = AIM_CONN_TYPE_BOS;
+
+	/* You may want to add some of your BOS callbacks here */
+
+	/* tell the aimdebugd we're ready */
+	aim_debugconn_sendconnect(sess, command->conn); 
+
+	/* go right into main loop (don't open a BOS connection, etc) */
+	return 1;
+}
+
+	2. Connect the handler to your authorizer connection before 
+		calling aim_send_login() or aim_select():
+
+	...
+	aim_conn_addhandler(sess, authconn, AIM_CB_FAM_SPECIAL,
+				AIM_CB_SPECIAL_DEBUGCONN_CONNECT, 
+				debugconn_connect_handler, 0);
+	...
+
+	3. Start your client with the authorizer host set to the box
+		running the aimddebugd.
+
+
+Writing Halfscripts
+-------------------
+
+Some hacking of aimdebugd can be done without writing any C.  But it
+its write-only.  
+
+Once aimdebugd gets the acknowledgment from the client, it can begin
+to run through a file (passed through a command line) that contains a
+listing of excruciatingly simple "commands" and react to it.  The
+commandset is very small, and, as mentioned above, is write-only --
+its not event driven.  The list of commands is executed linearly and
+does not stop until it hits the break command, hits the end of the
+file, hits the disconnect command, or the connection to the client
+dies.
+
+Commands:
+	# -- Comment
+	b -- Breaks execution, leaves connection open
+	d -- Disconnects from client (results in connection termination)
+	e <msg> -- Prints msg to stderr
+	m <srcsn>/<msg> -- Sends msg from srcsn to the client
+	s <seconds> -- Sleeps for an arbitrary number of seconds
+	
+Note that the client must have callbacks connected to the appropriate
+handlers if it wants to react to any of the output from these commands
+(except 'e', thats just there).
+
+
+

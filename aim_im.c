@@ -64,15 +64,22 @@ u_long aim_send_im(struct aim_session_t *sess,
    * metaTLV start.
    */
   curbyte += aimutil_put16(newpacket->data+curbyte, 0x0002);
-  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(msg) + 0x0d);
+  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(msg) + 0x10);
 
   /*
-   * Flag data?
+   * Flag data / ICBM Parameters?
    */
-  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0501);
-  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
+  curbyte += aimutil_put8(newpacket->data+curbyte, 0x05);
+  curbyte += aimutil_put8(newpacket->data+curbyte, 0x01);
+
+  /* number of bytes to follow */
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0004);
+  curbyte += aimutil_put8(newpacket->data+curbyte, 0x01);
+  curbyte += aimutil_put8(newpacket->data+curbyte, 0x01);
+  curbyte += aimutil_put8(newpacket->data+curbyte, 0x01);
+  curbyte += aimutil_put8(newpacket->data+curbyte, 0x02);
+
   curbyte += aimutil_put16(newpacket->data+curbyte, 0x0101);
-  curbyte += aimutil_put8 (newpacket->data+curbyte, 0x01);
 
   /* 
    * Message block length.
@@ -210,6 +217,74 @@ int aim_send_im_direct(struct aim_session_t *sess,
   newpacket->lock = 0;
 
   aim_tx_enqueue(sess, newpacket);
+
+  return 0;
+}
+
+int aim_parse_outgoing_im_middle(struct aim_session_t *sess,
+				 struct command_rx_struct *command)
+{
+  unsigned int i = 0, z;
+  rxcallback_t userfunc = NULL;
+  unsigned char cookie[8];
+  int channel;
+  struct aim_tlvlist_t *tlvlist;
+  char sn[MAXSNLEN];
+  unsigned short icbmflags = 0;
+  unsigned char flag1 = 0, flag2 = 0;
+  unsigned char *msgblock = NULL, *msg = NULL;
+
+  i = 10;
+  
+  /* ICBM Cookie. */
+  for (z=0; z<8; z++,i++)
+    cookie[z] = command->data[i];
+
+  /* Channel ID */
+  channel = aimutil_get16(command->data+i);
+  i += 2;
+
+  if (channel != 0x01) {
+    printf("faim: icbm: ICBM recieved on unsupported channel.  Ignoring. (chan = %04x)\n", channel);
+    return 1;
+  }
+
+  strncpy(sn, command->data+i+1, (int) *(command->data+i));
+  i += 1 + (int) *(command->data+i);
+
+  tlvlist = aim_readtlvchain(command->data+i, command->commandlen-i);
+
+  if (aim_gettlv(tlvlist, 0x0003, 1))
+    icbmflags |= AIM_IMFLAGS_ACK;
+  if (aim_gettlv(tlvlist, 0x0004, 1))
+    icbmflags |= AIM_IMFLAGS_AWAY;
+
+  if (aim_gettlv(tlvlist, 0x0002, 1)) {
+    int j = 0;
+
+    msgblock = aim_gettlv_str(tlvlist, 0x0002, 1);
+
+    /* no, this really is correct.  I'm not high or anything either. */
+    j += 2;
+    j += 2 + aimutil_get16(msgblock+j);
+    j += 2;
+    
+    j += 2; /* final block length */
+
+    flag1 = aimutil_get16(msgblock);
+    j += 2;
+    flag2 = aimutil_get16(msgblock);
+    j += 2;
+    
+    msg = msgblock+j;
+  }
+
+  if ((userfunc = aim_callhandler(command->conn, 0x0004, 0x0006)) || (i = 0))
+    i = userfunc(sess, command, channel, sn, msg, icbmflags, flag1, flag2);
+  
+  if (msgblock)
+    free(msgblock);
+  aim_freetlvchain(&tlvlist);
 
   return 0;
 }

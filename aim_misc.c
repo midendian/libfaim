@@ -540,6 +540,17 @@ u_long aim_bos_reqbuddyrights(struct aim_session_t *sess,
 }
 
 /*
+ * aim_debugconn_sendconnect()
+ *
+ * For aimdebugd.  If you don't know what it is, you don't want to.
+ */
+u_long aim_debugconn_sendconnect(struct aim_session_t *sess,
+				 struct aim_conn_t *conn)
+{
+  return aim_genericreq_n(sess, conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT);
+}
+
+/*
  * Generic routine for sending commands.
  *
  *

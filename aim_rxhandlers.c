@@ -372,6 +372,11 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	    if (subtype == 0x0005)
 	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_ADM, AIM_CB_ADM_INFOCHANGE_REPLY, workingPtr);
 	    break;
+	  case AIM_CB_FAM_SPECIAL:
+	    if (subtype == AIM_CB_SPECIAL_DEBUGCONN_CONNECT) {
+	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
+	      break;
+	    } /* others fall through */
 	  default:
 	    /* Old login protocol */
 	    /* any user callbacks will be called from here */
@@ -468,6 +473,9 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	  case 0x0005:
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0004, 0x0005, workingPtr);
 	    break;
+	  case 0x0006:
+	    workingPtr->handled = aim_parse_outgoing_im_middle(sess, workingPtr);
+	    break;
 	  case 0x0007:
 	    workingPtr->handled = aim_parse_incoming_im_middle(sess, workingPtr);
 	    break;
@@ -506,6 +514,9 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	  else
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_STS, AIM_CB_STS_DEFAULT, workingPtr);
 	  break;
+      case AIM_CB_FAM_SPECIAL: 
+	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
+	break;
 	default:
 	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 	  break;

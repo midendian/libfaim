@@ -65,6 +65,7 @@ int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struc
 int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_debugconn_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -128,6 +129,7 @@ int main(void)
   aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
   aim_send_login(&aimsess, authconn, screenname, password, &info);
 #endif
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
   printf("faimtest: login sent\n");
 
   while (keepgoing) {
@@ -971,5 +973,21 @@ int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct 
   printf("faimtest: connerr: Code 0x%04x: %s\n", code, msg);
   aim_conn_kill(sess, &command->conn); /* this will break the main loop */
 
+  return 1;
+}
+
+int faimtest_debugconn_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{	
+  printf("faimtest: connecting to an aimdebugd!\n");
+
+  /* convert the authorizer connection to a BOS connection */
+  command->conn->type = AIM_CONN_TYPE_BOS;
+
+  aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
+
+  /* tell the aimddebugd we're ready */
+  aim_debugconn_sendconnect(sess, command->conn); 
+
+  /* go right into main loop (don't open a BOS connection, etc) */
   return 1;
 }

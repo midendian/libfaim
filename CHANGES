@@ -1,6 +1,13 @@
 
 No release numbers
 ------------------
+ - Mon Jun 26 07:53:02 UTC 2000
+   - Added utils/aimdebugd for playing with things -- see the README
+   - Added aim_im.c::aim_parse_outgoing_im().  Probably not useful
+      unless you're writing a server or something (or hacking aimdebugd).
+   - aim_send_im() now sends the same data as AIM4 does (three more bytes)
+   - Added aim_debugconn_sendconnect() for aimdebugd-enablement.
+
  - Sat Jun 24 02:14:07 UTC 2000
    - Added fakelocks for platforms without pthreads or that have no
       use for them.

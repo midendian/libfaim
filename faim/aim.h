@@ -359,7 +359,8 @@ int aim_counttlvchain(struct aim_tlvlist_t **list);
  */
 int aim_get_command(struct aim_session_t *, struct aim_conn_t *);
 int aim_rxdispatch(struct aim_session_t *);
-
+u_long aim_debugconn_sendconnect(struct aim_session_t *sess,
+				 struct aim_conn_t *conn);
 int aim_logoff(struct aim_session_t *);
 
 void aim_conn_kill(struct aim_session_t *sess, struct aim_conn_t **deadconn);
@@ -490,6 +491,7 @@ int aim_parsemotd_middle(struct aim_session_t *sess, struct command_rx_struct *c
 
 u_long aim_send_im(struct aim_session_t *, struct aim_conn_t *, char *, u_int, char *);
 int aim_parse_incoming_im_middle(struct aim_session_t *, struct command_rx_struct *);
+int aim_parse_outgoing_im_middle(struct aim_session_t *, struct command_rx_struct *);
 u_long aim_seticbmparam(struct aim_session_t *, struct aim_conn_t *conn);
 int aim_parse_msgerror_middle(struct aim_session_t *, struct command_rx_struct *);
 int aim_negchan_middle(struct aim_session_t *sess, struct command_rx_struct *command);
