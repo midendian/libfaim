@@ -278,6 +278,30 @@ faim_internal int aim_putcap(aim_bstream_t *bs, fu32_t caps)
 	return 0;
 }
 
+static void dumptlv(aim_session_t *sess, fu16_t type, aim_bstream_t *bs, fu8_t len)
+{
+	int i;
+
+	if (!sess || !bs || !len)
+		return;
+
+	faimdprintf(sess, 0, "userinfo:   type  =0x%04x\n", type);
+	faimdprintf(sess, 0, "userinfo:   length=0x%04x\n", len);
+
+	faimdprintf(sess, 0, "userinfo:   value:\n");
+
+	for (i = 0; i < len; i++) {
+		if ((i % 8) == 0)
+			faimdprintf(sess, 0, "\nuserinfo:        ");
+
+		faimdprintf(sess, 0, "0x%2x ", aimbs_get8(bs));
+	}
+
+	faimdprintf(sess, 0, "\n");
+
+	return;
+}
+
 /*
  * AIM is fairly regular about providing user info.  This is a generic 
  * routine to extract it in its standard form.
@@ -455,9 +479,7 @@ faim_internal int aim_extractuserinfo(aim_session_t *sess, aim_bstream_t *bs, ai
 			 */
 			faimdprintf(sess, 0, "userinfo: **warning: unexpected TLV:\n");
 			faimdprintf(sess, 0, "userinfo:   sn    =%s\n", outinfo->sn);
-			faimdprintf(sess, 0, "userinfo:   type  =0x%04x\n",type);
-			faimdprintf(sess, 0, "userinfo:   length=0x%04x\n", length);
-
+			dumptlv(sess, type, bs, length);
 		}
 
 		/* Save ourselves. */
