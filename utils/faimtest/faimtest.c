@@ -913,6 +913,7 @@ static int faimtest_memrequest(aim_session_t *sess, aim_frame_t *fr, ...)
 
 static void printuserflags(fu16_t flags)
 {
+
 	if (flags & AIM_FLAG_UNCONFIRMED)
 		dinlineprintf("UNCONFIRMED ");
 	if (flags & AIM_FLAG_ADMINISTRATOR)
@@ -929,6 +930,9 @@ static void printuserflags(fu16_t flags)
 		dinlineprintf("ICQ? ");
 	if (flags & AIM_FLAG_UNKNOWN80)
 		dinlineprintf("UNKNOWN80 ");
+	if (flags & AIM_FLAG_ACTIVEBUDDY)
+		dinlineprintf("ACTIVEBUDDY ");
+
 	return;
 }
 
