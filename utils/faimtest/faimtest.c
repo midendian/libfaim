@@ -1162,7 +1162,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 			for (z = 0; z < i; z++)
 				newbuf[z] = (z % 10)+0x30;
 			newbuf[i] = '\0';
-			aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_ACK | AIM_IMFLAGS_OFFLINE, newbuf);
+			aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_ACK | AIM_IMFLAGS_AWAY, newbuf);
 			free(newbuf);
 		}
 

@@ -36,27 +36,6 @@ static int faimtest_parse_login(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-/* Does this thing even work anymore? */
-static int faimtest_debugconn_connect(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-
-	dprintf("faimtest: connecting to an aimdebugd!\n");
-
-	/* convert the authorizer connection to a BOS connection */
-	fr->conn->type = AIM_CONN_TYPE_BOS;
-
-#if 0
-	aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
-#endif
-
-	/* tell the aimddebugd we're ready */
-	aim_debugconn_sendconnect(sess, fr->conn); 
-
-	/* go right into main loop (don't open a BOS connection, etc) */
-	return 1;
-}
-
-
 /*
  * This marks the end of authorization, and probably the beginning of BOS.
  *
@@ -155,8 +134,6 @@ int login(aim_session_t *sess, const char *sn, const char *passwd)
 	aim_conn_addhandler(sess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_conn_addhandler(sess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
 	aim_conn_addhandler(sess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);    
-
-	aim_conn_addhandler(sess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
 
 	/* If the connection is in progress, this will just be queued */
 	aim_request_login(sess, authconn, priv->screenname);

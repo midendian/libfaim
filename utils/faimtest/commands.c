@@ -266,7 +266,7 @@ static int cmd_sendmsg(char *arg)
 		newbuf[z] = (z % 10)+0x30;
 	newbuf[len] = '\0';
 
-	aim_send_im(&aimsess, sn, AIM_IMFLAGS_ACK | AIM_IMFLAGS_OFFLINE, newbuf);
+	aim_send_im(&aimsess, sn, AIM_IMFLAGS_ACK | AIM_IMFLAGS_AWAY, newbuf);
 
 	free(newbuf);
 
