@@ -85,7 +85,7 @@ static int faimtest_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	regstatus = va_arg(ap, int);
 	email = va_arg(ap, char *);
 	bosip = va_arg(ap, char *);
-	cookie = va_arg(ap, unsigned char *);
+	cookie = va_arg(ap, fu8_t *);
 
 	latestrelease = va_arg(ap, char *);
 	latestbuild = va_arg(ap, int);

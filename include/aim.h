@@ -16,10 +16,6 @@
 #include <faimconfig.h>
 #include <aim_cbtypes.h>
 
-#if !defined(FAIM_USEPTHREADS) && !defined(FAIM_USEFAKELOCKS) && !defined(FAIM_USENOPLOCKS)
-#error pthreads, fakelocks, or noplocks are currently required.
-#endif
-
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -45,40 +41,6 @@ typedef unsigned short fu16_t;
 typedef unsigned long fu32_t;
 typedef fu32_t aim_snacid_t;
 typedef fu16_t flap_seqnum_t;
-
-#ifdef FAIM_USEPTHREADS
-#include <pthread.h>
-#define faim_mutex_t pthread_mutex_t 
-#define faim_mutex_init(x) pthread_mutex_init(x, NULL)
-#define faim_mutex_lock(x) pthread_mutex_lock(x)
-#define faim_mutex_unlock(x) pthread_mutex_unlock(x)
-#define faim_mutex_destroy(x) pthread_mutex_destroy(x)
-#elif defined(FAIM_USEFAKELOCKS)
-/*
- * For platforms without pthreads, we also assume
- * we're not linking against a threaded app.  Which
- * means we don't have to do real locking.  The 
- * macros below do nothing really.  They're a joke.
- * But they get it to compile.
- * 
- * XXX NOTE that locking hasn't really been tested in a long time,
- * and most code written after dec2000 --is not thread safe--.  You'll
- * want to audit locking use before you use less-than-library level
- * concurrency.
- *
- */
-#define faim_mutex_t fu8_t 
-#define faim_mutex_init(x) *x = 0
-#define faim_mutex_lock(x) while(*x != 0) {/* spin */}; *x = 1;
-#define faim_mutex_unlock(x) while(*x != 0) {/* spin spin spin */}; *x = 0;
-#define faim_mutex_destroy(x) while(*x != 0) {/* spiiiinnn */}; *x = 0;
-#elif defined(FAIM_USENOPLOCKS)
-#define faim_mutex_t fu8_t 
-#define faim_mutex_init(x)
-#define faim_mutex_lock(x)
-#define faim_mutex_unlock(x)
-#define faim_mutex_destroy(x)
-#endif
 
 /* Portability stuff (DMP) */
 
@@ -272,9 +234,8 @@ typedef struct aim_conn_s {
 	time_t lastactivity; /* time of last transmit */
 	int forcedlatency; 
 	void *handlerlist;
-	faim_mutex_t active; /* lock around read/writes */
-	faim_mutex_t seqnum_lock; /* lock around ->seqnum changes */
 	void *sessv; /* pointer to parent session */
+	void *inside; /* only accessible from inside libfaim */
 	struct aim_conn_s *next;
 } aim_conn_t;
 
@@ -352,7 +313,6 @@ typedef struct aim_session_s {
 
 	/* Connection information */
 	aim_conn_t *connlist;
-	faim_mutex_t connlistlock;
 
 	/*
 	 * Transmit/receive queues.
@@ -389,7 +349,6 @@ typedef struct aim_session_s {
 	 * XXX: Should these be per-connection? -mid
 	 */
 	void *snac_hash[FAIM_SNAC_HASH_SIZE];
-	faim_mutex_t snac_hash_locks[FAIM_SNAC_HASH_SIZE];
 	aim_snacid_t snacid_next;
 
 	struct {
@@ -540,6 +499,7 @@ faim_export int aim_conn_setlatency(aim_conn_t *conn, int newval);
 faim_export int aim_conn_addhandler(aim_session_t *, aim_conn_t *conn, u_short family, u_short type, aim_rxcallback_t newhandler, u_short flags);
 faim_export int aim_clearhandlers(aim_conn_t *conn);
 
+faim_export aim_conn_t *aim_conn_findbygroup(aim_session_t *sess, fu16_t group);
 faim_export aim_session_t *aim_conn_getsess(aim_conn_t *conn);
 faim_export void aim_conn_close(aim_conn_t *deadconn);
 faim_export aim_conn_t *aim_newconn(aim_session_t *, int type, const char *dest);
@@ -571,6 +531,7 @@ faim_export aim_conn_t *aim_getconn_fd(aim_session_t *, int fd);
 
 #define AIM_WARN_ANON                     0x01
 
+faim_export int aim_sendpauseack(aim_session_t *sess, aim_conn_t *conn);
 faim_export int aim_send_warning(aim_session_t *sess, aim_conn_t *conn, const char *destsn, fu32_t flags);
 faim_export int aim_bos_nop(aim_session_t *, aim_conn_t *);
 faim_export int aim_flap_nop(aim_session_t *sess, aim_conn_t *conn);

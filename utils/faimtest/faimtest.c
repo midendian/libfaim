@@ -1623,6 +1623,46 @@ static int faimtest_parse_searcherror(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
+static int serverpause(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+
+	aim_sendpauseack(sess, fr->conn);
+
+	return 1;
+}
+
+static int migrate(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	aim_conn_t *bosconn;
+	char *bosip;
+	fu8_t *cookie;
+
+	va_start(ap, fr);
+	bosip = va_arg(ap, char *);
+	cookie = va_arg(ap, fu8_t *);
+	va_end(ap);
+
+	dvprintf("migration in progress -- new BOS is %s -- disconnecting\n", bosip);
+	aim_conn_kill(sess, &fr->conn);
+
+	if (!(bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, bosip))) {
+		dprintf("migrate: could not connect to BOS: internal error\n");
+		return 1;
+	} else if (bosconn->status & AIM_CONN_STATUS_CONNERR) {	
+		dprintf("migrate: could not connect to BOS\n");
+		aim_conn_kill(sess, &bosconn);
+		return 1;
+	}
+
+	/* Login will happen all over again. */
+	addcb_bos(sess, bosconn);
+
+	aim_auth_sendcookie(sess, bosconn, cookie);
+
+	return 1;
+}
+
 void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 {
 
@@ -1657,6 +1697,8 @@ void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 	aim_conn_addhandler(sess, bosconn, 0x0001, 0x0001, faimtest_parse_genericerr, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0003, 0x0001, faimtest_parse_genericerr, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0009, 0x0001, faimtest_parse_genericerr, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0001, 0x000b, serverpause, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0001, 0x0012, migrate, 0);
 	
 #ifdef MID_REWROTE_ALL_THE_CRAP
 	aim_conn_addhandler(sess, bosconn, 0xffff, 0xffff, faimtest_parse_unknown, 0);
