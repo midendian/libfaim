@@ -239,58 +239,6 @@ faim_export unsigned long aim_bos_setprofile(struct aim_session_t *sess,
   return (sess->snac_nextid++);
 }
 
-/* 
- * aim_bos_setgroupperm(mask)
- * 
- * Set group permisson mask.  Normally 0x1f (all classes).
- *
- * The group permission mask allows you to keep users of a certain
- * class or classes from talking to you.  The mask should be
- * a bitwise OR of all the user classes you want to see you.
- *
- */
-faim_export unsigned long aim_bos_setgroupperm(struct aim_session_t *sess,
-					       struct aim_conn_t *conn, 
-					       u_long mask)
-{
-  return aim_genericreq_l(sess, conn, 0x0009, 0x0004, &mask);
-}
-
-faim_internal int aim_parse_bosrights(struct aim_session_t *sess,
-				      struct command_rx_struct *command, ...)
-{
-  rxcallback_t userfunc = NULL;
-  int ret=1;
-  struct aim_tlvlist_t *tlvlist;
-  unsigned short maxpermits = 0, maxdenies = 0;
-
-  /* 
-   * TLVs follow 
-   */
-  if (!(tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10)))
-    return ret;
-
-  /*
-   * TLV type 0x0001: Maximum number of buddies on permit list.
-   */
-  if (aim_gettlv(tlvlist, 0x0001, 1))
-    maxpermits = aim_gettlv16(tlvlist, 0x0001, 1);
-
-  /*
-   * TLV type 0x0002: Maximum number of buddies on deny list.
-   *
-   */
-  if (aim_gettlv(tlvlist, 0x0002, 1)) 
-    maxdenies = aim_gettlv16(tlvlist, 0x0002, 1);
-  
-  if ((userfunc = aim_callhandler(sess, command->conn, 0x0009, 0x0003)))
-    ret = userfunc(sess, command, maxpermits, maxdenies);
-
-  aim_freetlvchain(&tlvlist);
-
-  return ret;  
-}
-
 /*
  * aim_bos_clientready()
  * 

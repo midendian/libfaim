@@ -462,51 +462,6 @@ faim_internal int aim_extractuserinfo(struct aim_session_t *sess, unsigned char 
 }
 
 /*
- * Oncoming Buddy notifications contain a subset of the
- * user information structure.  Its close enough to run
- * through aim_extractuserinfo() however.
- *
- */
-faim_internal int aim_parse_oncoming_middle(struct aim_session_t *sess,
-					    struct command_rx_struct *command)
-{
-  struct aim_userinfo_s userinfo;
-  u_int i = 0;
-  rxcallback_t userfunc=NULL;
-
-  i = 10;
-  i += aim_extractuserinfo(sess, command->data+i, &userinfo);
-
-  userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING);
-  if (userfunc)
-    i = userfunc(sess, command, &userinfo);
-
-  return 1;
-}
-
-/*
- * Offgoing Buddy notifications contain no useful
- * information other than the name it applies to.
- *
- */
-faim_internal int aim_parse_offgoing_middle(struct aim_session_t *sess,
-					    struct command_rx_struct *command)
-{
-  char sn[MAXSNLEN+1];
-  u_int i = 0;
-  rxcallback_t userfunc=NULL;
-
-  strncpy(sn, (char *)command->data+11, (int)command->data[10]);
-  sn[(int)command->data[10]] = '\0';
-
-  userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING);
-  if (userfunc)
-    i = userfunc(sess, command, sn);
-
-  return 1;
-}
-
-/*
  * This parses the user info stuff out all nice and pretty then calls 
  * the higher-level callback (in the user app).
  *

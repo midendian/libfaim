@@ -352,6 +352,8 @@ struct aim_session_t {
   void (*debugcb)(struct aim_session_t *sess, int level, const char *format, va_list va); /* same as faim_debugging_callback_t */
 
   struct aim_msgcookie_t *msgcookies;
+
+  void *modlistv;
 };
 
 /* Values for sess->flags */
@@ -456,6 +458,7 @@ typedef int (*rxcallback_t)(struct aim_session_t *, struct command_rx_struct *, 
 faim_export int aim_sendconnack(struct aim_session_t *sess, struct aim_conn_t *conn);
 faim_export int aim_request_login (struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
 faim_export int aim_send_login (struct aim_session_t *, struct aim_conn_t *, char *, char *, struct client_info_s *, char *key);
+faim_export int aim_encode_password_md5(const char *password, const char *key, unsigned char *digest);
 faim_export unsigned long aim_sendauthresp(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn, int errorcode, char *errorurl, char *bosip, char *cookie, char *email, int regstatus);
 faim_export int aim_gencookie(unsigned char *buf);
 faim_export int aim_sendserverready(struct aim_session_t *sess, struct aim_conn_t *conn);
@@ -495,6 +498,7 @@ faim_export int aim_conn_isconnecting(struct aim_conn_t *conn);
 typedef void (*faim_debugging_callback_t)(struct aim_session_t *sess, int level, const char *format, va_list va);
 faim_export int aim_setdebuggingcb(struct aim_session_t *sess, faim_debugging_callback_t);
 faim_export void aim_session_init(struct aim_session_t *, unsigned long flags, int debuglevel);
+faim_export void aim_session_kill(struct aim_session_t *);
 faim_export void aim_setupproxy(struct aim_session_t *sess, char *server, char *username, char *password);
 faim_export struct aim_conn_t *aim_getconn_type(struct aim_session_t *, int type);
 

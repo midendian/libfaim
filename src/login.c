@@ -10,7 +10,6 @@
 
 #include "md5.h"
 
-static int aim_encode_password_md5(const char *password, const char *key, md5_byte_t *digest);
 static int aim_encode_password(const char *password, unsigned char *encoded);
 
 faim_export int aim_sendconnack(struct aim_session_t *sess,
@@ -177,7 +176,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
   curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0001, strlen(sn), sn);
   
   if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
-    md5_byte_t digest[16];
+    unsigned char digest[16];
 
     aim_encode_password_md5(password, key, digest);
     curbyte+= aim_puttlv_str(newpacket->data+curbyte, 0x0025, 16, (char *)digest);
@@ -231,7 +230,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
   return aim_tx_enqueue(sess, newpacket);
 }
 
-static int aim_encode_password_md5(const char *password, const char *key, md5_byte_t *digest)
+faim_export int aim_encode_password_md5(const char *password, const char *key, unsigned char *digest)
 {
   md5_state_t state;
 
@@ -283,182 +282,6 @@ static int aim_encode_password(const char *password, unsigned char *encoded)
       encoded[i] = (password[i] ^ encoding_table[i]);
 
   return 0;
-}
-
-/*
- * This is sent back as a general response to the login command.
- * It can be either an error or a success, depending on the
- * precense of certain TLVs.  
- *
- * The client should check the value passed as errorcode. If
- * its nonzero, there was an error.
- *
- */
-faim_internal int aim_authparse(struct aim_session_t *sess, 
-				struct command_rx_struct *command)
-{
-  struct aim_tlvlist_t *tlvlist;
-  int ret = 1;
-  rxcallback_t userfunc = NULL;
-  char *sn = NULL, *bosip = NULL, *errurl = NULL, *email = NULL;
-  unsigned char *cookie = NULL;
-  int errorcode = 0, regstatus = 0;
-  int latestbuild = 0, latestbetabuild = 0;
-  char *latestrelease = NULL, *latestbeta = NULL;
-  char *latestreleaseurl = NULL, *latestbetaurl = NULL;
-  char *latestreleaseinfo = NULL, *latestbetainfo = NULL;
-
-  /*
-   * Read block of TLVs.  All further data is derived
-   * from what is parsed here.
-   *
-   * For SNAC login, there's a 17/3 SNAC header in front.
-   *
-   */
-  if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN)
-    tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10);
-  else
-    tlvlist = aim_readtlvchain(command->data, command->commandlen);
-
-  /*
-   * No matter what, we should have a screen name.
-   */
-  memset(sess->sn, 0, sizeof(sess->sn));
-  if (aim_gettlv(tlvlist, 0x0001, 1)) {
-    sn = aim_gettlv_str(tlvlist, 0x0001, 1);
-    strncpy(sess->sn, sn, sizeof(sess->sn));
-  }
-
-  /*
-   * Check for an error code.  If so, we should also
-   * have an error url.
-   */
-  if (aim_gettlv(tlvlist, 0x0008, 1)) 
-    errorcode = aim_gettlv16(tlvlist, 0x0008, 1);
-  if (aim_gettlv(tlvlist, 0x0004, 1))
-    errurl = aim_gettlv_str(tlvlist, 0x0004, 1);
-
-  /*
-   * BOS server address.
-   */
-  if (aim_gettlv(tlvlist, 0x0005, 1))
-    bosip = aim_gettlv_str(tlvlist, 0x0005, 1);
-
-  /*
-   * Authorization cookie.
-   */
-  if (aim_gettlv(tlvlist, 0x0006, 1)) {
-    struct aim_tlv_t *tmptlv;
-
-    tmptlv = aim_gettlv(tlvlist, 0x0006, 1);
-
-    if ((cookie = malloc(tmptlv->length)))
-      memcpy(cookie, tmptlv->value, tmptlv->length);
-  }
-
-  /*
-   * The email address attached to this account
-   *   Not available for ICQ logins.
-   */
-  if (aim_gettlv(tlvlist, 0x0011, 1))
-    email = aim_gettlv_str(tlvlist, 0x0011, 1);
-
-  /*
-   * The registration status.  (Not real sure what it means.)
-   *   Not available for ICQ logins.
-   *
-   *   1 = No disclosure
-   *   2 = Limited disclosure
-   *   3 = Full disclosure
-   *
-   * This has to do with whether your email address is available
-   * to other users or not.  AFAIK, this feature is no longer used.
-   *
-   */
-  if (aim_gettlv(tlvlist, 0x0013, 1))
-    regstatus = aim_gettlv16(tlvlist, 0x0013, 1);
-
-  if (aim_gettlv(tlvlist, 0x0040, 1))
-    latestbetabuild = aim_gettlv32(tlvlist, 0x0040, 1);
-  if (aim_gettlv(tlvlist, 0x0041, 1))
-    latestbetaurl = aim_gettlv_str(tlvlist, 0x0041, 1);
-  if (aim_gettlv(tlvlist, 0x0042, 1))
-    latestbetainfo = aim_gettlv_str(tlvlist, 0x0042, 1);
-  if (aim_gettlv(tlvlist, 0x0043, 1))
-    latestbeta = aim_gettlv_str(tlvlist, 0x0043, 1);
-  if (aim_gettlv(tlvlist, 0x0048, 1))
-    ; /* no idea what this is */
-
-  if (aim_gettlv(tlvlist, 0x0044, 1))
-    latestbuild = aim_gettlv32(tlvlist, 0x0044, 1);
-  if (aim_gettlv(tlvlist, 0x0045, 1))
-    latestreleaseurl = aim_gettlv_str(tlvlist, 0x0045, 1);
-  if (aim_gettlv(tlvlist, 0x0046, 1))
-    latestreleaseinfo = aim_gettlv_str(tlvlist, 0x0046, 1);
-  if (aim_gettlv(tlvlist, 0x0047, 1))
-    latestrelease = aim_gettlv_str(tlvlist, 0x0047, 1);
-  if (aim_gettlv(tlvlist, 0x0049, 1))
-    ; /* no idea what this is */
-
-
-  if ((userfunc = aim_callhandler(sess, command->conn, 0x0017, 0x0003)))
-    ret = userfunc(sess, command, sn, errorcode, errurl, regstatus, email, bosip, cookie, latestrelease, latestbuild, latestreleaseurl, latestreleaseinfo, latestbeta, latestbetabuild, latestbetaurl, latestbetainfo);
-
-
-  if (sn)
-    free(sn);
-  if (bosip)
-    free(bosip);
-  if (errurl)
-    free(errurl);
-  if (email)
-    free(email);
-  if (cookie)
-    free(cookie);
-  if (latestrelease)
-    free(latestrelease);
-  if (latestreleaseurl)
-    free(latestreleaseurl);
-  if (latestbeta)
-    free(latestbeta);
-  if (latestbetaurl)
-    free(latestbetaurl);
-  if (latestreleaseinfo)
-    free(latestreleaseinfo);
-  if (latestbetainfo)
-    free(latestbetainfo);
-
-  aim_freetlvchain(&tlvlist);
-
-  return ret;
-}
-
-/*
- * Middle handler for 0017/0007 SNACs.  Contains the auth key prefixed
- * by only its length in a two byte word.
- *
- * Calls the client, which should then use the value to call aim_send_login.
- *
- */
-faim_internal int aim_authkeyparse(struct aim_session_t *sess, struct command_rx_struct *command)
-{
-  unsigned char *key;
-  int keylen;
-  int ret = 1;
-  rxcallback_t userfunc;
-
-  keylen = aimutil_get16(command->data+10);
-  if (!(key = malloc(keylen+1)))
-    return ret;
-  memcpy(key, command->data+12, keylen);
-  key[keylen] = '\0';
-  
-  if ((userfunc = aim_callhandler(sess, command->conn, 0x0017, 0x0007)))
-    ret = userfunc(sess, command, (char *)key);
-
-  free(key);  
-
-  return ret;
 }
 
 /*

@@ -169,10 +169,15 @@ static void faimtest_debugcb(struct aim_session_t *sess, int level, const char *
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  if (command->data) {
-    dvprintf("aim: minimum report interval: %d (seconds?)\n", aimutil_get16(command->data+10));
-  } else
-    dprintf("aim: NULL minimum report interval!\n");
+  va_list ap;
+  unsigned short interval = 0;
+
+  va_start(ap, command);
+  interval = va_arg(ap, int);
+  va_end(ap);
+
+  dvprintf("aim: minimum report interval: %d (seconds?)\n", interval);
+
   return 1;
 }
 
@@ -256,7 +261,7 @@ int logout(void)
   if (ohcaptainmycaptain)
     aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...");
 
-  aim_logoff(&aimsess);
+  aim_session_kill(&aimsess);
 
   if (faimtest_init() == -1)
     dprintf("faimtest_init failed\n");
@@ -396,7 +401,7 @@ int main(int argc, char **argv)
     waitingconn = aim_select(&aimsess, NULL, &selstat);
 
     if (selstat == -1) { /* error */
-      keepgoing = 0; /* fall through and hit the aim_logoff() */
+      keepgoing = 0; /* fall through */
     } else if (selstat == 0) { /* no events pending */
       keepgoing = 0;
     } else if (selstat == 1) { /* outgoing data pending */
@@ -433,7 +438,7 @@ int main(int argc, char **argv)
   }
 
   /* close up all connections, dead or no */
-  aim_logoff(&aimsess); 
+  aim_session_kill(&aimsess); 
 
   if (faimtest_mode < 2) {
     printf("\n");

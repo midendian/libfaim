@@ -722,6 +722,11 @@ faim_export void aim_setupproxy(struct aim_session_t *sess, char *server, char *
   return;
 }
 
+static void defaultdebugcb(struct aim_session_t *sess, int level, const char *format, va_list va)
+{
+  vfprintf(stderr, format, va);
+}
+
 /**
  * aim_session_init - Initializes a session structure
  * @sess: Session to initialize
@@ -748,7 +753,9 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
 
   sess->flags = 0;
   sess->debug = 0;
-  sess->debugcb = NULL;
+  sess->debugcb = defaultdebugcb;
+
+  sess->modlistv = NULL;
 
   /*
    * Default to SNAC login unless XORLOGIN is explicitly set.
@@ -762,6 +769,33 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
    * version for back-compatibility.  
    */
   aim_tx_setenqueue(sess, AIM_TX_QUEUED, NULL);
+
+
+  /*
+   * Register all the modules for this session...
+   */
+  aim__registermodule(sess, buddylist_modfirst);
+  aim__registermodule(sess, admin_modfirst);
+  aim__registermodule(sess, bos_modfirst);
+  aim__registermodule(sess, search_modfirst);
+  aim__registermodule(sess, stats_modfirst);
+  aim__registermodule(sess, auth_modfirst);
+
+  return;
+}
+
+/**
+ * aim_session_kill - Deallocate a session
+ * @sess: Session to kill
+ *
+ *
+ */
+faim_export void aim_session_kill(struct aim_session_t *sess)
+{
+
+  aim_logoff(sess);
+
+  aim__shutdownmodules(sess);
 
   return;
 }

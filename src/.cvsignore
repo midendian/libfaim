@@ -1,8 +1,10 @@
 Makefile.in
 Makefile
 .deps
+admin.lo
 adverts.lo
 auth.lo
+bos.lo
 buddylist.lo
 chat.lo
 chatnav.lo
@@ -18,6 +20,7 @@ rxhandlers.lo
 rxqueue.lo
 search.lo
 snac.lo
+stats.lo
 tlv.lo
 txqueue.lo
 util.lo

@@ -10,6 +10,118 @@
 #define FAIM_INTERNAL
 #include <aim.h>
 
+static aim_module_t *findmodule(struct aim_session_t *sess, const char *name)
+{
+  aim_module_t *cur;
+
+  for (cur = (aim_module_t *)sess->modlistv; cur; cur = cur->next) {
+    if (strcmp(name, cur->name) == 0)
+      return cur;
+  }
+
+  return NULL;
+}
+
+faim_internal int aim__registermodule(struct aim_session_t *sess, int (*modfirst)(struct aim_session_t *, aim_module_t *))
+{
+  aim_module_t *mod;
+
+  if (!sess || !modfirst)
+    return -1;
+
+  if (!(mod = malloc(sizeof(aim_module_t))))
+    return -1;
+  memset(mod, 0, sizeof(aim_module_t));
+
+  if (modfirst(sess, mod) == -1) {
+    free(mod);
+    return -1;
+  }
+
+  if (findmodule(sess, mod->name)) {
+    if (mod->shutdown)
+      mod->shutdown(sess, mod);
+    free(mod);
+    return -1;
+  }
+
+  mod->next = (aim_module_t *)sess->modlistv;
+  (aim_module_t *)sess->modlistv = mod;
+
+  faimdprintf(sess, 0, "registered module %s (family 0x%04x)\n", mod->name, mod->family);
+
+  return 0;
+}
+
+faim_internal void aim__shutdownmodules(struct aim_session_t *sess)
+{
+  aim_module_t *cur;
+
+  for (cur = (aim_module_t *)sess->modlistv; cur; ) {
+    aim_module_t *tmp;
+
+    tmp = cur->next;
+
+    if (cur->shutdown)
+      cur->shutdown(sess, cur);
+
+    free(cur);
+
+    cur = tmp;
+  }
+
+  sess->modlistv = NULL;
+
+  return;
+}
+
+static int consumesnac(struct aim_session_t *sess, struct command_rx_struct *rx)
+{
+  aim_module_t *cur;
+  aim_modsnac_t snac;
+
+  snac.family = aimutil_get16(rx->data+0);
+  snac.subtype = aimutil_get16(rx->data+2);
+  snac.flags = aimutil_get16(rx->data+4);
+  snac.id = aimutil_get32(rx->data+6);
+
+  for (cur = (aim_module_t *)sess->modlistv; cur; cur = cur->next) {
+
+    if (!(cur->flags & AIM_MODFLAG_MULTIFAMILY) && 
+	(cur->family != snac.family))
+      continue;
+
+    if (cur->snachandler(sess, cur, rx, &snac, rx->data+10, rx->commandlen-10))
+      return 1;
+
+  }
+
+  return 0;
+}
+
+static int consumenonsnac(struct aim_session_t *sess, struct command_rx_struct *rx, unsigned short family, unsigned short subtype)
+{
+  aim_module_t *cur;
+  aim_modsnac_t snac;
+
+  snac.family = family;
+  snac.subtype = subtype;
+  snac.flags = snac.id = 0;
+
+  for (cur = (aim_module_t *)sess->modlistv; cur; cur = cur->next) {
+
+    if (!(cur->flags & AIM_MODFLAG_MULTIFAMILY) && 
+	(cur->family != snac.family))
+      continue;
+
+    if (cur->snachandler(sess, cur, rx, &snac, rx->data, rx->commandlen))
+      return 1;
+
+  }
+
+  return 0;
+}
+
 /*
  * Bleck functions get called when there's no non-bleck functions
  * around to cleanup the mess...
@@ -371,10 +483,13 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	workingPtr->handled = aim_negchan_middle(sess, workingPtr);
 	continue;
       }
+
+      if ((workingPtr->handled = consumesnac(sess, workingPtr)))
+	continue;
 	  
       family = aimutil_get16(workingPtr->data);
       subtype = aimutil_get16(workingPtr->data+2);
-	  
+
       if (family == 0x0001) {
 
 	if (subtype == 0x0001)
@@ -413,14 +528,6 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 
 	if (subtype == 0x0001)
 	  workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
-	else if (subtype == 0x0003)
-	  workingPtr->handled = aim_parse_buddyrights(sess, workingPtr);
-	else if (subtype == 0x000b)
-	  workingPtr->handled = aim_parse_oncoming_middle(sess, workingPtr);
-	else if (subtype == 0x000c)
-	  workingPtr->handled = aim_parse_offgoing_middle(sess, workingPtr);
-	else
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_DEFAULT, workingPtr);
 
       } else if (family == 0x0004) {
 
@@ -438,43 +545,6 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	  workingPtr->handled = aim_parse_msgack_middle(sess, workingPtr);
 	else
 	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_DEFAULT, workingPtr);
-
-      } else if (family == 0x0007) {
-
-	if (subtype == 0x0003)
-	  workingPtr->handled = aim_parse_infochange(sess, workingPtr);
-	else if (subtype == 0x0005)
-	  workingPtr->handled = aim_parse_infochange(sess, workingPtr);
-	else if (subtype == 0x0007)
-	  workingPtr->handled = aim_parse_accountconfirm(sess, workingPtr);
-	break;
-
-      } else if (family == 0x0009) {
-
-	if (subtype == 0x0001)
-	  workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
-	else if (subtype == 0x0003)
-	  workingPtr->handled = aim_parse_bosrights(sess, workingPtr);
-	else
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_BOS, AIM_CB_BOS_DEFAULT, workingPtr);
-
-      } else if (family == 0x000a) {
-
-	if (subtype == 0x0001)
-	  workingPtr->handled = aim_parse_searcherror(sess, workingPtr);
-	else if (subtype == 0x0003)
-	  workingPtr->handled = aim_parse_searchreply(sess, workingPtr);
-	else
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_LOK, AIM_CB_LOK_DEFAULT, workingPtr);
-
-      } else if (family == 0x000b) {
-
-	if (subtype == 0x0001)
-	  workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
-	else if (subtype == 0x0002)
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000b, 0x0002, workingPtr);
-	else
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_STS, AIM_CB_STS_DEFAULT, workingPtr);
 
       } else if (family == 0x000d) {
 
@@ -495,17 +565,6 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
       } else if (family == 0x0013) {
 
 	faimdprintf(sess, 0, "lalala: 0x%04x/0x%04x\n", family, subtype);
-
-      } else if (family == 0x0017) {	/* New login protocol */
-
-	if (subtype == 0x0001)
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0x0001, workingPtr);
-	else if (subtype == 0x0003)
-	  workingPtr->handled = aim_authparse(sess, workingPtr);
-	else if (subtype == 0x0007)
-	  workingPtr->handled = aim_authkeyparse(sess, workingPtr);
-	else
-	  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0017, 0xffff, workingPtr);
 
       } else if (family == AIM_CB_FAM_SPECIAL) {
 
@@ -726,78 +785,6 @@ faim_internal int aim_parse_hostonline(struct aim_session_t *sess,
   return ret;  
 }
 
-faim_internal int aim_parse_accountconfirm(struct aim_session_t *sess,
-					   struct command_rx_struct *command)
-{
-  rxcallback_t userfunc = NULL;
-  int ret = 1;
-  int status = -1;
-
-  status = aimutil_get16(command->data+10);
-
-  if ((userfunc = aim_callhandler(sess, command->conn, 0x0007, 0x0007)))
-    ret = userfunc(sess, command, status);
-
-  return ret;  
-}
-
-faim_internal int aim_parse_infochange(struct aim_session_t *sess,
-				       struct command_rx_struct *command)
-{
-  unsigned short subtype; /* called for both reply and change-reply */
-  int i;
-
-  subtype = aimutil_get16(command->data+2);
-
-  /*
-   * struct {
-   *    unsigned short perms;
-   *    unsigned short tlvcount;
-   *    aim_tlv_t tlvs[tlvcount];
-   *  } admin_info[n];
-   */
-  for (i = 10; i < command->commandlen; ) {
-    int perms, tlvcount;
-
-    perms = aimutil_get16(command->data+i);
-    i += 2;
-
-    tlvcount = aimutil_get16(command->data+i);
-    i += 2;
-
-    while (tlvcount) {
-      rxcallback_t userfunc;
-      struct aim_tlv_t *tlv;
-      int str = 0;
-
-      if ((aimutil_get16(command->data+i) == 0x0011) ||
-	  (aimutil_get16(command->data+i) == 0x0004))
-	str = 1;
-
-      if (str)
-	tlv = aim_grabtlvstr(command->data+i);
-      else
-	tlv = aim_grabtlv(command->data+i);
-
-      /* XXX fix so its only called once for the entire packet */
-      if ((userfunc = aim_callhandler(sess, command->conn, 0x0007, subtype)))
-	userfunc(sess, command, perms, tlv->type, tlv->length, tlv->value, str);
-
-      if (tlv)
-	i += 2+2+tlv->length;
-
-      if (tlv && tlv->value)
-	free(tlv->value);
-      if (tlv)
-	free(tlv);
-
-      tlvcount--;
-    }
-  }
-
-  return 1;
-}
-
 faim_internal int aim_parse_hostversions(struct aim_session_t *sess,
 					 struct command_rx_struct *command, ...)
 {
@@ -896,7 +883,7 @@ faim_internal int aim_negchan_middle(struct aim_session_t *sess,
   /* Used only by the older login protocol */
   /* XXX remove this special case? */
   if (command->conn->type == AIM_CONN_TYPE_AUTH)
-    return aim_authparse(sess, command);
+    return consumenonsnac(sess, command, 0x0017, 0x0003);
 
   tlvlist = aim_readtlvchain(command->data, command->commandlen);
 
@@ -907,7 +894,7 @@ faim_internal int aim_negchan_middle(struct aim_session_t *sess,
     msg = aim_gettlv_str(tlvlist, 0x000b, 1);
 
   if ((userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR))) 
-    ret =  userfunc(sess, command, code, msg);
+    ret = userfunc(sess, command, code, msg);
 
   aim_freetlvchain(&tlvlist);
 

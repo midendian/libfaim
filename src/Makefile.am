@@ -1,8 +1,10 @@
 
 lib_LTLIBRARIES = libfaim.la
 
-libfaim_la_SOURCES =	adverts.c	\
+libfaim_la_SOURCES =	admin.c		\
+			adverts.c	\
 			auth.c 		\
+			bos.c		\
 			buddylist.c	\
 			chat.c		\
 			chatnav.c	\
@@ -18,6 +20,7 @@ libfaim_la_SOURCES =	adverts.c	\
 			rxqueue.c	\
 			search.c	\
 			snac.c		\
+			stats.c		\
 			tlv.c		\
 			txqueue.c	\
 			util.c		\
