@@ -49,8 +49,6 @@ struct aim_tlvlist_t *aim_readtlvchain(u_char *buf, int maxlen)
 		cur->tlv->value = (u_char *)malloc(length*sizeof(u_char));
 		memcpy(cur->tlv->value, buf+pos, length);
 
-		printf("faim: tlv: %x/%x\n", cur->tlv->type, cur->tlv->length);
-
 		cur->next = list;
 		list = cur;
 	      }
