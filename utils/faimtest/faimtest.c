@@ -653,6 +653,12 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       } else if (strstr(tmpstr, "anonwarn")) {
 	printf("faimtest: icbm: sending anon warning\n");
 	aim_send_warning(sess, command->conn, userinfo->sn, AIM_WARN_ANON);
+      } else if (strstr(tmpstr, "setdirectoryinfo")) {
+	printf("faimtest: icbm: sending backwards profile data\n");
+	aim_setdirectoryinfo(sess, command->conn, "tsrif", "elddim", "tsal", "nediam", "emankcin", "teerts", "ytic", "etats", "piz", 0, 1);
+      } else if (strstr(tmpstr, "setinterests")) {
+	printf("faimtest: icbm: setting fun interests\n");
+	aim_setuserinterests(sess, command->conn, "interest1", "interest2", "interest3", "interest4", "interest5", 1);
       } else if (!strncmp(tmpstr, "open chatnav", 12)) {
 	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
 	//aim_chat_join(sess, command->conn, "thishereisaname2_chat85");
