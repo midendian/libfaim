@@ -468,11 +468,11 @@ struct aim_snac_t {
   time_t issuetime;
   struct aim_snac_t *next;
 };
-void aim_initsnachash(struct aim_session_t *sess);
-u_long aim_newsnac(struct aim_session_t *, struct aim_snac_t *newsnac);
-struct aim_snac_t *aim_remsnac(struct aim_session_t *, u_long id);
-int aim_cleansnacs(struct aim_session_t *, int maxage);
-int aim_putsnac(u_char *, int, int, int, u_long);
+faim_internal void aim_initsnachash(struct aim_session_t *sess);
+faim_internal unsigned long aim_newsnac(struct aim_session_t *, struct aim_snac_t *newsnac);
+faim_internal struct aim_snac_t *aim_remsnac(struct aim_session_t *, u_long id);
+faim_internal int aim_cleansnacs(struct aim_session_t *, int maxage);
+faim_internal int aim_putsnac(u_char *, int, int, int, u_long);
 
 
 faim_internal void aim_connrst(struct aim_session_t *);
@@ -677,8 +677,7 @@ faim_export unsigned long aim_remove_buddy(struct aim_session_t *, struct aim_co
 faim_internal int aim_parse_buddyrights(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 /* aim_search.c */
-u_long aim_usersearch_address(struct aim_session_t *, struct aim_conn_t *, char *);
-/* u_long aim_usersearch_name(struct aim_session_t *, struct aim_conn_t *, char *); */
+faim_export u_long aim_usersearch_address(struct aim_session_t *, struct aim_conn_t *, char *);
 
 
 struct aim_chat_roominfo {

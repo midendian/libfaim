@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Mon Sep  4 22:08:35 GMT 2000
+   - Forgot aim_snac and aim_search
+
  - Mon Sep  4 21:38:09 GMT 2000
    - A mild step towards ANSI compliance
      - Compiles cleanly with -pedantic (except for the libc issue in socket.h)
