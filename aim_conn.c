@@ -100,6 +100,9 @@ struct aim_conn_t *aim_newconn(struct aim_session_t *sess,
     }
   host = (char *)malloc(i+1);
   strncpy(host, dest, i);
+  host[i] = '\0';
+
+ printf("host = \"%s\"\n", host);
 
   hp = gethostbyname2(host, AF_INET);
   free(host);
