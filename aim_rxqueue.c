@@ -7,7 +7,10 @@
  */
 
 #include <faim/aim.h> 
+
+#ifndef _WIN32
 #include <sys/socket.h>
+#endif
 
 /*
  * Since not all implementations support MSG_WAITALL, define
