@@ -319,6 +319,8 @@ int main(int argc, char **argv)
   int i;
   int selstat = 0;
   static int faimtest_mode = 0;
+  struct timeval tv;
+  time_t lastnop = 0;
 
   screenname = getenv("SCREENNAME");
   password = getenv("PASSWORD");
@@ -398,12 +400,22 @@ int main(int argc, char **argv)
   }
 
   while (keepgoing) {
-    waitingconn = aim_select(&aimsess, NULL, &selstat);
+
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    waitingconn = aim_select(&aimsess, &tv, &selstat);
+
+    if (connected && ((time(NULL) - lastnop) > 30)) {
+      lastnop = time(NULL);
+      dprintf("sending NOP\n");
+      aim_flap_nop(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS));
+    }
 
     if (selstat == -1) { /* error */
       keepgoing = 0; /* fall through */
     } else if (selstat == 0) { /* no events pending */
-      keepgoing = 0;
+      ;
     } else if (selstat == 1) { /* outgoing data pending */
       aim_tx_flushqueue(&aimsess);
     } else if (selstat == 2) { /* incoming data pending */
@@ -881,7 +893,7 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   aim_conn_addhandler(sess, bosconn, 0x0009, 0x0001, faimtest_parse_genericerr, 0);
 
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, faimtest_parse_connerr, 0);
-
+  aim_conn_addhandler(sess, bosconn, 0xffff, 0xffff, faimtest_parse_unknown, 0);
 
   aim_auth_sendcookie(sess, bosconn, cookie);
 
@@ -1806,6 +1818,8 @@ int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct 
 
   dvprintf("faimtest: connerr: Code 0x%04x: %s\n", code, msg);
   aim_conn_kill(sess, &command->conn); /* this will break the main loop */
+
+  connected = 0;
 
   return 1;
 }

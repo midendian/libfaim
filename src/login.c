@@ -146,6 +146,25 @@ faim_export int aim_request_login(struct aim_session_t *sess,
  *   build =  0x0686
  *   unknown =0x0000002a
  *
+ * Java AIM 1.1.19:
+ *   clientstring = "AOL Instant Messenger (TM) version 1.1.19 for Java built 03/24/98, freeMem 215871 totalMem 1048567, i686, Linus, #2 SMP Sun Feb 11 03:41:17 UTC 2001 2.4.1-ac9, IBM Corporation, 1.1.8, 45.3, Tue Mar 27 12:09:17 PST 2001"
+ *   major2 = 0x0001
+ *   major  = 0x0001
+ *   minor  = 0x0001
+ *   minor2 = (not sent)
+ *   build  = 0x0013
+ *   unknown= (not sent)
+ *   
+ * AIM for Linux 1.1.112:
+ *   clientstring = "AOL Instant Messenger (SM)"
+ *   major2 = 0x1d09
+ *   major  = 0x0001
+ *   minor  = 0x0001
+ *   minor2 = 0x0001
+ *   build  = 0x0070
+ *   unknown= 0x0000008b
+ *   serverstore = 0x01
+ *
  */
 faim_export int aim_send_login (struct aim_session_t *sess,
 				struct aim_conn_t *conn, 
@@ -645,6 +664,15 @@ static int hostversions(struct aim_session_t *sess, aim_module_t *mod, struct co
 
   return 0;
 }
+/*
+ * Stay tuned.  I have an explanation for here.  
+ *
+ *
+ */
+static int memrequest(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  return 1;
+}
 
 static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
@@ -665,6 +693,8 @@ static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct com
     return motd(sess, mod, rx, snac, data, datalen);
   else if (snac->subtype == 0x0018)
     return hostversions(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x001f)
+    return memrequest(sess, mod, rx, snac, data, datalen);
 
   return 0;
 }
