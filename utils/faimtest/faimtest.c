@@ -44,38 +44,40 @@
 
  */
 
-#define FAIMTEST_SCREENNAME "SN"
+#define FAIMTEST_SCREENNAME "ScreenName"
 #define FAIMTEST_PASSWORD "PASS"
 
-#include "aim.h" /* for struct defs, global ptrs, etc */
+#include <faim/aim.h> 
 
-int faimtest_parse_oncoming(struct command_rx_struct *, ...);
-int faimtest_parse_offgoing(struct command_rx_struct *, ...);
-int faimtest_parse_login_phase3d_f(struct command_rx_struct *, ...);
-int faimtest_auth_error(struct command_rx_struct *, ...);
-int faimtest_auth_success(struct command_rx_struct *, ...);
-int faimtest_parse_incoming_im(struct command_rx_struct *command, ...);
-int faimtest_parse_userinfo(struct command_rx_struct *command, ...);
-int faimtest_handleredirect(struct command_rx_struct *command, ...);
-int faimtest_authsvrready(struct command_rx_struct *command, ...);
-int faimtest_pwdchngdone(struct command_rx_struct *command, ...);
-int faimtest_serverready(struct command_rx_struct *command, ...);
-int faimtest_parse_misses(struct command_rx_struct *command, ...);
+int faimtest_parse_oncoming(struct aim_session_t *, struct command_rx_struct *, ...);
+int faimtest_parse_offgoing(struct aim_session_t *, struct command_rx_struct *, ...);
+int faimtest_parse_login_phase3d_f(struct aim_session_t *, struct command_rx_struct *, ...);
+int faimtest_auth_error(struct aim_session_t *, struct command_rx_struct *, ...);
+int faimtest_auth_success(struct aim_session_t *, struct command_rx_struct *, ...);
+int faimtest_parse_incoming_im(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_parse_userinfo(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_handleredirect(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_authsvrready(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_pwdchngdone(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_serverready(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *command, ...);
 
 int main(void)
 {
-
+  struct aim_session_t aimsess;
   struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 90, 42, "us", "en"};
   struct aim_conn_t *authconn = NULL;
   int stayconnected = 1;
   
-  aim_connrst(); /* reset connection array -- there's a better place for this*/
-  /* register our callback array (optional) */
-  //aim_register_callbacks(faimtest_callbacks);
+  aim_session_init(&aimsess);
 
+  /*
+   * (I used a goto-based loop here because n wanted quick proof
+   *  that reconnecting without restarting was actually possible...)
+   */
  enter:
-  authconn = aim_newconn(AIM_CONN_TYPE_AUTH, FAIM_LOGIN_SERVER);
-		       
+  authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, "127.0.0.1:5190");
+
   if (authconn == NULL)
     {
       fprintf(stderr, "faimtest: internal connection error while in aim_login.  bailing out.\n");
@@ -91,30 +93,30 @@ int main(void)
     }
   else
     {
-      aim_conn_addhandler(authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_ERROR, faimtest_auth_error, 0);
-      aim_conn_addhandler(authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_auth_success, 0);
-      aim_conn_addhandler(authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
-      aim_send_login(authconn, FAIMTEST_SCREENNAME, FAIMTEST_PASSWORD, &info);
+      aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_ERROR, faimtest_auth_error, 0);
+      aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_auth_success, 0);
+      aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
+      aim_send_login(&aimsess, authconn, FAIMTEST_SCREENNAME, FAIMTEST_PASSWORD, &info);
     }
 
-  while (aim_select(NULL) > (struct aim_conn_t *)0)
+  while (aim_select(&aimsess, NULL) > (struct aim_conn_t *)0)
     {
-      if (aim_queue_outgoing)
-	aim_tx_flushqueue();
+      if (aimsess.queue_outgoing)
+	aim_tx_flushqueue(&aimsess);
 
-      if (aim_get_command() < 0)
+      if (aim_get_command(&aimsess) < 0)
 	{
 	  printf("\afaimtest: connection error!\n");
 	}
       else
-	aim_rxdispatch();
+	aim_rxdispatch(&aimsess);
     }
 
   /* Close up */
   printf("AIM just decided we didn't need to be here anymore, closing up.,,\n");
   
   /* close up all connections, dead or no */
-  aim_logoff(); 
+  aim_logoff(&aimsess); 
 
   if (stayconnected)
     {
@@ -127,30 +129,31 @@ int main(void)
   exit(0);
 }
 
-int faimtest_serverready(struct command_rx_struct *command, ...)
+int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   switch (command->conn->type)
     {
     case AIM_CONN_TYPE_BOS:
-      aim_bos_reqrate(command->conn); /* request rate info */
-      aim_bos_ackrateresp(command->conn);  /* ack rate info response -- can we say timing? */
-      aim_bos_setprivacyflags(command->conn, 0x00000003);
+      aim_bos_reqrate(sess, command->conn); /* request rate info */
+      aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response -- can we say timing? */
+      aim_bos_setprivacyflags(sess, command->conn, 0x00000003);
       
 #if 0
-      aim_bos_reqpersonalinfo(command->conn);
+      aim_bos_reqpersonalinfo(sess, command->conn);
 #endif
       
-      aim_bos_reqservice(command->conn, AIM_CONN_TYPE_ADS); /* 0x05 == Advertisments */
+      /* Request advertisement service -- see comment in handleredirect */
+      aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_ADS);
 
 #if 0
-      aim_bos_reqrights(NULL);
-      aim_bos_reqbuddyrights(NULL);
-      aim_bos_reqlocaterights(NULL);
-      aim_bos_reqicbmparaminfo(NULL);
+      aim_bos_reqrights(sess, command->conn);
+      aim_bos_reqbuddyrights(sess, command->conn);
+      aim_bos_reqlocaterights(sess, command->conn);
+      aim_bos_reqicbmparaminfo(sess, command->conn);
 #endif
       
       /* set group permissions */
-      aim_bos_setgroupperm(NULL, 0x1f);
+      aim_bos_setgroupperm(sess, command->conn, 0x1f);
       fprintf(stderr, "faimtest: done with BOS ServerReady\n");
       break;
     case AIM_CONN_TYPE_CHATNAV:
@@ -177,7 +180,7 @@ int faimtest_serverready(struct command_rx_struct *command, ...)
      char *cookie
        the raw auth cookie
  */
-int faimtest_handleredirect(struct command_rx_struct *command, ...)
+int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
   int serviceid;
@@ -205,41 +208,41 @@ int faimtest_handleredirect(struct command_rx_struct *command, ...)
        */
 
       /* send the buddy list and profile (required, even if empty) */
-      aim_bos_setbuddylist(command->conn, buddies);
-      aim_bos_setprofile(command->conn, profile);
+      aim_bos_setbuddylist(sess, command->conn, buddies);
+      aim_bos_setprofile(sess, command->conn, profile);
 
       /* send final login command (required) */
-      aim_bos_clientready(command->conn); /* tell BOS we're ready to go live */
+      aim_bos_clientready(sess, command->conn); /* tell BOS we're ready to go live */
 
       /* you should now be ready to go */
-      printf("\nYou are now officially online. (%s)\n", ip);      
+      printf("\nYou are now officially online.\n");      
 
       break;
     case 0x0007: /* Authorizer */
       {
 	struct aim_conn_t *tstconn;
 	/* Open a connection to the Auth */
-	tstconn = aim_newconn(AIM_CONN_TYPE_AUTH, ip);
+	tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
 	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR) )
 	  fprintf(stderr, "faimtest: unable to reconnect with authorizer\n");
 	else
 	  /* Send the cookie to the Auth */
-	  aim_auth_sendcookie(tstconn, cookie);
+	  aim_auth_sendcookie(sess, tstconn, cookie);
 
       }  
       break;
     case 0x000d: /* ChatNav */
       {
 	struct aim_conn_t *tstconn = NULL;
-	tstconn = aim_newconn(AIM_CONN_TYPE_CHATNAV, ip);
+	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, ip);
 	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR))
 	  {
 	    fprintf(stderr, "faimtest: unable to connect to chatnav server\n");
 	    return 1;
 	  }
-	aim_conn_addhandler(tstconn, AIM_CB_FAM_CTN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
-	aim_conn_addhandler(tstconn, AIM_CB_FAM_GEN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
-	aim_auth_sendcookie(tstconn, cookie);
+	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_CTN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
+	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
+	aim_auth_sendcookie(sess, tstconn, cookie);
 	fprintf(stderr, "\achatnav: connected\n");
       }
       break;
@@ -247,13 +250,13 @@ int faimtest_handleredirect(struct command_rx_struct *command, ...)
       {
 #if 0
 	struct aim_conn_t *tstconn = NULL;
-	tstconn = aim_newconn(AIM_CONN_TYPE_CHAT, ip);
+	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
 	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR))
 	  {
 	    fprintf(stderr, "faimtest: unable to connect to chat server\n");
 	    return 1;
 	  }
-	aim_auth_sendcookie(aim_getconn_type(AIM_CONN_TYPE_CHAT), cookie);
+	aim_auth_sendcookie(sess, aim_getconn_type(sess, AIM_CONN_TYPE_CHAT), cookie);
 	fprintf(stderr, "\achat: connected\n");
 #endif
       }
@@ -266,47 +269,39 @@ int faimtest_handleredirect(struct command_rx_struct *command, ...)
   return 1;
 }
 
-int faimtest_auth_error(struct command_rx_struct *command, ...)
+int faimtest_auth_error(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
-  struct login_phase1_struct *logininfo;
   char *errorurl;
   short errorcode;
 
   va_start(ap, command);
-  logininfo = va_arg(ap, struct login_phase1_struct *);
-  printf("Screen name: %s\n", logininfo->screen_name);
+  printf("Screen name: %s\n", sess->logininfo.screen_name);
   errorurl = va_arg(ap, char *);
   printf("Error URL: %s\n", errorurl);
   errorcode = va_arg(ap, short);
   printf("Error code: 0x%02x\n", errorcode);
   va_end(ap);
 
-  aim_conn_close(aim_getconn_type(AIM_CONN_TYPE_AUTH));
+  aim_conn_close(aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
   exit(0);
   
   return 0;
 }
 
-int faimtest_auth_success(struct command_rx_struct *command, ...)
+int faimtest_auth_success(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  va_list ap;
-  struct login_phase1_struct *logininfo;
   struct aim_conn_t *bosconn = NULL;
-
-  va_start(ap, command);
-  logininfo = va_arg(ap, struct login_phase1_struct *);
-  va_end(ap);
   
-  printf("Screen name: %s\n", logininfo->screen_name);
-  printf("Reg status: %2d\n", logininfo->regstatus);
-  printf("Email: %s\n", logininfo->email);
-  printf("Cookie len: %d\n", sizeof(logininfo->cookie));
-  printf("BOS IP: %s\n", logininfo->BOSIP);
+  printf("Screen name: %s\n", sess->logininfo.screen_name);
+  printf("Reg status: %2d\n", sess->logininfo.regstatus);
+  printf("Email: %s\n", sess->logininfo.email);
+  printf("Cookie len: %d\n", sizeof(sess->logininfo.cookie));
+  printf("BOS IP: %s\n", sess->logininfo.BOSIP);
 
   printf("Closing auth connection...\n");
   aim_conn_close(command->conn);
-  bosconn = aim_newconn(AIM_CONN_TYPE_BOS, logininfo->BOSIP);
+  bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, sess->logininfo.BOSIP);
   if (bosconn == NULL)
     {
       fprintf(stderr, "faimtest: could not connect to BOS: internal error\n");
@@ -317,29 +312,29 @@ int faimtest_auth_success(struct command_rx_struct *command, ...)
     }
   else
     {
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, NULL, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, NULL, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_misses, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_misses, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_misses, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, NULL, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, NULL, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_misses, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_misses, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_misses, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
 
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
-      aim_conn_addhandler(bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
-      aim_auth_sendcookie(bosconn, logininfo->cookie);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
+      aim_auth_sendcookie(sess, bosconn, sess->logininfo.cookie);
     }
   return 1;
 }
 
-int faimtest_parse_userinfo(struct command_rx_struct *command, ...)
+int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   struct aim_userinfo_s *userinfo;
   char *prof_encoding = NULL;
@@ -405,7 +400,7 @@ int faimtest_parse_userinfo(struct command_rx_struct *command, ...)
  *  u_int                       icbmflags   sets AIM_IMFLAGS_{AWAY,ACK}
  *
  */
-int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
+int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   struct aim_userinfo_s *userinfo;
   char *msg = NULL;
@@ -459,27 +454,27 @@ int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
       if ( (strlen(tmpstr) >= 10) &&
 	   (!strncmp(tmpstr, "disconnect", 10)) )
 	{
-	  aim_send_im(command->conn, "midendian", 0, "ta ta...");
-	  aim_logoff();
+	  aim_send_im(sess, command->conn, "midendian", 0, "ta ta...");
+	  aim_logoff(sess);
 	}
       else if (strstr(tmpstr, "goodday"))
 	{
 	  printf("faimtest: icbm: sending response\n");
-	  aim_send_im(command->conn, userinfo->sn, 0, "Good day to you too.");
+	  aim_send_im(sess, command->conn, userinfo->sn, 0, "Good day to you too.");
 	}
 #if 0
       else if (!strncmp(tmpstr, "joinchat", 8))
 	{
-	  aim_chat_join(command->conn, "GoodDay");
+	  aim_chat_join(sess, command->conn, "GoodDay");
 	}
 #endif
       else 
 	{
 #if 0
 	  printf("faimtest: icbm:  starting chat...\n");
-	  aim_bos_reqservice(command->conn, AIM_CONN_TYPE_CHATNAV);
+	  aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
 #else
-	  aim_bos_setidle(command->conn, 0x0ffffffe);
+	  aim_bos_setidle(sess, command->conn, 0x0ffffffe);
 #endif
 	}
 
@@ -490,12 +485,12 @@ int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
   return 1;
 }
 
-int faimtest_authsvrready(struct command_rx_struct *command, ...)
+int faimtest_authsvrready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   printf("faimtest_authsvrready: called (contype: %d)\n", command->conn->type);
   sleep(10);
   /* should just be able to tell it we're ready too... */
-  aim_auth_clientready(command->conn);
+  aim_auth_clientready(sess, command->conn);
 
 #if 0
   /*
@@ -504,19 +499,19 @@ int faimtest_authsvrready(struct command_rx_struct *command, ...)
    *   than you wanting to change your password.  You should 
    *   probably check that before actually doing it.
    */
-  aim_auth_changepasswd(command->conn, "PWD1", "PWD2");
+  aim_auth_changepasswd(sess, command->conn, "PWD1", "PWD2");
 #endif
 
   return 1;
 }
 
-int faimtest_pwdchngdone(struct command_rx_struct *command, ...)
+int faimtest_pwdchngdone(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   printf("PASSWORD CHANGE SUCCESSFUL!!!\n");
   return 1;
 }
 
-int faimtest_parse_oncoming(struct command_rx_struct *command, ...)
+int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   struct aim_userinfo_s *userinfo;
    
@@ -530,10 +525,16 @@ int faimtest_parse_oncoming(struct command_rx_struct *command, ...)
   return 1;
 }
 
-int faimtest_parse_offgoing(struct command_rx_struct *command, ...)
+int faimtest_parse_offgoing(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
+  char *sn;
+  va_list ap;
+  
+  va_start(ap, command);
+  sn = va_arg(ap, char *);
+  va_end(ap);
 
-  printf("\n%s has left\n", &(command->data[11]));
+  printf("\n%s has left\n", sn);
 
   return 1;
 }
@@ -543,13 +544,13 @@ int faimtest_parse_offgoing(struct command_rx_struct *command, ...)
  * Handles callbacks for: AIM_CB_RATECHANGE, AIM_CB_USERERROR, 
  *   AIM_CB_MISSED_IM, and AIM_CB_MISSED_CALL.
  */
-int faimtest_parse_misses(struct command_rx_struct *command, ...)
+int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   u_short family;
   u_short subtype;
 
-  family = (command->data[0] << 8) + command->data[1];
-  subtype = (command->data[2] << 8) + command->data[3];
+  family = aimutil_get16(command->data+0);
+  subtype= aimutil_get16(command->data+2);
   
   switch (family)
     {
