@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Tue Sep  5 03:47:26 GMT 2000
+   - More ANSIfication for win32
+   - Forgot aim_misc last time.
+
  - Mon Sep  4 22:08:35 GMT 2000
    - Forgot aim_snac and aim_search
 

@@ -21,7 +21,7 @@
   ghost@aladdin.com
 
  */
-/*$Id: md5.c,v 1.2 2000/09/01 23:44:46 mid Exp $ */
+/*$Id: md5.c,v 1.3 2000/09/05 04:12:41 mid Exp $ */
 /*
   Independent implementation of MD5 (RFC 1321).
 
@@ -39,6 +39,7 @@
  */
 
 #include "md5.h"
+#include <string.h>
 
 #ifdef TEST
 /*

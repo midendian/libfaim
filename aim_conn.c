@@ -202,7 +202,7 @@ faim_export struct aim_conn_t *aim_newconn(struct aim_session_t *sess,
    *
    */
 
-  for(i=0;i<strlen(dest);i++) {
+  for(i=0;i<(int)strlen(dest);i++) {
     if (dest[i] == ':') {
       port = atoi(&(dest[i+1]));
       break;
