@@ -263,7 +263,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 
       /* send the buddy list and profile (required, even if empty) */
       aim_bos_setbuddylist(sess, command->conn, buddies);
-      aim_bos_setprofile(sess, command->conn, profile, NULL);
+      aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_CHAT);
 
       /* send final login command (required) */
       aim_bos_clientready(sess, command->conn); /* tell BOS we're ready to go live */

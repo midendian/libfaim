@@ -23,25 +23,15 @@ u_long aim_send_im(struct aim_session_t *sess,
 {   
 
   int curbyte,i;
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   
-  newpacket.lock = 1; /* lock struct */
-  newpacket.type = 0x02; /* IMs are always family 0x02 */
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+  if (!(newpacket = aim_tx_new(0x0002, conn, 1152)))
+    return -1;
 
-  /*
-   * Its simplest to set this arbitrarily large and waste
-   * space.  Precalculating is costly here.
-   */
-  newpacket.commandlen = 1152;
-
-  newpacket.data = (u_char *) calloc(1, newpacket.commandlen);
+  newpacket->lock = 1; /* lock struct */
 
   curbyte  = 0;
-  curbyte += aim_putsnac(newpacket.data+curbyte, 
+  curbyte += aim_putsnac(newpacket->data+curbyte, 
 			 0x0004, 0x0006, 0x0000, sess->snac_nextid);
 
   /* 
@@ -54,70 +44,69 @@ u_long aim_send_im(struct aim_session_t *sess,
    *
    */
   for (i=0;i<8;i++)
-    curbyte += aimutil_put8(newpacket.data+curbyte, (u_char) random());
+    curbyte += aimutil_put8(newpacket->data+curbyte, (u_char) random());
 
   /*
    * Channel ID
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte,0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte,0x0001);
 
   /* 
    * Destination SN (prepended with byte length)
    */
-  curbyte += aimutil_put8(newpacket.data+curbyte,strlen(destsn));
-  curbyte += aimutil_putstr(newpacket.data+curbyte, destsn, strlen(destsn));
+  curbyte += aimutil_put8(newpacket->data+curbyte,strlen(destsn));
+  curbyte += aimutil_putstr(newpacket->data+curbyte, destsn, strlen(destsn));
 
   /*
    * metaTLV start.
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0002);
-  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(msg) + 0x0d);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0002);
+  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(msg) + 0x0d);
 
   /*
    * Flag data?
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0501);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0101);
-  curbyte += aimutil_put8 (newpacket.data+curbyte, 0x01);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0501);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0101);
+  curbyte += aimutil_put8 (newpacket->data+curbyte, 0x01);
 
   /* 
    * Message block length.
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(msg) + 0x04);
+  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(msg) + 0x04);
 
   /*
    * Character set data? 
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
 
   /*
    * Message.  Not terminated.
    */
-  curbyte += aimutil_putstr(newpacket.data+curbyte,msg, strlen(msg));
+  curbyte += aimutil_putstr(newpacket->data+curbyte,msg, strlen(msg));
 
   /*
    * Set the Request Acknowledge flag.  
    */
-  if (flags & AIM_IMFLAGS_ACK)
-    {
-      curbyte += aimutil_put16(newpacket.data+curbyte,0x0003);
-      curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-    }
+  if (flags & AIM_IMFLAGS_ACK) {
+    curbyte += aimutil_put16(newpacket->data+curbyte,0x0003);
+    curbyte += aimutil_put16(newpacket->data+curbyte,0x0000);
+  }
   
   /*
    * Set the Autoresponse flag.
    */
-  if (flags & AIM_IMFLAGS_AWAY)
-    {
-      curbyte += aimutil_put16(newpacket.data+curbyte,0x0004);
-      curbyte += aimutil_put16(newpacket.data+curbyte,0x0000);
-    }
+  if (flags & AIM_IMFLAGS_AWAY) {
+    curbyte += aimutil_put16(newpacket->data+curbyte,0x0004);
+    curbyte += aimutil_put16(newpacket->data+curbyte,0x0000);
+  }
   
-  newpacket.commandlen = curbyte;
+  newpacket->commandlen = curbyte;
+  newpacket->lock = 0;
 
-  aim_tx_enqueue(sess, &newpacket);
+  aim_tx_enqueue(sess, newpacket);
 
 #ifdef USE_SNAC_FOR_IMS
  {
@@ -488,32 +477,28 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 u_long aim_seticbmparam(struct aim_session_t *sess,
 			struct aim_conn_t *conn)
 {
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   int curbyte;
 
-  newpacket.lock = 1;
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
-  newpacket.type = 0x02;
+  if(!(newpacket = aim_tx_new(0x0002, conn, 10+16)))
+    return -1;
 
-  newpacket.commandlen = 10 + 16;
-  newpacket.data = (u_char *) malloc (newpacket.commandlen);
+  newpacket->lock = 1;
 
-  curbyte = aim_putsnac(newpacket.data, 0x0004, 0x0002, 0x0000, sess->snac_nextid);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
-  curbyte += aimutil_put32(newpacket.data+curbyte, 0x00000003);
-  curbyte += aimutil_put8(newpacket.data+curbyte,  0x1f);
-  curbyte += aimutil_put8(newpacket.data+curbyte,  0x40);
-  curbyte += aimutil_put8(newpacket.data+curbyte,  0x03);
-  curbyte += aimutil_put8(newpacket.data+curbyte,  0xe7);
-  curbyte += aimutil_put8(newpacket.data+curbyte,  0x03);
-  curbyte += aimutil_put8(newpacket.data+curbyte,  0xe7);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte = aim_putsnac(newpacket->data, 0x0004, 0x0002, 0x0000, sess->snac_nextid);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+  curbyte += aimutil_put32(newpacket->data+curbyte, 0x00000003);
+  curbyte += aimutil_put8(newpacket->data+curbyte,  0x1f);
+  curbyte += aimutil_put8(newpacket->data+curbyte,  0x40);
+  curbyte += aimutil_put8(newpacket->data+curbyte,  0x03);
+  curbyte += aimutil_put8(newpacket->data+curbyte,  0xe7);
+  curbyte += aimutil_put8(newpacket->data+curbyte,  0x03);
+  curbyte += aimutil_put8(newpacket->data+curbyte,  0xe7);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
 
-  aim_tx_enqueue(sess, &newpacket);
+  newpacket->lock = 0;
+  aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid++);
 }

@@ -211,6 +211,7 @@ struct aim_userinfo_s {
   u_long membersince;
   u_long onlinesince;
   u_long sessionlen;  
+  u_short capabilities;
 };
 
 #define AIM_CLASS_TRIAL 	0x0001
@@ -299,7 +300,7 @@ int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *command,
 int aim_parse_missed_im(struct aim_session_t *, struct command_rx_struct *, ...);
 int aim_parse_last_bad(struct aim_session_t *, struct command_rx_struct *, ...);
 
-struct command_tx_struct *aim_tx_new(void);
+struct command_tx_struct *aim_tx_new(int, struct aim_conn_t *, int);
 int aim_tx_enqueue(struct aim_session_t *, struct command_tx_struct *);
 u_int aim_get_next_txseqnum(struct aim_conn_t *);
 int aim_tx_flushqueue(struct aim_session_t *);
@@ -359,7 +360,7 @@ void aim_session_init(struct aim_session_t *);
 u_long aim_bos_setidle(struct aim_session_t *, struct aim_conn_t *, u_long);
 u_long aim_bos_changevisibility(struct aim_session_t *, struct aim_conn_t *, int, char *);
 u_long aim_bos_setbuddylist(struct aim_session_t *, struct aim_conn_t *, char *);
-u_long aim_bos_setprofile(struct aim_session_t *, struct aim_conn_t *, char *, char *);
+u_long aim_bos_setprofile(struct aim_session_t *, struct aim_conn_t *, char *, char *, unsigned int);
 u_long aim_bos_setgroupperm(struct aim_session_t *, struct aim_conn_t *, u_long);
 u_long aim_bos_clientready(struct aim_session_t *, struct aim_conn_t *);
 u_long aim_bos_reqrate(struct aim_session_t *, struct aim_conn_t *);
@@ -392,6 +393,13 @@ u_long aim_seticbmparam(struct aim_session_t *, struct aim_conn_t *conn);
 int aim_parse_msgerror_middle(struct aim_session_t *, struct command_rx_struct *);
 
 /* aim_info.c */
+#define AIM_CAPS_BUDDYICON 0x01
+#define AIM_CAPS_VOICE 0x02
+#define AIM_CAPS_IMIMAGE 0x04
+#define AIM_CAPS_CHAT 0x08
+#define AIM_CAPS_GETFILE 0x10
+#define AIM_CAPS_SENDFILE 0x20
+extern u_char aim_caps[6][16];
 u_long aim_getinfo(struct aim_session_t *, struct aim_conn_t *, const char *);
 int aim_extractuserinfo(u_char *, struct aim_userinfo_s *);
 int aim_parse_userinfo_middle(struct aim_session_t *, struct command_rx_struct *);

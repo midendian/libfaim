@@ -11,15 +11,29 @@
  * Allocate a new tx frame.
  *
  * This is more for looks than anything else.
+ *
+ * Right now, that is.  If/when we implement a pool of transmit
+ * frames, this will become the request-an-unused-frame part.
  */
-struct command_tx_struct *aim_tx_new(void)
+struct command_tx_struct *aim_tx_new(int chan, struct aim_conn_t *conn, int datalen)
 {
   struct command_tx_struct *new;
+
+  if (!conn)
+    return NULL;
 
   new = (struct command_tx_struct *)malloc(sizeof(struct command_tx_struct));
   if (!new)
     return NULL;
   memset(new, 0, sizeof(struct command_tx_struct));
+
+  new->conn = conn; 
+  new->type = chan;
+
+  if(datalen) {
+    new->data = (u_char *)malloc(datalen);
+    new->commandlen = datalen;
+  }
 
   return new;
 }
@@ -41,35 +55,31 @@ int aim_tx_enqueue(struct aim_session_t *sess,
 		   struct command_tx_struct *newpacket)
 {
   struct command_tx_struct *cur;
-  struct command_tx_struct *newpacket_copy = NULL;
 
   if (newpacket->conn == NULL) {
-      faimdprintf(1, "aim_tx_enqueue: WARNING: enqueueing packet with no connecetion,  defaulting to BOS\n");
+      faimdprintf(1, "aim_tx_enqueue: WARNING: enqueueing packet with no connecetion\n");
       newpacket->conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   }
  
-  newpacket_copy = (struct command_tx_struct *) malloc (sizeof(struct command_tx_struct));
-  memcpy(newpacket_copy, newpacket, sizeof(struct command_tx_struct));
-
   /* assign seqnum */
-  newpacket_copy->seqnum = aim_get_next_txseqnum(newpacket_copy->conn);
+  newpacket->seqnum = aim_get_next_txseqnum(newpacket->conn);
   /* set some more fields */
-  newpacket_copy->lock = 1; /* lock */
-  newpacket_copy->sent = 0; /* not sent yet */
-  newpacket_copy->next = NULL; /* always last */
+  newpacket->lock = 1; /* lock */
+  newpacket->sent = 0; /* not sent yet */
+  newpacket->next = NULL; /* always last */
 
   /* see overhead note in aim_rxqueue counterpart */
   if (sess->queue_outgoing == NULL) {
-    sess->queue_outgoing = newpacket_copy;
+    sess->queue_outgoing = newpacket;
   } else {
     for (cur = sess->queue_outgoing;
 	 cur->next;
 	 cur = cur->next)
       ;
-    cur->next = newpacket_copy;
+    cur->next = newpacket;
   }
 
-  newpacket_copy->lock = 0; /* unlock so it can be sent */
+  newpacket->lock = 0; /* unlock so it can be sent */
 
 #if debug == 2
   faimdprintf(2, "calling aim_tx_printqueue()\n");

@@ -52,58 +52,43 @@ u_long aim_chat_send_im(struct aim_session_t *sess,
 {   
 
   int curbyte,i;
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
 
   if (!sess || !conn || !msg)
     return 0;
   
-  newpacket.lock = 1; /* lock struct */
-  newpacket.type = 0x02; /* IMs are always family 0x02 */
+  if (!(newpacket = aim_tx_new(0x0002, conn, 1152)))
+    return -1;
 
-  /* 
-   * Since we must have a specific connection, then theres 
-   * no use in going on if we don't have one... 
-   */
-  if (!conn)
-    return sess->snac_nextid;
-  newpacket.conn = conn;
-
-  /*
-   * Its simplest to set this arbitrarily large and waste
-   * space.  Precalculating is costly here.
-   */
-  newpacket.commandlen = 1152;
-
-  newpacket.data = (u_char *) calloc(1, newpacket.commandlen);
+  newpacket->lock = 1; /* lock struct */
 
   curbyte  = 0;
-  curbyte += aim_putsnac(newpacket.data+curbyte, 
+  curbyte += aim_putsnac(newpacket->data+curbyte, 
 			 0x000e, 0x0005, 0x0000, sess->snac_nextid);
 
   /* 
    * Generate a random message cookie 
-   *
    */
   for (i=0;i<8;i++)
-    curbyte += aimutil_put8(newpacket.data+curbyte, (u_char) random());
+    curbyte += aimutil_put8(newpacket->data+curbyte, (u_char) random());
 
   /*
    * metaTLV start.  -- i assume this is a metaTLV.  it could be the
    *                    channel ID though.
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0003);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0003);
 
   /*
    * Type 1: Unknown.  Blank.
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
   
   /*
    * Type 6: Unknown.  Blank.
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0006);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0006);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
 
   /*
    * Type 5: Message block.  Contains more TLVs.
@@ -112,18 +97,18 @@ u_long aim_chat_send_im(struct aim_session_t *sess,
    * put in a message TLV however.  
    * 
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0005);
-  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(msg)+4);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0005);
+  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(msg)+4);
 
   /*
    * SubTLV: Type 1: Message
    */
-  curbyte += aim_puttlv_str(newpacket.data+curbyte, 0x0001, strlen(msg), msg);
+  curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0001, strlen(msg), msg);
   
-  newpacket.commandlen = curbyte;
+  newpacket->commandlen = curbyte;
 
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
+  newpacket->lock = 0;
+  aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid++);
 }
@@ -141,40 +126,33 @@ u_long aim_chat_join(struct aim_session_t *sess,
 		     u_short exchange,
 		     const char *roomname)
 {
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   int i;
 
   if (!sess || !conn || !roomname)
     return 0;
   
-  newpacket.lock = 1;
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+  if (!(newpacket = aim_tx_new(0x0002, conn, 10+9+strlen(roomname)+2)))
+    return -1;
 
-  newpacket.type = 0x02;
+  newpacket->lock = 1;
   
-  newpacket.commandlen = 10 + 9 + strlen(roomname) + 2;
-  newpacket.data = (char *) malloc(newpacket.commandlen);
-  memset(newpacket.data, 0x00, newpacket.commandlen);
-  
-  i = aim_putsnac(newpacket.data, 0x0001, 0x0004, 0x0000, sess->snac_nextid);
+  i = aim_putsnac(newpacket->data, 0x0001, 0x0004, 0x0000, sess->snac_nextid);
 
-  i+= aimutil_put16(newpacket.data+i, 0x000e);
+  i+= aimutil_put16(newpacket->data+i, 0x000e);
 
   /* 
    * this is techinally a TLV, but we can't use normal functions
    * because we need the extraneous nulls and other weird things.
    */
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
-  i+= aimutil_put16(newpacket.data+i, 2+1+strlen(roomname)+2);
-  i+= aimutil_put16(newpacket.data+i, exchange);
-  i+= aimutil_put8(newpacket.data+i, strlen(roomname));
-  memcpy(newpacket.data+i, roomname, strlen(roomname));
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
+  i+= aimutil_put16(newpacket->data+i, 2+1+strlen(roomname)+2);
+  i+= aimutil_put16(newpacket->data+i, exchange);
+  i+= aimutil_put8(newpacket->data+i, strlen(roomname));
+  memcpy(newpacket->data+i, roomname, strlen(roomname));
   i+= strlen(roomname);
-  //i+= aimutil_putstr(newpacket.data+i, roomname, strlen(roomname));
-  i+= aimutil_put16(newpacket.data+i, 0x0000);
+  //i+= aimutil_putstr(newpacket->data+i, roomname, strlen(roomname));
+  i+= aimutil_put16(newpacket->data+i, 0x0000);
 
   /*
    * Chat hack.
@@ -188,8 +166,8 @@ u_long aim_chat_join(struct aim_session_t *sess,
   sess->pendingjoin = (char *)malloc(strlen(roomname)+1);
   strcpy(sess->pendingjoin, roomname);
 
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
+  newpacket->lock = 0;
+  aim_tx_enqueue(sess, newpacket);
 
 #if 0
   {
@@ -524,34 +502,30 @@ int aim_chat_parse_incoming(struct aim_session_t *sess,
 u_long aim_chat_clientready(struct aim_session_t *sess,
 			    struct aim_conn_t *conn)
 {
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   int i;
 
-  newpacket.lock = 1;
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_CHAT);
-  newpacket.type = 0x02;
-  newpacket.commandlen = 0x20;
+  if (!(newpacket = aim_tx_new(0x0002, conn, 0x20)))
+    return -1;
 
-  newpacket.data = (char *) malloc(newpacket.commandlen);
-  i = aim_putsnac(newpacket.data, 0x0001, 0x0002, 0x0000, sess->snac_nextid);
+  newpacket->lock = 1;
 
-  i+= aimutil_put16(newpacket.data+i, 0x000e);
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
+  i = aim_putsnac(newpacket->data, 0x0001, 0x0002, 0x0000, sess->snac_nextid);
 
-  i+= aimutil_put16(newpacket.data+i, 0x0004);
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
+  i+= aimutil_put16(newpacket->data+i, 0x000e);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
 
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
-  i+= aimutil_put16(newpacket.data+i, 0x0003);
+  i+= aimutil_put16(newpacket->data+i, 0x0004);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
 
-  i+= aimutil_put16(newpacket.data+i, 0x0004);
-  i+= aimutil_put16(newpacket.data+i, 0x0686);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
+  i+= aimutil_put16(newpacket->data+i, 0x0003);
 
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
+  i+= aimutil_put16(newpacket->data+i, 0x0004);
+  i+= aimutil_put16(newpacket->data+i, 0x0686);
+
+  newpacket->lock = 0;
+  aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid++);
 }
@@ -586,94 +560,90 @@ u_long aim_chat_invite(struct aim_session_t *sess,
 		       char *roomname,
 		       u_short instance)
 {
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   int i,curbyte=0;
 
   if (!sess || !conn || !sn || !msg || !roomname)
     return 0;
 
-  newpacket.lock = 1;
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
-  newpacket.type = 0x02;
-  newpacket.commandlen = 1152+strlen(sn)+strlen(roomname)+strlen(msg);
+  if (!(newpacket = aim_tx_new(0x0002, conn, 1152+strlen(sn)+strlen(roomname)+strlen(msg))))
+    return -1;
 
-  newpacket.data = (char *) malloc(newpacket.commandlen);
-  curbyte = aim_putsnac(newpacket.data, 0x0004, 0x0006, 0x0000, sess->snac_nextid);
+  newpacket->lock = 1;
+
+  curbyte = aim_putsnac(newpacket->data, 0x0004, 0x0006, 0x0000, sess->snac_nextid);
 
   /*
    * Cookie
    */
   for (i=0;i<8;i++)
-    curbyte += aimutil_put8(newpacket.data+curbyte, (u_char)rand());
+    curbyte += aimutil_put8(newpacket->data+curbyte, (u_char)rand());
 
   /*
    * Channel (2)
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0002);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0002);
 
   /*
    * Dest sn
    */
-  curbyte += aimutil_put8(newpacket.data+curbyte, strlen(sn));
-  curbyte += aimutil_putstr(newpacket.data+curbyte, sn, strlen(sn));
+  curbyte += aimutil_put8(newpacket->data+curbyte, strlen(sn));
+  curbyte += aimutil_putstr(newpacket->data+curbyte, sn, strlen(sn));
 
   /*
    * TLV t(0005)
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0005);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x28+strlen(msg)+0x04+0x03+strlen(roomname)+0x02);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0005);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x28+strlen(msg)+0x04+0x03+strlen(roomname)+0x02);
   
   /* 
    * Unknown info
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x3131);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x3538);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x3446);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x4100);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x748f);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x2420);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x6287);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x11d1);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x8222);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x4445);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x5354);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x3131);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x3538);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x3446);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x4100);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x748f);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x2420);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x6287);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x11d1);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x8222);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x4445);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x5354);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
   
   /*
    * TLV t(000a) -- Unknown
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x000a);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0002);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x000a);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0002);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
   
   /*
    * TLV t(000f) -- Unknown
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x000f);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x000f);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
   
   /*
    * TLV t(000c) -- Invitation message
    */
-  curbyte += aim_puttlv_str(newpacket.data+curbyte, 0x000c, strlen(msg), msg);
+  curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000c, strlen(msg), msg);
 
   /*
    * TLV t(2711) -- Container for room information 
    */
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x2711);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 3+strlen(roomname)+2);
-  curbyte += aimutil_put16(newpacket.data+curbyte, exchange);
-  curbyte += aimutil_put8(newpacket.data+curbyte, strlen(roomname));
-  curbyte += aimutil_putstr(newpacket.data+curbyte, roomname, strlen(roomname));
-  curbyte += aimutil_put16(newpacket.data+curbyte, instance);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x2711);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 3+strlen(roomname)+2);
+  curbyte += aimutil_put16(newpacket->data+curbyte, exchange);
+  curbyte += aimutil_put8(newpacket->data+curbyte, strlen(roomname));
+  curbyte += aimutil_putstr(newpacket->data+curbyte, roomname, strlen(roomname));
+  curbyte += aimutil_put16(newpacket->data+curbyte, instance);
 
-  newpacket.commandlen = curbyte;
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
+  newpacket->commandlen = curbyte;
+  newpacket->lock = 0;
+  aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid++);
 }

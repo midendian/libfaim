@@ -12,28 +12,21 @@ u_long aim_usersearch_address(struct aim_session_t *sess,
 			      struct aim_conn_t *conn, 
 			      char *address)
 {
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   
   if (!address)
     return -1;
 
-  newpacket.lock = 1;
+  if (!(newpacket = aim_tx_new(0x0002, conn, 10+strlen(address))))
+    return -1;
 
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+  newpacket->lock = 1;
 
-  newpacket.type = 0x0002;
-  
-  newpacket.commandlen = 10 + strlen(address);
-  newpacket.data = (char *) malloc(newpacket.commandlen);
+  aim_putsnac(newpacket->data, 0x000a, 0x0002, 0x0000, sess->snac_nextid);
 
-  aim_putsnac(newpacket.data, 0x000a, 0x0002, 0x0000, sess->snac_nextid);
+  aimutil_putstr(newpacket->data+10, address, strlen(address));
 
-  memcpy(&(newpacket.data[10]), address, strlen(address));
-
-  aim_tx_enqueue(sess, &newpacket);
+  aim_tx_enqueue(sess, newpacket);
 
   {
     struct aim_snac_t snac;

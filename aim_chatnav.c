@@ -31,33 +31,29 @@ u_long aim_chatnav_reqrights(struct aim_session_t *sess,
 u_long aim_chatnav_clientready(struct aim_session_t *sess,
 			       struct aim_conn_t *conn)
 {
-  struct command_tx_struct newpacket; 
+  struct command_tx_struct *newpacket; 
   int i;
 
-  newpacket.lock = 1;
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV);
-  newpacket.type = 0x02;
-  newpacket.commandlen = 0x20;
+  if (!(newpacket = aim_tx_new(0x0002, conn, 0x20)))
+    return -1;
 
-  newpacket.data = (char *) malloc(newpacket.commandlen);
-  i = aim_putsnac(newpacket.data, 0x0001, 0x0002, 0x0000, sess->snac_nextid);
+  newpacket->lock = 1;
 
-  i+= aimutil_put16(newpacket.data+i, 0x000d);
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
+  i = aim_putsnac(newpacket->data, 0x0001, 0x0002, 0x0000, sess->snac_nextid);
 
-  i+= aimutil_put16(newpacket.data+i, 0x0004);
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
+  i+= aimutil_put16(newpacket->data+i, 0x000d);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
 
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
-  i+= aimutil_put16(newpacket.data+i, 0x0003);
+  i+= aimutil_put16(newpacket->data+i, 0x0004);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
 
-  i+= aimutil_put16(newpacket.data+i, 0x0004);
-  i+= aimutil_put16(newpacket.data+i, 0x0686);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
+  i+= aimutil_put16(newpacket->data+i, 0x0003);
 
-  aim_tx_enqueue(sess, &newpacket);
+  i+= aimutil_put16(newpacket->data+i, 0x0004);
+  i+= aimutil_put16(newpacket->data+i, 0x0686);
+
+  aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid++);
 }
@@ -283,40 +279,35 @@ u_long aim_chatnav_createroom(struct aim_session_t *sess,
 			      char *name, 
 			      u_short exchange)
 {
-  struct command_tx_struct newpacket; 
+  struct command_tx_struct *newpacket; 
   int i;
   struct aim_snac_t snac;
 
-  newpacket.lock = 1;
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV);
-  newpacket.type = 0x02;
+  if (!(newpacket = aim_tx_new(0x0002, conn, 10+12+strlen("invite")+strlen(name))))
+    return -1;
 
-  newpacket.commandlen = 10 + 12 + strlen("invite") + strlen(name);
+  newpacket->lock = 1;
 
-  newpacket.data = (char *) malloc(newpacket.commandlen);
-  i = aim_putsnac(newpacket.data, 0x000d, 0x0008, 0x0000, sess->snac_nextid);
+  i = aim_putsnac(newpacket->data, 0x000d, 0x0008, 0x0000, sess->snac_nextid);
 
   /* exchange */
-  i+= aimutil_put16(newpacket.data+i, exchange);
+  i+= aimutil_put16(newpacket->data+i, exchange);
 
   /* room cookie */
-  i+= aimutil_put8(newpacket.data+i, strlen("invite"));
-  i+= aimutil_putstr(newpacket.data+i, "invite", strlen("invite"));
+  i+= aimutil_put8(newpacket->data+i, strlen("invite"));
+  i+= aimutil_putstr(newpacket->data+i, "invite", strlen("invite"));
 
   /* instance */
-  i+= aimutil_put16(newpacket.data+i, 0xffff);
+  i+= aimutil_put16(newpacket->data+i, 0xffff);
   
   /* detail level */
-  i+= aimutil_put8(newpacket.data+i, 0x01);
+  i+= aimutil_put8(newpacket->data+i, 0x01);
   
   /* tlvcount */
-  i+= aimutil_put16(newpacket.data+i, 0x0001);
+  i+= aimutil_put16(newpacket->data+i, 0x0001);
 
   /* room name */
-  i+= aim_puttlv_str(newpacket.data+i, 0x00d3, strlen(name), name);
+  i+= aim_puttlv_str(newpacket->data+i, 0x00d3, strlen(name), name);
 
   snac.id = sess->snac_nextid;
   snac.family = 0x000d;
@@ -326,7 +317,7 @@ u_long aim_chatnav_createroom(struct aim_session_t *sess,
   
   aim_newsnac(sess, &snac);
 
-  aim_tx_enqueue(sess, &newpacket);
+  aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid++);
 }

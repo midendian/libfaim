@@ -13,31 +13,25 @@ u_long aim_getinfo(struct aim_session_t *sess,
 		   struct aim_conn_t *conn, 
 		   const char *sn)
 {
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
   int i = 0;
 
   if (!sess || !conn || !sn)
     return 0;
 
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+  if (!(newpacket = aim_tx_new(0x0002, conn, 12+1+strlen(sn))))
+    return -1;
 
-  newpacket.lock = 1;
-  newpacket.type = 0x0002;
+  newpacket->lock = 1;
 
-  newpacket.commandlen = 12 + 1 + strlen(sn);
-  newpacket.data = (char *) malloc(newpacket.commandlen);
+  i = aim_putsnac(newpacket->data, 0x0002, 0x0005, 0x0000, sess->snac_nextid);
 
-  i = aim_putsnac(newpacket.data, 0x0002, 0x0005, 0x0000, sess->snac_nextid);
+  i += aimutil_put16(newpacket->data+i, 0x0001);
+  i += aimutil_put8(newpacket->data+i, strlen(sn));
+  i += aimutil_putstr(newpacket->data+i, sn, strlen(sn));
 
-  i += aimutil_put16(newpacket.data+i, 0x0001);
-  i += aimutil_put8(newpacket.data+i, strlen(sn));
-  i += aimutil_putstr(newpacket.data+i, sn, strlen(sn));
-
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
+  newpacket->lock = 0;
+  aim_tx_enqueue(sess, newpacket);
 
   {
     struct aim_snac_t snac;
@@ -55,6 +49,37 @@ u_long aim_getinfo(struct aim_session_t *sess,
 
   return (sess->snac_nextid++);
 }
+
+
+/*
+ * Capability blocks.  
+ */
+u_char aim_caps[6][16] = {
+  
+  /* Buddy icon */
+  {0x09, 0x46, 0x13, 0x46, 0x4c, 0x7f, 0x11, 0xd1, 
+   0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00},
+  
+  /* Voice */
+  {0x09, 0x46, 0x13, 0x41, 0x4c, 0x7f, 0x11, 0xd1, 
+   0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00},
+  
+  /* IM image */
+  {0x09, 0x46, 0x13, 0x45, 0x4c, 0x7f, 0x11, 0xd1, 
+   0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00},
+  
+  /* Chat */
+  {0x74, 0x8f, 0x24, 0x20, 0x62, 0x87, 0x11, 0xd1, 
+   0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00},
+  
+  /* Get file */
+  {0x09, 0x46, 0x13, 0x48, 0x4c, 0x7f, 0x11, 0xd1,
+   0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00},
+  
+  /* Send file */
+  {0x09, 0x46, 0x13, 0x43, 0x4c, 0x7f, 0x11, 0xd1, 
+   0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00}
+};
 
 /*
  * AIM is fairly regular about providing user info.  This
@@ -170,6 +195,29 @@ int aim_extractuserinfo(u_char *buf, struct aim_userinfo_s *outinfo)
 	   *
 	   */
 	case 0x000d:
+	  {
+	    int z,y; 
+	    int len;
+	    len = aimutil_get16(buf+i+2);
+	    if (!len)
+	      break;
+
+	    for (z = 0; z < len; z+=0x10) {
+	      for(y=0; y < 6; y++) {
+		if (memcmp(&aim_caps[y], buf+i+4+z, 0x10) == 0) {
+		  switch(y) {
+		  case 0: outinfo->capabilities |= AIM_CAPS_BUDDYICON; break;
+		  case 1: outinfo->capabilities |= AIM_CAPS_VOICE; break;
+		  case 2: outinfo->capabilities |= AIM_CAPS_IMIMAGE; break;
+		  case 3: outinfo->capabilities |= AIM_CAPS_CHAT; break;
+		  case 4: outinfo->capabilities |= AIM_CAPS_GETFILE; break;
+		  case 5: outinfo->capabilities |= AIM_CAPS_SENDFILE; break;
+		  default: outinfo->capabilities |= 0xff00; break;
+		  }
+		}
+	      }
+	    }
+	  }
 	  break;
 
 	  /*
@@ -398,64 +446,56 @@ int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s *info)
 
 int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_userinfo_s *info)
 {
-  struct command_tx_struct tx;
+  struct command_tx_struct *tx;
   int i = 0;
 
   if (!sess || !conn || !info)
     return 0;
 
-  tx.conn = conn;
+  if (!(tx = aim_tx_new(0x0002, conn, 1152)))
+    return -1;
 
-  tx.commandlen = 1152; /* too big */
-  tx.data = malloc(tx.commandlen);
-  memset(tx.data, 0x00, tx.commandlen);
-  
-  tx.lock = 1;
-  tx.type = 0x02;
+  tx->lock = 1;
 
-  i += aimutil_put16(tx.data+i, 0x0003);
-  i += aimutil_put16(tx.data+i, 0x000b);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0003);
+  i += aimutil_put16(tx->data+i, 0x000b);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
 
-  i += aim_putuserinfo(tx.data+i, tx.commandlen-i, info);
+  i += aim_putuserinfo(tx->data+i, tx->commandlen-i, info);
 
-  tx.commandlen = i;
-  tx.lock = 0;
-  aim_tx_enqueue(sess, &tx);
+  tx->commandlen = i;
+  tx->lock = 0;
+  aim_tx_enqueue(sess, tx);
 
   return 0;
 }
 
 int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn)
 {
-  struct command_tx_struct tx;
+  struct command_tx_struct *tx;
   int i = 0;
 
   if (!sess || !conn || !sn)
     return 0;
 
-  tx.conn = conn;
+  if (!(tx = aim_tx_new(0x0002, conn, 10+1+strlen(sn))))
+    return -1;
 
-  tx.commandlen = 10 + 1 + strlen(sn);
-  tx.data = malloc(tx.commandlen);
-  memset(tx.data, 0x00, tx.commandlen);
+  tx->lock = 1;
+
+  i += aimutil_put16(tx->data+i, 0x0003);
+  i += aimutil_put16(tx->data+i, 0x000c);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
+
+  i += aimutil_put8(tx->data+i, strlen(sn));
+  i += aimutil_putstr(tx->data+i, sn, strlen(sn));
   
-  tx.lock = 1;
-  tx.type = 0x02;
-
-  i += aimutil_put16(tx.data+i, 0x0003);
-  i += aimutil_put16(tx.data+i, 0x000c);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
-
-  i += aimutil_put8(tx.data+i, strlen(sn));
-  i += aimutil_putstr(tx.data+i, sn, strlen(sn));
-  
-  tx.lock = 0;
-  aim_tx_enqueue(sess, &tx);
+  tx->lock = 0;
+  aim_tx_enqueue(sess, tx);
 
   return 0;
 }

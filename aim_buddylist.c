@@ -11,29 +11,22 @@ u_long aim_add_buddy(struct aim_session_t *sess,
 		     struct aim_conn_t *conn, 
 		     char *sn )
 {
-   struct command_tx_struct newpacket;
+   struct command_tx_struct *newpacket;
+   int i;
 
-   if( !sn )
-      return -1;
+   if(!sn)
+     return -1;
 
-   if (conn)
-     newpacket.conn = conn;
-   else
-     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+   if (!(newpacket = aim_tx_new(0x0002, conn, 10+1+strlen(sn))))
+     return -1;
 
-   newpacket.lock = 1;
-   newpacket.type = 0x0002;
-   newpacket.commandlen = 11 + strlen( sn );
-   newpacket.data = (char *)malloc( newpacket.commandlen );
+   newpacket->lock = 1;
 
-   aim_putsnac(newpacket.data, 0x0003, 0x0004, 0x0000, sess->snac_nextid);
+   i = aim_putsnac(newpacket->data, 0x0003, 0x0004, 0x0000, sess->snac_nextid);
+   i += aimutil_put8(newpacket->data+i, strlen(sn));
+   i += aimutil_putstr(newpacket->data+i, sn, strlen(sn));
 
-   /* length of screenname */ 
-   newpacket.data[10] = strlen( sn );
-
-   memcpy( &(newpacket.data[11]), sn, strlen( sn ) );
-
-   aim_tx_enqueue(sess, &newpacket );
+   aim_tx_enqueue(sess, newpacket );
 
    {
       struct aim_snac_t snac;
@@ -56,29 +49,23 @@ u_long aim_remove_buddy(struct aim_session_t *sess,
 			struct aim_conn_t *conn, 
 			char *sn )
 {
-   struct command_tx_struct newpacket;
+   struct command_tx_struct *newpacket;
+   int i;
 
-   if( !sn )
-      return -1;
+   if(!sn)
+     return -1;
 
-   if (conn)
-     newpacket.conn = conn;
-   else
-     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+   if (!(newpacket = aim_tx_new(0x0002, conn, 10+1+strlen(sn))))
+     return -1;
 
-   newpacket.lock = 1;
-   newpacket.type = 0x0002;
-   newpacket.commandlen = 11 + strlen(sn);
-   newpacket.data = (char *)malloc( newpacket.commandlen );
+   newpacket->lock = 1;
 
-   aim_putsnac(newpacket.data, 0x0003, 0x0005, 0x0000, sess->snac_nextid);
+   i = aim_putsnac(newpacket->data, 0x0003, 0x0005, 0x0000, sess->snac_nextid);
 
-   /* length of screenname */ 
-   newpacket.data[10] = strlen( sn );
+   i += aimutil_put8(newpacket->data+i, strlen(sn));
+   i += aimutil_putstr(newpacket->data+i, sn, strlen(sn));
 
-   memcpy( &(newpacket.data[11]), sn, strlen( sn ) );
-
-   aim_tx_enqueue(sess,  &newpacket );
+   aim_tx_enqueue(sess, newpacket);
 
    {
       struct aim_snac_t snac;

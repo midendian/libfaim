@@ -20,25 +20,18 @@ int aim_sendconnack(struct aim_session_t *sess,
 {
   int curbyte=0;
   
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
 
-  if (conn)
-    newpacket.conn = conn;
-  else
+  if (!(newpacket = aim_tx_new(0x0001, conn, 4)))
     return -1;
 
-  newpacket.commandlen = 2+2;
-  newpacket.data = (u_char *) calloc (1,  newpacket.commandlen );
-  newpacket.lock = 1;
-  newpacket.type = 0x01;
+  newpacket->lock = 1;
   
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
 
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
-
-  return 0;
+  newpacket->lock = 0;
+  return aim_tx_enqueue(sess, newpacket);
 }
 
 #ifdef SNACLOGIN
@@ -56,25 +49,18 @@ int aim_request_login(struct aim_session_t *sess,
 {
   int curbyte=0;
   
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
 
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
+  if (!(newpacket = aim_tx_new(0x0002, conn, 10+2+2+strlen(sn))))
+    return -1;
 
-  newpacket.commandlen = 10+2+2+strlen(sn);
-  newpacket.data = (u_char *) calloc (1,  newpacket.commandlen );
-  newpacket.lock = 1;
-  newpacket.type = 0x02;
+  newpacket->lock = 1;
   
-  curbyte += aim_putsnac(newpacket.data+curbyte, 0x0017, 0x0006, 0x0000, 0x00010000);
-  curbyte += aim_puttlv_str(newpacket.data+curbyte, 0x0001, strlen(sn), sn);
+  curbyte += aim_putsnac(newpacket->data+curbyte, 0x0017, 0x0006, 0x0000, 0x00010000);
+  curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0001, strlen(sn), sn);
 
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
-
-  return 0;
+  newpacket->lock = 0;
+  return aim_tx_enqueue(sess, newpacket);
 }
 #endif /* SNACLOGIN */
 
@@ -95,113 +81,101 @@ int aim_send_login (struct aim_session_t *sess,
   u_char *password_encoded = NULL;  /* to store encoded password */
   int curbyte=0;
 
-  struct command_tx_struct newpacket;
+  struct command_tx_struct *newpacket;
 
   if (!clientinfo || !sn || !password)
     return -1;
 
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
+  if (!(newpacket = aim_tx_new(0x0002, conn, 1152)))
+    return -1;
 
 #ifdef SNACLOGIN 
-  newpacket.commandlen = 10;
-  newpacket.commandlen += 2 + 2 + strlen(sn);
-  newpacket.commandlen += 2 + 2 + strlen(password);
-  newpacket.commandlen += 2 + 2 + strlen(clientinfo->clientstring);
-  newpacket.commandlen += 56;
+  newpacket->commandlen = 10;
+  newpacket->commandlen += 2 + 2 + strlen(sn);
+  newpacket->commandlen += 2 + 2 + strlen(password);
+  newpacket->commandlen += 2 + 2 + strlen(clientinfo->clientstring);
+  newpacket->commandlen += 56;
   
-  newpacket.data = (u_char *) calloc (1,  newpacket.commandlen );
-  newpacket.lock = 1;
-  newpacket.type = 0x02;
+  newpacket->lock = 1;
 
-  curbyte = aim_putsnac(newpacket.data+curbyte, 0x0017, 0x0002, 0x0000, 0x00010000);
-  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0001, strlen(sn), sn);
+  curbyte = aim_putsnac(newpacket->data+curbyte, 0x0017, 0x0002, 0x0000, 0x00010000);
+  curbyte+= aim_puttlv_str(newpacket->data+curbyte, 0x0001, strlen(sn), sn);
   password_encoded = (u_char *) malloc(strlen(password));
   aim_encode_password(password, password_encoded);
-  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0002, strlen(password), password_encoded);
-  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0003, 
+  curbyte+= aim_puttlv_str(newpacket->data+curbyte, 0x0002, strlen(password), password_encoded);
+  curbyte+= aim_puttlv_str(newpacket->data+curbyte, 0x0003, 
 			   strlen(clientinfo->clientstring), 
 			   clientinfo->clientstring);
   /* XXX: should use clientinfo provided version info */
-  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0016, 0x0004);
-  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0017, 0x0003);
-  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0018, 0x0005);
-  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0019, 0x0000);
-  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x001a, 0x0686);
-  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0001, 0x0002, clientinfo->country);
-  curbyte+= aim_puttlv_str(newpacket.data+curbyte, 0x0001, 0x0002, clientinfo->lang);
-  curbyte+= aim_puttlv_32(newpacket.data+curbyte, 0x0014, 0x0000002a);
-  curbyte+= aim_puttlv_16(newpacket.data+curbyte, 0x0009, 0x0015);
+  curbyte+= aim_puttlv_16(newpacket->data+curbyte, 0x0016, 0x0004);
+  curbyte+= aim_puttlv_16(newpacket->data+curbyte, 0x0017, 0x0003);
+  curbyte+= aim_puttlv_16(newpacket->data+curbyte, 0x0018, 0x0005);
+  curbyte+= aim_puttlv_16(newpacket->data+curbyte, 0x0019, 0x0000);
+  curbyte+= aim_puttlv_16(newpacket->data+curbyte, 0x001a, 0x0686);
+  curbyte+= aim_puttlv_str(newpacket->data+curbyte, 0x0001, 0x0002, clientinfo->country);
+  curbyte+= aim_puttlv_str(newpacket->data+curbyte, 0x0001, 0x0002, clientinfo->lang);
+  curbyte+= aim_puttlv_32(newpacket->data+curbyte, 0x0014, 0x0000002a);
+  curbyte+= aim_puttlv_16(newpacket->data+curbyte, 0x0009, 0x0015);
 #else
   
-  newpacket.commandlen = 4 + 4+strlen(sn) + 4+strlen(password) + 6;
+  newpacket->commandlen = 4 + 4+strlen(sn) + 4+strlen(password) + 6;
  
-  if (clientinfo)
-    {
-      if (strlen(clientinfo->clientstring))
-	newpacket.commandlen += 4+strlen(clientinfo->clientstring);
-      newpacket.commandlen += 6+6+6+6;
-      if (strlen(clientinfo->country))
-	newpacket.commandlen += 4+strlen(clientinfo->country);
-      if (strlen(clientinfo->lang))
-	newpacket.commandlen += 4+strlen(clientinfo->lang);
-    }
-  newpacket.commandlen += 6;
+  if (clientinfo) {
+    if (strlen(clientinfo->clientstring))
+      newpacket->commandlen += 4+strlen(clientinfo->clientstring);
+    newpacket->commandlen += 6+6+6+6;
+    if (strlen(clientinfo->country))
+      newpacket->commandlen += 4+strlen(clientinfo->country);
+    if (strlen(clientinfo->lang))
+      newpacket->commandlen += 4+strlen(clientinfo->lang);
+  }
+  newpacket->commandlen += 6;
 
-  newpacket.data = (char *) calloc (1,  newpacket.commandlen );
-  newpacket.lock = 1;
-  newpacket.type = 0x01;
+  newpacket->lock = 1;
+  newpacket->type = 0x01;
 
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
-  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(sn));
-  curbyte += aimutil_putstr(newpacket.data+curbyte, sn, strlen(sn));
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0000);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
+  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(sn));
+  curbyte += aimutil_putstr(newpacket->data+curbyte, sn, strlen(sn));
 
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0002);
-  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(password));
+  curbyte += aimutil_put16(newpacket->data+curbyte, 0x0002);
+  curbyte += aimutil_put16(newpacket->data+curbyte, strlen(password));
   password_encoded = (char *) malloc(strlen(password));
   aim_encode_password(password, password_encoded);
-  curbyte += aimutil_putstr(newpacket.data+curbyte, password_encoded, strlen(password));
+  curbyte += aimutil_putstr(newpacket->data+curbyte, password_encoded, strlen(password));
   free(password_encoded);
   
-  curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0016, 0x0004);
+  curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0016, 0x0004);
   
-  if (clientinfo)
-    {
-      if (strlen(clientinfo->clientstring))
-	{
-	  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0003);
-	  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(clientinfo->clientstring));
-	  curbyte += aimutil_putstr(newpacket.data+curbyte, clientinfo->clientstring, strlen(clientinfo->clientstring));
-	}
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0017, clientinfo->major /*0x0001*/);
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0018, clientinfo->minor /*0x0001*/);
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0019, 0x0000);
-      curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x001a, clientinfo->build /*0x0013*/);
-      if (strlen(clientinfo->country))
-	{
-	  curbyte += aimutil_put16(newpacket.data+curbyte, 0x000e);
-	  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(clientinfo->country));
-	  curbyte += aimutil_putstr(newpacket.data+curbyte, clientinfo->country, strlen(clientinfo->country));
-	}
-      if (strlen(clientinfo->lang))
-	{
-	  curbyte += aimutil_put16(newpacket.data+curbyte, 0x000f);
-	  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(clientinfo->lang));
-	  curbyte += aimutil_putstr(newpacket.data+curbyte, clientinfo->lang, strlen(clientinfo->lang));
-	}
+  if (clientinfo) {
+    if (strlen(clientinfo->clientstring)) {
+      curbyte += aimutil_put16(newpacket->data+curbyte, 0x0003);
+      curbyte += aimutil_put16(newpacket->data+curbyte, strlen(clientinfo->clientstring));
+      curbyte += aimutil_putstr(newpacket->data+curbyte, clientinfo->clientstring, strlen(clientinfo->clientstring));
     }
+    curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0017, clientinfo->major /*0x0001*/);
+    curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0018, clientinfo->minor /*0x0001*/);
+    curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0019, 0x0000);
+    curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x001a, clientinfo->build /*0x0013*/);
+    if (strlen(clientinfo->country)) {
+      curbyte += aimutil_put16(newpacket->data+curbyte, 0x000e);
+      curbyte += aimutil_put16(newpacket->data+curbyte, strlen(clientinfo->country));
+      curbyte += aimutil_putstr(newpacket->data+curbyte, clientinfo->country, strlen(clientinfo->country));
+    }
+    if (strlen(clientinfo->lang)) {
+      curbyte += aimutil_put16(newpacket->data+curbyte, 0x000f);
+      curbyte += aimutil_put16(newpacket->data+curbyte, strlen(clientinfo->lang));
+      curbyte += aimutil_putstr(newpacket->data+curbyte, clientinfo->lang, strlen(clientinfo->lang));
+    }
+  }
 
-  curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0009, 0x0015);
+  curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0009, 0x0015);
 #endif
 
-  newpacket.lock = 0;
-  aim_tx_enqueue(sess, &newpacket);
-
-  return 0;
+  newpacket->lock = 0;
+  return aim_tx_enqueue(sess, newpacket);
 }
 
 /*
@@ -345,17 +319,13 @@ unsigned long aim_sendauthresp(struct aim_session_t *sess,
 			       char *cookie, char *email, 
 			       int regstatus)
 {	
-  struct command_tx_struct tx;
+  struct command_tx_struct *tx;
   struct aim_tlvlist_t *tlvlist = NULL;
 
-  tx.conn = conn;
-
-  tx.commandlen = 1152; /* arbitrarily large */
-  tx.data = malloc(tx.commandlen);
-  memset(tx.data, 0x00, tx.commandlen);
+  if (!(tx = aim_tx_new(0x0001 /*right??*/, conn, 1152)))
+    return -1;
   
-  tx.lock = 1;
-  tx.type = 0x01; /* XXX: right? */
+  tx->lock = 1;
 
   if (sn)
     aim_addtlvtochain_str(&tlvlist, 0x0001, sn, strlen(sn));
@@ -372,11 +342,9 @@ unsigned long aim_sendauthresp(struct aim_session_t *sess,
     aim_addtlvtochain16(&tlvlist, 0x0013, regstatus);
   }
 
-  tx.commandlen = aim_writetlvchain(tx.data, tx.commandlen, &tlvlist);
-  tx.lock = 0;
-  aim_tx_enqueue(sess, &tx);
-
-  return 0;
+  tx->commandlen = aim_writetlvchain(tx->data, tx->commandlen, &tlvlist);
+  tx->lock = 0;
+  return aim_tx_enqueue(sess, tx);
 }
 
 /*
@@ -399,40 +367,34 @@ int aim_gencookie(unsigned char *buf)
  */
 int aim_sendserverready(struct aim_session_t *sess, struct aim_conn_t *conn)
 {
-  struct command_tx_struct tx;
+  struct command_tx_struct *tx;
   int i = 0;
 
-  tx.conn = conn;
+  if (!(tx = aim_tx_new(0x0002, conn, 10+0x20)))
+    return -1;
 
-  tx.commandlen = 10 + 0x20;
-  tx.data = malloc(tx.commandlen);
-  memset(tx.data, 0x00, tx.commandlen);
+  tx->lock = 1;
+
+  i += aimutil_put16(tx->data+i, 0x0001);
+  i += aimutil_put16(tx->data+i, 0x0003);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
   
-  tx.lock = 1;
-  tx.type = 0x02;
+  i += aimutil_put16(tx->data+i, 0x0001);  
+  i += aimutil_put16(tx->data+i, 0x0002);
+  i += aimutil_put16(tx->data+i, 0x0003);
+  i += aimutil_put16(tx->data+i, 0x0004);
+  i += aimutil_put16(tx->data+i, 0x0006);
+  i += aimutil_put16(tx->data+i, 0x0008);
+  i += aimutil_put16(tx->data+i, 0x0009);
+  i += aimutil_put16(tx->data+i, 0x000a);
+  i += aimutil_put16(tx->data+i, 0x000b);
+  i += aimutil_put16(tx->data+i, 0x000c);
 
-  i += aimutil_put16(tx.data+i, 0x0001);
-  i += aimutil_put16(tx.data+i, 0x0003);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  
-  i += aimutil_put16(tx.data+i, 0x0001);  
-  i += aimutil_put16(tx.data+i, 0x0002);
-  i += aimutil_put16(tx.data+i, 0x0003);
-  i += aimutil_put16(tx.data+i, 0x0004);
-  i += aimutil_put16(tx.data+i, 0x0006);
-  i += aimutil_put16(tx.data+i, 0x0008);
-  i += aimutil_put16(tx.data+i, 0x0009);
-  i += aimutil_put16(tx.data+i, 0x000a);
-  i += aimutil_put16(tx.data+i, 0x000b);
-  i += aimutil_put16(tx.data+i, 0x000c);
+  tx->lock = 0;
 
-  tx.lock = 0;
-
-  aim_tx_enqueue(sess, &tx);
-
-  return 0;
+  return aim_tx_enqueue(sess, tx);
 }
 
 
@@ -445,34 +407,28 @@ unsigned long aim_sendredirect(struct aim_session_t *sess,
 			       char *ip,
 			       char *cookie)
 {	
-  struct command_tx_struct tx;
+  struct command_tx_struct *tx;
   struct aim_tlvlist_t *tlvlist = NULL;
   int i = 0;
 
-  tx.conn = conn;
+  if (!(tx = aim_tx_new(0x0002, conn, 1152)))
+    return -1;
 
-  tx.commandlen = 1152; /* arbitrarily large */
-  tx.data = malloc(tx.commandlen);
-  memset(tx.data, 0x00, tx.commandlen);
-  
-  tx.lock = 1;
-  tx.type = 0x02;
+  tx->lock = 1;
 
-  i += aimutil_put16(tx.data+i, 0x0001);
-  i += aimutil_put16(tx.data+i, 0x0005);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
-  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0001);
+  i += aimutil_put16(tx->data+i, 0x0005);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
+  i += aimutil_put16(tx->data+i, 0x0000);
   
   aim_addtlvtochain16(&tlvlist, 0x000d, servid);
   aim_addtlvtochain_str(&tlvlist, 0x0005, ip, strlen(ip));
   aim_addtlvtochain_str(&tlvlist, 0x0006, cookie, AIM_COOKIELEN);
 
-  tx.commandlen = aim_writetlvchain(tx.data+i, tx.commandlen-i, &tlvlist)+i;
+  tx->commandlen = aim_writetlvchain(tx->data+i, tx->commandlen-i, &tlvlist)+i;
   aim_freetlvchain(&tlvlist);
 
-  tx.lock = 0;
-  aim_tx_enqueue(sess, &tx);
-
-  return 0;
+  tx->lock = 0;
+  return aim_tx_enqueue(sess, tx);
 }
