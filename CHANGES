@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Wed Nov  8 02:23:25 UTC 2000
+  - I'm trying out using a modified version of the kernel-doc scripts
+     to help document the libfaim code a bit.  See aim_conn.c and 
+     aim_tlv.c, as well as the scripts in utils/docs.
+
  - Wed Oct 25 17:52:20 UTC 2000
   - Cleanup warnings from newer gcc's (RH7.0)
     - Aparently newer gcc's don't let you do as strong of integer types
