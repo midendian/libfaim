@@ -65,15 +65,21 @@ Unfortunatly, there is not currently any documentation on the libfaim API.
 Use the source and utils/faimtest/faimtest.c as a reference when coding
 front-ends.  
 
+Mailing Lists
+-------------
+
+Thanks to Sourceforge, we have our mailing lists back. See:
+http://www.sourceforge.org/mail/?group_id=920  for instructions
+on subscribing to the lists:
+
+  libfaim-devel: Discussion of libfaim and its developement.
+  libfaim-aim-protocol: Discussion of the finer points of OSCAR hacking
+ 
 
 Contact Info
 ------------
 
-The author (Adam Fritzler), can be reached at afritz@iname.com or mid@auk.cx.
-
-I did have mailing lists available for faim-related discussion, but they
-have dwindled and eventually broke and to my knowledge have yet to fix 
-themselves.
+The author (Adam Fritzler), can be reached at mid@auk.cx.
 
 Front-end information:
   http://www.auk.cx/faim/

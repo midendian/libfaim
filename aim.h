@@ -1,7 +1,13 @@
+/* 
+ * Main libfaim header.  Must be included in client for prototypes/macros.
+ *
+ */
+
 #ifndef __AIM_H__
 #define __AIM_H__
 
 #include <faimconfig.h>
+#include <aim_cbtypes.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -41,7 +47,9 @@
 #define AIM_SIGNON_TOO_SOON	-0x4
 #define AIM_SERVICE_FULL	-0x6f
 
-/* Current Maximum Length for Screen Names (not including NULL) */
+/* 
+ * Current Maximum Length for Screen Names (not including NULL) 
+ */
 #define MAXSNLEN 16
 
 struct login_phase1_struct {
@@ -63,25 +71,14 @@ struct client_info_s {
   char lang[3];
 };
 
-struct connection_info_struct {
-  u_int local_seq_num_origin; /* our first seq num */
-  int local_command_count;
-
-  u_int remote_seq_num_origin; /* oscar's first seqnum */
-  int remote_command_count; /* command_count + seq_num_origin = cur_seq_num */
-
-  char *sn; /* our screen name */
-
-  int fd;                   /* socket descriptor */
-};
-
 #ifndef TRUE
 #define TRUE 1
 #define FALSE 0
 #endif
 
-#define AIM_CONN_MAX 5 
-/* these could be arbitrary, but its easier to use the actual AIM values */
+/* 
+ * These could be arbitrary, but its easier to use the actual AIM values 
+ */
 #define AIM_CONN_TYPE_AUTH 0x0007
 #define AIM_CONN_TYPE_ADS 0x0005
 #define AIM_CONN_TYPE_BOS 2
@@ -93,12 +90,12 @@ struct connection_info_struct {
 #define AIM_CONN_STATUS_RESOLVERR 0x80
 #define AIM_CONN_STATUS_CONNERR 0x40
 
-
 struct aim_conn_t {
   int fd;
   int type;
   int seqnum;
   int status;
+  void *priv; /* misc data the client may want to store */
   time_t lastactivity; /* time of last transmit */
   int forcedlatency; 
   struct aim_rxcblist_t *handlerlist;
@@ -145,29 +142,36 @@ struct aim_userinfo_s {
   u_long sessionlen;  
 };
 
-/* TLV-related tidbits */
+/*
+ * TLV handling
+ */
+
+/* Generic TLV structure. */
 struct aim_tlv_t {
   u_short type;
   u_short length;
   u_char *value;
 };
 
+/* List of above. */
 struct aim_tlvlist_t {
   struct aim_tlv_t *tlv;
   struct aim_tlvlist_t *next;
 };
+
+/* TLV-handling functions */
 struct aim_tlvlist_t *aim_readtlvchain(u_char *buf, int maxlen);
 void aim_freetlvchain(struct aim_tlvlist_t **list);
 struct aim_tlv_t *aim_grabtlv(u_char *src);
 struct aim_tlv_t *aim_grabtlvstr(u_char *src);
+struct aim_tlv_t *aim_gettlv(struct aim_tlvlist_t *, u_short, int);
+char *aim_gettlv_str(struct aim_tlvlist_t *, u_short, int);
 int aim_puttlv (u_char *dest, struct aim_tlv_t *newtlv);
 struct aim_tlv_t *aim_createtlv(void);
 int aim_freetlv(struct aim_tlv_t **oldtlv);
 int aim_puttlv_16(u_char *, u_short, u_short);
 
-/* some prototypes... */
 
-/*   implicitly or explicitly called */
 int aim_get_command(void);
 int aim_rxdispatch(void);
 int aim_logoff(void);
@@ -221,150 +225,9 @@ int aim_clearhandlers(struct aim_conn_t *conn);
 extern struct aim_snac_t *aim_outstanding_snacs;
 extern u_long aim_snac_nextid;
 
-#define AIM_CB_FAM_ACK 0x0000
-#define AIM_CB_FAM_GEN 0x0001
-#define AIM_CB_FAM_LOC 0x0002
-#define AIM_CB_FAM_BUD 0x0003
-#define AIM_CB_FAM_MSG 0x0004
-#define AIM_CB_FAM_ADS 0x0005
-#define AIM_CB_FAM_INV 0x0006
-#define AIM_CB_FAM_ADM 0x0007
-#define AIM_CB_FAM_POP 0x0008
-#define AIM_CB_FAM_BOS 0x0009
-#define AIM_CB_FAM_LOK 0x000a
-#define AIM_CB_FAM_STS 0x000b
-#define AIM_CB_FAM_TRN 0x000c
-#define AIM_CB_FAM_CTN 0x000d /* ChatNav */
-#define AIM_CB_FAM_CHT 0x000e /* Chat */
-#define AIM_CB_FAM_SPECIAL 0xffff /* Internal libfaim use */
-
-#define AIM_CB_ACK_ACK 0x0001
-
-#define AIM_CB_GEN_ERROR 0x0001
-#define AIM_CB_GEN_CLIENTREADY 0x0002
-#define AIM_CB_GEN_SERVERREADY 0x0003
-#define AIM_CB_GEN_SERVICEREQ 0x0004
-#define AIM_CB_GEN_REDIRECT 0x0005
-#define AIM_CB_GEN_RATEINFOREQ 0x0006
-#define AIM_CB_GEN_RATEINFO 0x0007
-#define AIM_CB_GEN_RATEINFOACK 0x0008
-#define AIM_CB_GEN_RATECHANGE 0x000a
-#define AIM_CB_GEN_SERVERPAUSE 0x000b
-#define AIM_CB_GEN_SERVERRESUME 0x000d
-#define AIM_CB_GEN_REQSELFINFO 0x000e
-#define AIM_CB_GEN_SELFINFO 0x000f
-#define AIM_CB_GEN_EVIL 0x0010
-#define AIM_CB_GEN_SETIDLE 0x0011
-#define AIM_CB_GEN_MIGRATIONREQ 0x0012
-#define AIM_CB_GEN_MOTD 0x0013
-#define AIM_CB_GEN_SETPRIVFLAGS 0x0014
-#define AIM_CB_GEN_WELLKNOWNURL 0x0015
-#define AIM_CB_GEN_NOP 0x0016
-#define AIM_CB_GEN_DEFAULT 0xffff
-
-#define AIM_CB_LOC_ERROR 0x0001
-#define AIM_CB_LOC_REQRIGHTS 0x0002
-#define AIM_CB_LOC_RIGHTSINFO 0x0003
-#define AIM_CB_LOC_SETUSERINFO 0x0004
-#define AIM_CB_LOC_REQUSERINFO 0x0005
-#define AIM_CB_LOC_USERINFO 0x0006
-#define AIM_CB_LOC_WATCHERSUBREQ 0x0007
-#define AIM_CB_LOC_WATCHERNOT 0x0008
-#define AIM_CB_LOC_DEFAULT 0xffff
-
-#define AIM_CB_BUD_ERROR 0x0001
-#define AIM_CB_BUD_REQRIGHTS 0x0002
-#define AIM_CB_BUD_RIGHTSINFO 0x0003
-#define AIM_CB_BUD_ADDBUDDY 0x0004
-#define AIM_CB_BUD_REMBUDDY 0x0005
-#define AIM_CB_BUD_REJECT 0x000a
-#define AIM_CB_BUD_ONCOMING 0x000b
-#define AIM_CB_BUD_OFFGOING 0x000c
-#define AIM_CB_BUD_DEFAULT 0xffff
-
-#define AIM_CB_MSG_ERROR 0x0001
-#define AIM_CB_MSG_PARAMINFO 0x0005
-#define AIM_CB_MSG_INCOMING 0x0007
-#define AIM_CB_MSG_EVIL 0x0009
-#define AIM_CB_MSG_MISSEDCALL 0x000a
-#define AIM_CB_MSG_CLIENTERROR 0x000b
-#define AIM_CB_MSG_ACK 0x000c
-#define AIM_CB_MSG_DEFAULT 0xffff
-
-#define AIM_CB_ADS_ERROR 0x0001
-#define AIM_CB_ADS_DEFAULT 0xffff
-
-#define AIM_CB_INV_ERROR 0x0001
-#define AIM_CB_INV_DEFAULT 0xffff
-
-#define AIM_CB_ADM_ERROR 0x0001
-#define AIM_CB_ADM_INFOCHANGE_REPLY 0x0005
-#define AIM_CB_ADM_DEFAULT 0xffff
-
-#define AIM_CB_POP_ERROR 0x0001
-#define AIM_CB_POP_DEFAULT 0xffff
-
-#define AIM_CB_BOS_ERROR 0x0001
-#define AIM_CB_BOS_DEFAULT 0xffff
-
-#define AIM_CB_LOK_ERROR 0x0001
-#define AIM_CB_LOK_DEFAULT 0xffff
-
-#define AIM_CB_STS_ERROR 0x0001
-#define AIM_CB_STS_SETREPORTINTERVAL 0x0002
-#define AIM_CB_STS_REPORTACK 0x0004
-#define AIM_CB_STS_DEFAULT 0xffff
-
-#define AIM_CB_TRN_ERROR 0x0001
-#define AIM_CB_TRN_DEFAULT 0xffff
-
-#define AIM_CB_CTN_ERROR 0x0001
-#define AIM_CB_CTN_DEFAULT 0xffff
-
-#define AIM_CB_CHT_ERROR 0x0001
-#define AIM_CB_CHT_DEFAULT 0xffff
-
-#define AIM_CB_SPECIAL_AUTHSUCCESS 0x0001
-#define AIM_CB_SPECIAL_AUTHOTHER 0x0002
-#define AIM_CB_SPECIAL_UNKNOWN 0xffff
-#define AIM_CB_SPECIAL_DEFAULT AIM_CB_SPECIAL_UNKNOWN
-
-#if 0
-#define AIM_CB_INCOMING_IM 0
-#define AIM_CB_ONCOMING_BUDDY 1
-#define AIM_CB_OFFGOING_BUDDY 2
-#define AIM_CB_MISSED_IM 3
-#define AIM_CB_MISSED_CALL 4
-#define AIM_CB_LOGIN_P4_C1 5
-#define AIM_CB_LOGIN_P4_C2 6
-#define AIM_CB_LOGIN_P2_1 7
-#define AIM_CB_LOGIN_P2_2 8
-#define AIM_CB_LOGIN_P3_B 9
-#define AIM_CB_LOGIN_P3D_A 10
-#define AIM_CB_LOGIN_P3D_B 11
-#define AIM_CB_LOGIN_P3D_C 12
-#define AIM_CB_LOGIN_P3D_D 13
-#define AIM_CB_LOGIN_P3D_E 14
-#define AIM_CB_LOGIN_P3D_F 15
-#define AIM_CB_RATECHANGE 16
-#define AIM_CB_USERERROR 17
-#define AIM_CB_UNKNOWN 18
-#define AIM_CB_USERINFO 19
-#define AIM_CB_SEARCH_ADDRESS 20
-#define AIM_CB_SEARCH_NAME 21
-#define AIM_CB_SEARCH_FAIL 22
-
-#define AIM_CB_AUTH_ERROR 23
-#define AIM_CB_AUTH_SUCCESS 24
-#define AIM_CB_AUTH_SVRREADY 25
-
-#define AIM_CB_AUTH_OTHER 26
-#define AIM_CB_AUTH_INFOCHNG_REPLY 27
-#define AIM_CB_CHATNAV_SVRREADY 28
-#endif
-
-int Read(int, u_char *, int);
-
+/*
+ * Generic SNAC structure.  Rarely if ever used.
+ */
 struct aim_snac_t {
   u_long id;
   u_short family;
@@ -378,6 +241,7 @@ u_long aim_newsnac(struct aim_snac_t *newsnac);
 struct aim_snac_t *aim_remsnac(u_long id);
 int aim_cleansnacs(int maxage);
 int aim_putsnac(u_char *, int, int, int, u_long);
+
 
 void aim_connrst(void);
 struct aim_conn_t *aim_conn_getnext(void);
@@ -459,9 +323,6 @@ int aimutil_putstr(u_char *, const u_char *, int);
 int aimutil_tokslen(char *toSearch, int index, char dl);
 int aimutil_itemcnt(char *toSearch, char dl);
 char *aimutil_itemidx(char *toSearch, int index, char dl);
-
-struct aim_tlv_t *aim_gettlv(struct aim_tlvlist_t *list, u_short type, int nth);
-char *aim_gettlv_str(struct aim_tlvlist_t *list, u_short type, int nth);
 
 #endif /* __AIM_H__ */
 

@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Fri Dec 24 21:30:06 UTC 1999
+   - Added an error-counting Read() that has been sitting in my inbox
+   - Cleaned up header files, created aim_cbtypes.h.
+
  - Fri Dec 24 11:12:34 UTC 1999
    - Cleaned up both outgoing and incoming ICBM handling.  Anything
        that crashes around there is no longer libfaims fault!

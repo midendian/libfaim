@@ -10,36 +10,40 @@
 #include "aim.h"
 
 /*
-  This is a modified read() to make SURE we get the number
-  of bytes we are told to, otherwise block.
- */
+ * This is a modified read() to make SURE we get the number
+ * of bytes we are told to, otherwise block.
+ *
+ * Modified to count errno (Sébastien Carpe <scarpe@atos-group.com>)
+ * 
+*/
 int Read(int fd, u_char *buf, int len)
 {
   int i = 0;
   int j = 0;
-
+  int err_count=0;
+  
   while ((i < len) && (!(i < 0)))
     {
       j = read(fd, &(buf[i]), len-i);
       if ( (j < 0) && (errno != EAGAIN))
-	return -errno; /* fail */
+        return -errno; /* fail */
+      else if (j==0) 
+	{
+	  err_count++;
+	  if (err_count> MAX_READ_ERROR)  {
+	    /*
+	     * Reached maximum number of allowed read errors.
+	     *
+	     * Lets suppose the connection is lost and errno didn't
+	     * know it.
+	     *
+	     */
+          return (-1); 
+	}
+      } 
       else
-	i += j; /* success, continue */
+        i += j; /* success, continue */
     }
-#if 0
-  printf("\nRead Block: (%d/%04x)\n", len, len);
-  printf("\t");
-  for (j = 0; j < len; j++)
-    {
-      if (j % 8 == 0)
-	printf("\n\t");
-      if (buf[j] >= ' ' && buf[j] < 127)
-	 printf("%c=%02x ",buf[j], buf[j]);
-      else
-	 printf("0x%02x ", buf[j]);
-    }
-  printf("\n\n");
-#endif
   return i;
 }
 
