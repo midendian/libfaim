@@ -313,6 +313,7 @@ int main(int argc, char **argv)
   struct aim_conn_t *waitingconn = NULL;
   int i;
   int selstat = 0;
+  static int faimtest_mode = 0;
 
   screenname = getenv("SCREENNAME");
   password = getenv("PASSWORD");
@@ -323,7 +324,7 @@ int main(int argc, char **argv)
 
   listingpath = getenv("LISTINGPATH");
 
-  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:h")) != EOF) {
+  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoO")) != EOF) {
     switch (i) {
     case 'u': screenname = optarg; break;
     case 'p': password = optarg; break;
@@ -333,6 +334,8 @@ int main(int argc, char **argv)
     case 'A': proxy = optarg; break;
     case 'l': listingpath = optarg; break;
     case 'c': ohcaptainmycaptain = optarg; break;
+    case 'o': faimtest_mode = 1; break; /* half old interface */
+    case 'O': faimtest_mode = 2; break; /* full old interface */
     case 'h':
     default:
       printf("faimtest\n");
@@ -345,6 +348,8 @@ int main(int argc, char **argv)
       printf("    -A host:port  Proxy host ($SOCKSPASS)\n");
       printf("    -l path       Path to listing file ($LISTINGPATH)\n");
       printf("    -c name       Screen name of owner\n");
+      printf("    -o            Login at startup, then prompt\n");
+      printf("    -O            Login, never give prompt\n");
       exit(0);
     }
   }
@@ -368,8 +373,7 @@ int main(int argc, char **argv)
     }
     sprintf(listingname, "%s/listing.txt", listingpath);
     if( (listingfile = fopen(listingname, "r")) == NULL) {
-      dvprintf("Couldn't open %s... bombing.\n", listingname);
-      exit(-1);
+      dvprintf("Couldn't open %s... disabling that shit.\n", listingname);
     }
 
     free(listingname);
@@ -377,7 +381,16 @@ int main(int argc, char **argv)
 
   faimtest_init();
 
-  cmd_init();
+  if (faimtest_mode < 2)
+    cmd_init();
+
+  if (faimtest_mode >= 1) {
+    if (login(screenname, password) == -1) {
+      if (faimtest_mode < 2)
+	cmd_uninit();
+      exit(-1);
+    }
+  }
 
   while (keepgoing) {
     waitingconn = aim_select(&aimsess, NULL, &selstat);
@@ -389,7 +402,7 @@ int main(int argc, char **argv)
     } else if (selstat == 1) { /* outgoing data pending */
       aim_tx_flushqueue(&aimsess);
     } else if (selstat == 2) { /* incoming data pending */
-      if (waitingconn->fd == STDIN_FILENO) {
+      if ((faimtest_mode < 2) && (waitingconn->fd == STDIN_FILENO)) {
 	cmd_gotkey();
       } else {
 	if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
@@ -410,6 +423,8 @@ int main(int argc, char **argv)
 	      aim_conn_kill(&aimsess, &waitingconn);
 	    if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
 	      dprintf("major connection error\n");
+	      if (faimtest_mode == 2)
+		break;
 	    }
 	  }
 	}
@@ -420,8 +435,10 @@ int main(int argc, char **argv)
   /* close up all connections, dead or no */
   aim_logoff(&aimsess); 
 
-  printf("\n");
-  cmd_uninit();
+  if (faimtest_mode < 2) {
+    printf("\n");
+    cmd_uninit();
+  }
 
   /* Get out */
   exit(0);
@@ -793,7 +810,7 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   if (errorcode || !bosip || !cookie) {
     dvprintf("Login Error Code 0x%04x\n", errorcode);
     dvprintf("Error URL: %s\n", errurl);
-    aim_conn_kill(sess, &command->conn); 
+    aim_conn_kill(sess, &command->conn);
     return 1;
   }
 

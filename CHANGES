@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Wed Mar 14 20:21:49 UTC 2001
+  - Clean up declarations of TLV functions (ie, const)
+  - Add -o and -O to faimtest (I didn't use your patch, josh)
+
  - Wed Mar 14 03:11:03 UTC 2001
   - Err...I'll commit before I go home.  More faimtest crap.
 

@@ -397,28 +397,28 @@ struct aim_tlvlist_t {
 };
 
 /* TLV-handling functions */
-faim_internal struct aim_tlvlist_t *aim_readtlvchain(u_char *buf, int maxlen);
+faim_internal struct aim_tlvlist_t *aim_readtlvchain(const unsigned char *buf, const int maxlen);
 faim_internal void aim_freetlvchain(struct aim_tlvlist_t **list);
-faim_internal struct aim_tlv_t *aim_grabtlv(u_char *src);
-faim_internal struct aim_tlv_t *aim_grabtlvstr(u_char *src);
-faim_internal struct aim_tlv_t *aim_gettlv(struct aim_tlvlist_t *, u_short, int);
-faim_internal char *aim_gettlv_str(struct aim_tlvlist_t *, u_short, int);
-faim_internal unsigned char aim_gettlv8(struct aim_tlvlist_t *list, unsigned short type, int num);
-faim_internal unsigned short aim_gettlv16(struct aim_tlvlist_t *list, unsigned short type, int num);
-faim_internal unsigned long aim_gettlv32(struct aim_tlvlist_t *list, unsigned short type, int num);
-faim_internal int aim_puttlv (u_char *dest, struct aim_tlv_t *newtlv);
+faim_internal struct aim_tlv_t *aim_grabtlv(const unsigned char *src);
+faim_internal struct aim_tlv_t *aim_grabtlvstr(const unsigned char *src);
+faim_internal struct aim_tlv_t *aim_gettlv(struct aim_tlvlist_t *, const unsigned short, const int);
+faim_internal char *aim_gettlv_str(struct aim_tlvlist_t *, const unsigned short, const int);
+faim_internal unsigned char aim_gettlv8(struct aim_tlvlist_t *list, const unsigned short type, const int num);
+faim_internal unsigned short aim_gettlv16(struct aim_tlvlist_t *list, const unsigned short type, const int num);
+faim_internal unsigned long aim_gettlv32(struct aim_tlvlist_t *list, const unsigned short type, const int num);
+faim_internal int aim_puttlv (unsigned char *dest, struct aim_tlv_t *newtlv);
 faim_internal struct aim_tlv_t *aim_createtlv(void);
 faim_internal int aim_freetlv(struct aim_tlv_t **oldtlv);
-faim_internal int aim_puttlv_8(unsigned char *buf, unsigned short t, unsigned char  v);
-faim_internal int aim_puttlv_16(u_char *, u_short, u_short);
-faim_internal int aim_puttlv_32(u_char *, u_short, u_long);
-faim_internal int aim_puttlv_str(u_char *buf, u_short t, int l, char *v);
-faim_internal int aim_writetlvchain(u_char *buf, int buflen, struct aim_tlvlist_t **list);
-faim_internal int aim_addtlvtochain16(struct aim_tlvlist_t **list, unsigned short type, unsigned short val);
-faim_internal int aim_addtlvtochain32(struct aim_tlvlist_t **list, unsigned short type, unsigned long val);
-faim_internal int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str, int len);
-faim_internal int aim_addtlvtochain_caps(struct aim_tlvlist_t **list, unsigned short type, unsigned short caps);
-faim_internal int aim_addtlvtochain_noval(struct aim_tlvlist_t **list, unsigned short type);
+faim_internal int aim_puttlv_8(unsigned char *buf, const unsigned short t, const unsigned char  v);
+faim_internal int aim_puttlv_16(unsigned char *, const unsigned short, const unsigned short);
+faim_internal int aim_puttlv_32(unsigned char *, const unsigned short, const unsigned long);
+faim_internal int aim_puttlv_str(u_char *buf, const unsigned short t, const int l, const char *v);
+faim_internal int aim_writetlvchain(unsigned char *buf, const int buflen, struct aim_tlvlist_t **list);
+faim_internal int aim_addtlvtochain16(struct aim_tlvlist_t **list, const unsigned short type, const unsigned short val);
+faim_internal int aim_addtlvtochain32(struct aim_tlvlist_t **list, const unsigned short type, const unsigned long val);
+faim_internal int aim_addtlvtochain_str(struct aim_tlvlist_t **list, const unsigned short type, const char *str, const int len);
+faim_internal int aim_addtlvtochain_caps(struct aim_tlvlist_t **list, const unsigned short type, const unsigned short caps);
+faim_internal int aim_addtlvtochain_noval(struct aim_tlvlist_t **list, const unsigned short type);
 faim_internal int aim_counttlvchain(struct aim_tlvlist_t **list);
 #endif /* FAIM_INTERNAL */
 
