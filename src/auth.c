@@ -16,7 +16,7 @@ faim_export int aim_auth_sendcookie(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int curbyte=0;
   
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0001, conn, 4+2+2+AIM_COOKIELEN)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0001, 4+2+2+AIM_COOKIELEN)))
     return -1;
 
   newpacket->lock = 1;
@@ -41,7 +41,7 @@ faim_export unsigned long aim_auth_clientready(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int toolcount = sizeof(tools)/sizeof(struct aim_tool_version);
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 1152)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 1152)))
     return -1;
 
   newpacket->lock = 1;
@@ -71,7 +71,7 @@ faim_export unsigned long aim_auth_changepasswd(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int i;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+4+strlen(current)+4+strlen(new))))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+4+strlen(current)+4+strlen(new))))
     return -1;
 
   newpacket->lock = 1;
@@ -96,7 +96,7 @@ faim_export unsigned long aim_auth_setversions(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int i;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10 + (4*2))))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10 + (4*2))))
     return -1;
 
   newpacket->lock = 1;
@@ -144,7 +144,7 @@ faim_export unsigned long aim_auth_getinfo(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int i;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10 + 4)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10 + 4)))
     return -1;
 
   newpacket->lock = 1;
@@ -169,7 +169,7 @@ faim_export unsigned long aim_auth_setemail(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int i;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+2+2+strlen(newemail))))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+2+2+strlen(newemail))))
     return -1;
 
   newpacket->lock = 1;

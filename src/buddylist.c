@@ -20,7 +20,7 @@ faim_export unsigned long aim_add_buddy(struct aim_session_t *sess,
    if(!sn)
      return -1;
 
-   if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+1+strlen(sn))))
+   if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+1+strlen(sn))))
      return -1;
 
    newpacket->lock = 1;
@@ -51,7 +51,7 @@ faim_export unsigned long aim_remove_buddy(struct aim_session_t *sess,
    if(!sn)
      return -1;
 
-   if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+1+strlen(sn))))
+   if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+1+strlen(sn))))
      return -1;
 
    newpacket->lock = 1;
@@ -97,7 +97,7 @@ faim_internal int aim_parse_buddyrights(struct aim_session_t *sess,
   if (aim_gettlv(tlvlist, 0x0002, 1))
     maxwatchers = aim_gettlv16(tlvlist, 0x0002, 1);
   
-  if ((userfunc = aim_callhandler(command->conn, 0x0003, 0x0003)))
+  if ((userfunc = aim_callhandler(sess, command->conn, 0x0003, 0x0003)))
     ret =  userfunc(sess, command, maxbuddies, maxwatchers);
 
   aim_freetlvchain(&tlvlist);

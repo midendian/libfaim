@@ -1,8 +1,22 @@
 
 No release numbers
 ------------------
+ - Mon Mar  5 01:19:48 UTC 2001
+  - Fix typo in last CHANGES entry.
+  - Add fix from Eric to keep efence from complaining about malloc(0)
+  - Add .cvsignore files (also from Eric)
+  - Throw in josh's latest OFT/ODC kludges
+  - Completly remove all calls to printf and (unbounded) sprintf
+  - Add aim_setdebuggingcb()
+  - Remove preprocessor-based debug semantics (faimconfig.h)
+  - faimdprintf() now calls a user-specified callback to do printing
+  - Rearrange aim_tx_new() parameters to be more sensical, add sess
+  - Do some sanity checking in aim_tx_new()
+  - Add #defines to keep printf from compiling inside libfaim
+  - Who knows what else. (in total, this patch is nearly 5k lines)
+
  - Fri Mar  2 02:17:22 UTC 2001
-  - Add aim_fingerprintclient(). (AB will, but you shouldn't.)
+  - Add aim_fingerprintclient(). (AB will trust this, but you shouldn't.)
   - Add some EXTRA_DIST to Makefile.am
 
  - Mon Feb 26 01:46:34 UTC 2001

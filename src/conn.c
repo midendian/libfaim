@@ -101,7 +101,8 @@ faim_internal struct aim_conn_t *aim_conn_getnext(struct aim_session_t *sess)
  * @sess: Session for the connection
  * @deadconn: Connection to be freed
  *
- * Close, clear, and free a connection structure.
+ * Close, clear, and free a connection structure. Should never be
+ * called from within libfaim.
  *
  */
 faim_export void aim_conn_kill(struct aim_session_t *sess, struct aim_conn_t **deadconn)
@@ -228,7 +229,7 @@ static int aim_proxyconnect(struct aim_session_t *sess,
     proxy[i] = '\0';
 
     if (!(hp = gethostbyname(proxy))) {
-      printf("proxyconnect: unable to resolve proxy name\n");
+      faimdprintf(sess, 0, "proxyconnect: unable to resolve proxy name\n");
       *statusret = (h_errno | AIM_CONN_STATUS_RESOLVERR);
       return -1;
     }
@@ -241,7 +242,7 @@ static int aim_proxyconnect(struct aim_session_t *sess,
   
     fd = socket(hp->h_addrtype, SOCK_STREAM, 0);
     if (connect(fd, (struct sockaddr *)&sa, sizeof(struct sockaddr_in)) < 0) {
-      printf("proxyconnect: unable to connect to proxy\n");
+      faimdprintf(sess, 0, "proxyconnect: unable to connect to proxy\n");
       close(fd);
       return -1;
     }
@@ -359,6 +360,19 @@ static int aim_proxyconnect(struct aim_session_t *sess,
   return fd;
 }
 
+/**
+ * aim_cloneconn - clone an aim_conn_t
+ * @sess: session containing parent
+ * @src: connection to clone
+ *
+ * A new connection is allocated, and the values are filled in
+ * appropriately. Note that this function sets the new connnection's
+ * ->priv pointer to be equal to that of its parent: only the pointer
+ * is copied, not the data it points to.
+ *
+ * This function returns a pointer to the new aim_conn_t, or %NULL on
+ * error
+ */
 faim_internal struct aim_conn_t *aim_cloneconn(struct aim_session_t *sess,
 					       struct aim_conn_t *src)
 {
@@ -367,7 +381,6 @@ faim_internal struct aim_conn_t *aim_cloneconn(struct aim_session_t *sess,
 
   if (!(conn = aim_conn_getnext(sess)))
     return NULL;
-  
 
   faim_mutex_lock(&conn->active);
 
@@ -515,7 +528,7 @@ faim_export int aim_conn_in_sess(struct aim_session_t *sess, struct aim_conn_t *
  * @status: Return status
  *
  * Waits for a socket with data or for timeout, whichever comes first.
- * See select().
+ * See select(2).
  * 
  * Return codes in *status:
  *   -1  error in select() (%NULL returned)
@@ -600,6 +613,7 @@ faim_export struct aim_conn_t *aim_select(struct aim_session_t *sess,
     *status = i; /* can be 0 or -1 */
 
   faim_mutex_unlock(&sess->connlistlock);
+
   return NULL;  /* no waiting or error, return */
 }
 
@@ -641,6 +655,7 @@ faim_export int aim_conn_setstatus(struct aim_conn_t *conn, int status)
   faim_mutex_lock(&conn->active);
   val = conn->status ^= status;
   faim_mutex_unlock(&conn->active);
+
   return val;
 }
 
@@ -707,11 +722,12 @@ faim_export void aim_setupproxy(struct aim_session_t *sess, char *server, char *
  * aim_session_init - Initializes a session structure
  * @sess: Session to initialize
  * @flags: Flags to use. Any of %AIM_SESS_FLAGS %OR'd together.
+ * @debuglevel: Level of debugging output (zero is least)
  *
  * Sets up the initial values for a session.
  *
  */
-faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flags)
+faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flags, int debuglevel)
 {
   if (!sess)
     return;
@@ -727,6 +743,8 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
   sess->snac_nextid = 0x00000001;
 
   sess->flags = 0;
+  sess->debug = 0;
+  sess->debugcb = NULL;
 
   /*
    * Default to SNAC login unless XORLOGIN is explicitly set.
@@ -742,6 +760,27 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
   aim_tx_setenqueue(sess, AIM_TX_QUEUED, NULL);
 
   return;
+}
+
+/**
+ * aim_setdebuggingcb - Set the function to call when outputting debugging info
+ * @sess: Session to change
+ * @cb: Function to call
+ *
+ * The function specified is called whenever faimdprintf() is used within
+ * libfaim, and the session's debugging level is greater tha nor equal to
+ * the value faimdprintf was called with.
+ *
+ */
+faim_export int aim_setdebuggingcb(struct aim_session_t *sess, faim_debugging_callback_t cb)
+{
+
+  if (!sess)
+    return -1;
+
+  sess->debugcb = cb;
+
+  return 0;
 }
 
 /**
@@ -786,7 +825,7 @@ faim_export int aim_conn_completeconnect(struct aim_session_t *sess, struct aim_
     errno = error;
     return -1;
   } else if (res == 0) {
-    printf("faim: aim_conn_completeconnect: false alarm on %d\n", conn->fd);
+    faimdprintf(sess, 0, "aim_conn_completeconnect: false alarm on %d\n", conn->fd);
     return 0; /* hasn't really completed yet... */
   } 
 
@@ -807,7 +846,7 @@ faim_export int aim_conn_completeconnect(struct aim_session_t *sess, struct aim_
 
   conn->status &= ~AIM_CONN_STATUS_INPROGRESS;
 
-  if ((userfunc = aim_callhandler(conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE)))
+  if ((userfunc = aim_callhandler(sess, conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE)))
     userfunc(sess, NULL, conn);
 
   /* Flush out the queues if there was something waiting for this conn  */
@@ -824,6 +863,7 @@ faim_export int aim_conn_completeconnect(struct aim_session_t *sess, struct aim_
  */
 faim_export int aim_logoff(struct aim_session_t *sess)
 {
+
   aim_connrst(sess);  /* in case we want to connect again */
 
   return 0;

@@ -2,23 +2,11 @@
  *  faimconfig.h
  *
  * Contains various compile-time options that apply _only_ to libfaim.
- * Note that setting any of these options in a frontend header does not imply
- * that they'll get set here.  Notably, the 'debug' of this file is _not_ 
- * the same as the frontend 'debug'.  They can be different values.
  *
  */
 
 #ifndef __FAIMCONFIG_H__
 #define __FAIMCONFIG_H__
-
-/* 
- * set debug to be > 0 if you want debugging information spewing
- * on the attached tty.  set to 0 for daily use.  this value
- * is _not_ inherited by the frontend, only this backend.
- *
- * Default: 0  
-*/
-#define debug 0
 
 /*
  * USE_SNAC_FOR_IMS is an old feature that allowed better

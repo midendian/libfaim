@@ -27,7 +27,7 @@ faim_export struct aim_conn_t *aim_chat_getconn(struct aim_session_t *sess, char
     if (cur->type != AIM_CONN_TYPE_CHAT)
       continue;
     if (!cur->priv) {
-      printf("faim: chat: chat connection with no name! (fd = %d)\n", cur->fd);
+      faimdprintf(sess, 0, "faim: chat: chat connection with no name! (fd = %d)\n", cur->fd);
       continue;
     }
     if (strcmp((char *)cur->priv, name) == 0)
@@ -64,7 +64,7 @@ faim_export unsigned long aim_chat_send_im(struct aim_session_t *sess,
   if (!sess || !conn || !msg)
     return 0;
   
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 1152)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 1152)))
     return -1;
 
   newpacket->lock = 1; /* lock struct */
@@ -143,7 +143,7 @@ faim_export unsigned long aim_chat_join(struct aim_session_t *sess,
   if (!sess || !conn || !roomname)
     return 0;
   
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+9+strlen(roomname)+2)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+9+strlen(roomname)+2)))
     return -1;
 
   newpacket->lock = 1;
@@ -244,9 +244,9 @@ faim_internal int aim_chat_parse_infoupdate(struct aim_session_t *sess,
 
   if (detaillevel != 0x02) {
     if (detaillevel == 0x01)
-      printf("faim: chat_roomupdateinfo: detail level 1 not supported\n");
+      faimdprintf(sess, 0, "faim: chat_roomupdateinfo: detail level 1 not supported\n");
     else
-      printf("faim: chat_roomupdateinfo: unknown detail level %d\n", detaillevel);
+      faimdprintf(sess, 0, "faim: chat_roomupdateinfo: unknown detail level %d\n", detaillevel);
     return 1;
   }
   
@@ -284,7 +284,7 @@ faim_internal int aim_chat_parse_infoupdate(struct aim_session_t *sess,
     
     i = 0;
     while (curoccupant < usercount)
-      i += aim_extractuserinfo(tmptlv->value+i, &userinfo[curoccupant++]);
+      i += aim_extractuserinfo(sess, tmptlv->value+i, &userinfo[curoccupant++]);
   }
   
   /* 
@@ -324,7 +324,7 @@ faim_internal int aim_chat_parse_infoupdate(struct aim_session_t *sess,
     unknown_d5 = aim_gettlv8(tlvlist, 0x00d5, 1);
 
 
-  if ((userfunc = aim_callhandler(command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE))) {
+  if ((userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE))) {
     ret = userfunc(sess,
 		   command, 
 		   &roominfo,
@@ -357,10 +357,10 @@ faim_internal int aim_chat_parse_joined(struct aim_session_t *sess,
   while (i < command->commandlen) {
     curcount++;
     userinfo = realloc(userinfo, curcount * sizeof(struct aim_userinfo_s));
-    i += aim_extractuserinfo(command->data+i, &userinfo[curcount-1]);
+    i += aim_extractuserinfo(sess, command->data+i, &userinfo[curcount-1]);
   }
 
-  if ((userfunc = aim_callhandler(command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN))) {
+  if ((userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN))) {
     ret = userfunc(sess,
 		   command, 
 		   curcount,
@@ -383,10 +383,10 @@ faim_internal int aim_chat_parse_leave(struct aim_session_t *sess,
   while (i < command->commandlen) {
     curcount++;
     userinfo = realloc(userinfo, curcount * sizeof(struct aim_userinfo_s));
-    i += aim_extractuserinfo(command->data+i, &userinfo[curcount-1]);
+    i += aim_extractuserinfo(sess, command->data+i, &userinfo[curcount-1]);
   }
 
-  if ((userfunc = aim_callhandler(command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE))) {
+  if ((userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE))) {
     ret = userfunc(sess,
 		   command, 
 		   curcount,
@@ -462,7 +462,7 @@ faim_internal int aim_chat_parse_incoming(struct aim_session_t *sess,
   i += 2;
 
   if (channel != 0x0003) {
-    printf("faim: chat_incoming: unknown channel! (0x%04x)\n", channel);
+    faimdprintf(sess, 0, "faim: chat_incoming: unknown channel! (0x%04x)\n", channel);
     return 1;
   }
 
@@ -478,7 +478,7 @@ faim_internal int aim_chat_parse_incoming(struct aim_session_t *sess,
     struct aim_tlv_t *userinfotlv;
     
     userinfotlv = aim_gettlv(outerlist, 0x0003, 1);
-    aim_extractuserinfo(userinfotlv->value, &userinfo);
+    aim_extractuserinfo(sess, userinfotlv->value, &userinfo);
   }
 
   /*
@@ -507,7 +507,7 @@ faim_internal int aim_chat_parse_incoming(struct aim_session_t *sess,
       aim_freetlvchain(&innerlist); 
     }
 
-  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG);
+  userfunc = aim_callhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG);
   if (userfunc)
     {
       ret = userfunc(sess,
@@ -527,7 +527,7 @@ faim_export unsigned long aim_chat_clientready(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int i;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 0x20)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 0x20)))
     return -1;
 
   newpacket->lock = 1;
@@ -586,7 +586,7 @@ faim_export unsigned long aim_chat_invite(struct aim_session_t *sess,
   if (conn->type != AIM_CONN_TYPE_BOS)
     return -1;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 1152+strlen(sn)+strlen(roomname)+strlen(msg))))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 1152+strlen(sn)+strlen(roomname)+strlen(msg))))
     return -1;
 
   newpacket->lock = 1;

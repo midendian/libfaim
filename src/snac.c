@@ -43,8 +43,12 @@ faim_internal unsigned long aim_cachesnac(struct aim_session_t *sess,
   snac.type = type;
   snac.flags = flags;
 
-  snac.data = malloc(datalen);
-  memcpy(snac.data, data, datalen);
+  if (datalen) {
+    if (!(snac.data = malloc(datalen)))
+      return 0; /* er... */
+    memcpy(snac.data, data, datalen);
+  } else
+    snac.data = NULL;
 
   return aim_newsnac(sess, &snac);
 }

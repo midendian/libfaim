@@ -86,7 +86,7 @@ faim_export unsigned long aim_send_im(struct aim_session_t *sess,
   if (strlen(msg) >= MAXMSGLEN)
     return -1;
 
-  if (!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, strlen(msg)+256)))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, strlen(msg)+256)))
     return -1;
 
   newpacket->lock = 1; /* lock struct */
@@ -209,7 +209,7 @@ faim_internal int aim_parse_outgoing_im_middle(struct aim_session_t *sess,
   i += 2;
 
   if (channel != 0x01) {
-    printf("faim: icbm: ICBM recieved on unsupported channel.  Ignoring. (chan = %04x)\n", channel);
+    faimdprintf(sess, 0, "icbm: ICBM recieved on unsupported channel.  Ignoring. (chan = %04x)\n", channel);
     return 1;
   }
 
@@ -243,7 +243,7 @@ faim_internal int aim_parse_outgoing_im_middle(struct aim_session_t *sess,
     msg = msgblock+j;
   }
 
-  if ((userfunc = aim_callhandler(command->conn, 0x0004, 0x0006)) || (i = 0))
+  if ((userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0006)) || (i = 0))
     i = userfunc(sess, command, channel, sn, msg, icbmflags, flag1, flag2);
   
   if (msgblock)
@@ -307,11 +307,10 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
   /*
    *
    */
-  if ((channel != 0x01) && (channel != 0x02))
-    {
-      printf("faim: icbm: ICBM received on an unsupported channel.  Ignoring.\n (chan = %04x)", channel);
-      return 1;
-    }
+  if ((channel != 0x01) && (channel != 0x02)) {
+    faimdprintf(sess, 0, "icbm: ICBM received on an unsupported channel.  Ignoring.\n (chan = %04x)", channel);
+    return 1;
+  }
 
   /*
    * Extract the standard user info block.
@@ -329,7 +328,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
    * never be two TLVs of the same type in one block.
    * 
    */
-  i += aim_extractuserinfo(command->data+i, &userinfo);
+  i += aim_extractuserinfo(sess, command->data+i, &userinfo);
   
   /*
    * Read block of TLVs (not including the userinfo data).  All 
@@ -370,7 +369,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        */
       msgblocktlv = aim_gettlv(tlvlist, 0x0002, 1);
       if (!msgblocktlv || !msgblocktlv->value) {
-	printf("faim: icbm: major error! no message block TLV found!\n");
+	faimdprintf(sess, 0, "icbm: major error! no message block TLV found!\n");
 	aim_freetlvchain(&tlvlist);
 	return 1;
       }
@@ -425,7 +424,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       j += 2;
       
       if (flag1 || flag2)
-	printf("faim: icbm: **warning: encoding flags are being used! {%04x, %04x}\n", flag1, flag2);
+	faimdprintf(sess, 0, "icbm: **warning: encoding flags are being used! {%04x, %04x}\n", flag1, flag2);
       
       /* 
        * Message string. 
@@ -438,7 +437,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       /*
        * Call client.
        */
-      userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+      userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
       if (userfunc)
 	i = userfunc(sess, command, channel, &userinfo, msg, icbmflags, flag1, flag2, finlen, fingerprint);
       else 
@@ -458,7 +457,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        */
       block1 = aim_gettlv(tlvlist, 0x0005, 1);
       if (!block1) {
-	printf("faim: no tlv 0x0005 in rendezvous transaction!\n");
+	faimdprintf(sess, 0, "no tlv 0x0005 in rendezvous transaction!\n");
 	aim_freetlvchain(&tlvlist);
 	return 1; /* major problem */
       }
@@ -474,7 +473,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        * Next comes the cookie.  Should match the ICBM cookie.
        */
       if (memcmp(block1->value+2, cookie, 8) != 0) 
-	printf("faim: rend: warning cookies don't match!\n");
+	faimdprintf(sess, 0, "rend: warning cookies don't match!\n");
 
       /*
        * The next 16bytes are a capability block so we can
@@ -488,9 +487,9 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
        * Read off one capability string and we should have it ID'd.
        * 
        */
-      reqclass = aim_getcap(block1->value+2+8, 0x10);
+      reqclass = aim_getcap(sess, block1->value+2+8, 0x10);
       if (reqclass == 0x0000) {
-	printf("faim: rend: no ID block\n");
+	faimdprintf(sess, 0, "rend: no ID block\n");
 	aim_freetlvchain(&tlvlist);
 	return 1;
       }
@@ -509,13 +508,11 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	
 	type = aim_msgcookie_gettype(reqclass); /* XXX: fix this shitty code */
 
-	if(type != 17) {
-	  if ((cook = aim_uncachecookie(sess, cookie, type)) == NULL) {
-	    printf("faim: non-data rendezvous thats not in cache!\n");
-	    aim_freetlvchain(&list2);
-	    aim_freetlvchain(&tlvlist);
-	    return 1;
-	  }
+	if ((cook = aim_checkcookie(sess, cookie, type)) == NULL) {
+	  faimdprintf(sess, 0, "non-data rendezvous thats not in cache %d/%s!\n", type, cookie);
+	  aim_freetlvchain(&list2);
+	  aim_freetlvchain(&tlvlist);
+	  return 1;
 	}
 
 	if (cook->type == AIM_COOKIETYPE_OFTGET) {
@@ -531,15 +528,15 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 		errorcode = aim_gettlv16(list2, 0x000b, 1);
 	      
 	      if (errorcode)
-		printf("faim: transfer from %s (%s) for %s cancelled (error code %d)\n", ft->sn, ft->ip, ft->fh.name, errorcode);
+		faimdprintf(sess, 0, "transfer from %s (%s) for %s cancelled (error code %d)\n", ft->sn, ft->ip, ft->fh.name, errorcode);
 	    }
 	  } else {
-	    printf("faim: no data attached to file transfer\n");
+	    faimdprintf(sess, 0, "no data attached to file transfer\n");
 	  }
 	} else if (cook->type == AIM_CAPS_VOICE) {
-	  printf("faim: voice request cancelled\n");
+	  faimdprintf(sess, 0, "voice request cancelled\n");
 	} else {
-	  printf("faim: unknown cookie cache type %d\n", cook->type);
+	  faimdprintf(sess, 0, "unknown cookie cache type %d\n", cook->type);
 	}
 	
 	if (list2)
@@ -557,7 +554,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	 * Call client.
 	 */
 #if 0
-	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
 	if (userfunc || (i = 0))
 	  i = userfunc(sess, 
 		       command, 
@@ -571,7 +568,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       } else if (reqclass & AIM_CAPS_VOICE) {
 	struct aim_msgcookie_t *cachedcook;
 
-	printf("faim: rend: voice!\n");
+	faimdprintf(sess, 0, "rend: voice!\n");
 
 	if(!(cachedcook = (struct aim_msgcookie_t*)calloc(1, sizeof(struct aim_msgcookie_t))))
 	  return 1;
@@ -580,15 +577,15 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	cachedcook->type = AIM_COOKIETYPE_OFTVOICE;
 	cachedcook->data = NULL;
 
-	if (aim_cachecookie(sess, cachedcook) != 0)
-	  printf("faim: ERROR caching message cookie\n");
+	if (aim_cachecookie(sess, cachedcook) == -1)
+	  faimdprintf(sess, 0, "ERROR caching message cookie\n");
 
 	/* XXX: implement all this */
 
 	/*
 	 * Call client.
 	 */
-	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
 	if (userfunc || (i = 0)) {
 	  i = userfunc(sess, command, channel, reqclass, &userinfo);
 	}
@@ -612,9 +609,8 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 		  4443 /*aimutil_get16(porttlv->value)*/);
 	}
 
-	printf("faim: rend: directIM request from %s (%s)\n",
-	       userinfo.sn,
-	       ip);
+	faimdprintf(sess, 0, "rend: directIM request from %s (%s)\n",
+		    userinfo.sn, ip);
 
        /* XXX: there are a couple of different request packets for
 	*          different things */
@@ -627,7 +623,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	/*
 	 * Call client.
 	 */
-	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
 	if (userfunc || (i = 0))
 	  i = userfunc(sess, 
 		       command, 
@@ -655,7 +651,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	/*
 	 * Call client.
 	 */
-	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
 	if (userfunc || (i = 0))
 	  i = userfunc(sess, 
 		       command, 
@@ -681,7 +677,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	memset(ip, 0, 30);
 
 	if (!(miscinfo = aim_gettlv(list2, 0x2711, 1))) {
-	  free(cachedcook);
+	  aim_cookie_free(sess, cachedcook);
 	  return 0;
 	}
 
@@ -689,7 +685,7 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	  struct aim_tlv_t *iptlv, *porttlv;
 
 	  if (!(iptlv = aim_gettlv(list2, 0x0003, 1)) || !(porttlv = aim_gettlv(list2, 0x0005, 1))) {
-	    free(cachedcook);
+	    aim_cookie_free(sess, cachedcook);
 	    return 0;
 	  }
 
@@ -701,12 +697,12 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 		   aimutil_get16(porttlv->value));
 	}
 
-	printf("faim: rend: file get request from %s (%s)\n", userinfo.sn, ip);
+	faimdprintf(sess, 0, "rend: file get request from %s (%s)\n", userinfo.sn, ip);
 
 	/*
 	 * Call client.
 	 */
-	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
 	if (userfunc || (i = 0))
 	  i = userfunc(sess, 
 		       command, 
@@ -747,11 +743,11 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	  desc = aim_gettlv_str(list2, 0x000c, 1);
 	}
 
-	printf("faim: rend: file transfer request from %s for %s: %s (%s)\n",
-	       userinfo.sn,
-	       miscinfo->value+8,
-	       desc, 
-	       ip);
+	faimdprintf(sess, 0, "rend: file transfer request from %s for %s: %s (%s)\n",
+		    userinfo.sn,
+		    miscinfo->value+8,
+		    desc, 
+		    ip);
 	
 	memcpy(cachedcook->cookie, cookie, 8);
 	
@@ -762,8 +758,8 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	cachedcook->type = AIM_COOKIETYPE_OFTSEND;
 	cachedcook->data = ft;
 
-	if (aim_cachecookie(sess, cachedcook) != 0)
-	  printf("faim: ERROR caching message cookie\n");
+	if (aim_cachecookie(sess, cachedcook) == -1)
+	  faimdprintf(sess, 0, "ERROR caching message cookie\n");
 	
 	
 	aim_accepttransfer(sess, command->conn, ft->sn, cookie, AIM_CAPS_SENDFILE);
@@ -774,16 +770,15 @@ faim_internal int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 	/*
 	 * Call client.
 	 */
-	userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0007);
 	if (userfunc || (i = 0))
 	  i = userfunc(sess, 
 		       command, 
 		       channel, 
 		       reqclass,
 		       &userinfo);
-      } else {
-	printf("faim: rend: unknown rendezvous 0x%04x\n", reqclass);
-      }
+      } else
+	faimdprintf(sess, 0, "rend: unknown rendezvous 0x%04x\n", reqclass);
 
       aim_freetlvchain(&list2);
     }
@@ -813,7 +808,7 @@ faim_export unsigned long aim_denytransfer(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int curbyte, i;
 
-  if(!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+8+2+1+strlen(sender)+6)))
+  if(!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+8+2+1+strlen(sender)+6)))
     return -1;
 
   newpacket->lock = 1;
@@ -845,7 +840,7 @@ faim_export unsigned long aim_seticbmparam(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int curbyte;
 
-  if(!(newpacket = aim_tx_new(AIM_FRAMETYPE_OSCAR, 0x0002, conn, 10+16)))
+  if(!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+16)))
     return -1;
 
   newpacket->lock = 1;
@@ -892,7 +887,7 @@ faim_internal int aim_parse_msgerror_middle(struct aim_session_t *sess,
   snac = aim_remsnac(sess, snacid);
 
   if (!snac) {
-    printf("faim: msgerr: got an ICBM-failed error on an unknown SNAC ID! (%08lx)\n", snacid);
+    faimdprintf(sess, 0, "msgerr: got an ICBM-failed error on an unknown SNAC ID! (%08lx)\n", snacid);
     dest = NULL;
   } else
     dest = snac->data;
@@ -902,7 +897,7 @@ faim_internal int aim_parse_msgerror_middle(struct aim_session_t *sess,
   /*
    * Call client.
    */
-  userfunc = aim_callhandler(command->conn, 0x0004, 0x0001);
+  userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x0001);
   if (userfunc)
     ret =  userfunc(sess, command, dest, reason);
   else
@@ -942,7 +937,7 @@ faim_internal int aim_parse_missedcall(struct aim_session_t *sess,
   /*
    * Extract the standard user info block.
    */
-  i += aim_extractuserinfo(command->data+i, &userinfo);
+  i += aim_extractuserinfo(sess, command->data+i, &userinfo);
   
   nummissed = aimutil_get16(command->data+i);
   i += 2;
@@ -953,7 +948,7 @@ faim_internal int aim_parse_missedcall(struct aim_session_t *sess,
   /*
    * Call client.
    */
-  userfunc = aim_callhandler(command->conn, 0x0004, 0x000a);
+  userfunc = aim_callhandler(sess, command->conn, 0x0004, 0x000a);
   if (userfunc)
     ret =  userfunc(sess, command, channel, &userinfo, nummissed, reason);
   else

@@ -29,21 +29,20 @@ faim_export char *aim_getbuildstring(void)
   return string;
 }
 
-#if debug > 0
-faim_internal void faimdprintf(int dlevel, const char *format, ...)
+faim_internal void faimdprintf(struct aim_session_t *sess, int dlevel, const char *format, ...)
 {
-  if (dlevel >= debug) {
+  if (!sess) {
+    fprintf(stderr, "faimdprintf: no session! boo! (%d, %s)\n", dlevel, format);
+    return;
+  }
+
+  if ((dlevel <= sess->debug) && sess->debugcb) {
     va_list ap;
-    
+
     va_start(ap, format);
-    vfprintf(stderr, format, ap);
+    sess->debugcb(sess, dlevel, format, ap);
     va_end(ap);
   }
+
   return;
 }
-#else
-faim_internal void faimdprintf(int dlevel, const char *format, ...)
-{
-  return;
-}
-#endif
