@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Sat Sep  8 21:26:27 PDT 2001
+  - Minor bug directim_connect
+
  - Sat Sep  8 20:18:34 PDT 2001
   - Split up the ICBM Channel 2 handlers a bit more
   - Add a stub parser for recieving buddy lists.  It will stay that way until

@@ -421,7 +421,8 @@ faim_export aim_conn_t *aim_directim_connect(aim_session_t *sess, const char *sn
 
 	memcpy(intdata->cookie, cookie, 8);
 	strncpy(intdata->sn, sn, sizeof(intdata->sn));
-	strncpy(intdata->ip, addr, sizeof(intdata->ip));
+	if (addr)
+		strncpy(intdata->ip, addr, sizeof(intdata->ip));
 
 	/* XXX verify that non-blocking connects actually work */
 	if (!(newconn = aim_newconn(sess, AIM_CONN_TYPE_RENDEZVOUS, addr))) {
