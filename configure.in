@@ -20,6 +20,8 @@ AC_CHECK_LIB(faim, aim_sessioninit)
 dnl Replace `main' with a function in -lpcap:
 dnl AC_CHECK_LIB(pcap, main)
 
+LIBTOOL="$LIBTOOL --silent"
+
 AC_ARG_ENABLE(debug,    [  --disable-debug         compile without debugging options],enable_debug=no,enable_debug=yes)
 
 if test "$enable_debug" = yes ; then
