@@ -75,6 +75,7 @@ int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_str
 int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -187,7 +188,7 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
 
       aim_bos_reqrate(sess, command->conn); /* request rate info */
       aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response -- can we say timing? */
-      aim_bos_setprivacyflags(sess, command->conn, 0x00000003);
+      aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE|AIM_PRIVFLAGS_ALLOWMEMBERSINCE);
       
 #if 0
       aim_bos_reqpersonalinfo(sess, command->conn);
@@ -204,8 +205,8 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
       aim_bos_reqicbmparaminfo(sess, command->conn);
 #endif
       
-      /* set group permissions */
-      aim_bos_setgroupperm(sess, command->conn, 0x1f);
+      /* set group permissions -- all user classes */
+      aim_bos_setgroupperm(sess, command->conn, AIM_CLASS_ALLUSERS);
       fprintf(stderr, "faimtest: done with BOS ServerReady\n");
       break;
 
@@ -399,6 +400,7 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_misses, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_ratechange, 0);
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_EVIL, faimtest_parse_evilnotify, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_misses, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
@@ -448,11 +450,11 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
   if (userinfo->class & 0x0001)
     printf("TRIAL ");
   if (userinfo->class & 0x0002)
-    printf("UNKNOWN_BIT2 ");
+    printf("ADMINISTRATOR ");
   if (userinfo->class & 0x0004)
     printf("AOL ");
   if (userinfo->class & 0x0008)
-    printf("UNKNOWN_BIT4 ");
+    printf("OSCAR_PAY ");
   if (userinfo->class & 0x0010)
     printf("FREE ");
   if (userinfo->class & 0x0040)
@@ -562,6 +564,12 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       } else if (strstr(tmpstr, "goodday")) {
 	printf("faimtest: icbm: sending response\n");
 	aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
+      } else if (strstr(tmpstr, "warnme")) {
+	printf("faimtest: icbm: sending non-anon warning\n");
+	aim_send_warning(sess, command->conn, userinfo->sn, 0);
+      } else if (strstr(tmpstr, "anonwarn")) {
+	printf("faimtest: icbm: sending anon warning\n");
+	aim_send_warning(sess, command->conn, userinfo->sn, AIM_WARN_ANON);
       } else if (!strncmp(tmpstr, "open chatnav", 12)) {
 	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
 	//aim_chat_join(sess, command->conn, "thishereisaname2_chat85");
@@ -852,9 +860,9 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
   printf("\n%s is now online (class: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
 	 userinfo->sn, userinfo->class,
 	 (userinfo->class&AIM_CLASS_TRIAL)?" TRIAL":"",
-	 (userinfo->class&AIM_CLASS_UNKNOWN2)?" UNKNOWN2":"",
+	 (userinfo->class&AIM_CLASS_ADMINISTRATOR)?" ADMINISTRATOR":"",
 	 (userinfo->class&AIM_CLASS_AOL)?" AOL":"",
-	 (userinfo->class&AIM_CLASS_UNKNOWN4)?" UNKNOWN4":"",
+	 (userinfo->class&AIM_CLASS_OSCAR_PAY)?" OSCAR_PAY":"",
 	 (userinfo->class&AIM_CLASS_FREE)?" FREE":"",
 	 (userinfo->class&AIM_CLASS_AWAY)?" AWAY":"",
 	 (userinfo->class&AIM_CLASS_UNKNOWN40)?" UNKNOWN40":"",
@@ -888,7 +896,7 @@ int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *co
   msg = va_arg(ap, char *);
   va_end(ap);
 
-  printf("faimtest: motd: %s\n", msg);
+  printf("faimtest: motd: %s (%d)\n", msg, id);
 
   return 1;
 }
@@ -1164,4 +1172,20 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
   printf("faimtest: ratechange: %lu\n", newrate);
 
   return (1);
+};
+
+int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  char *sn;
+
+  va_start(ap, command);
+  sn = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: warning from: %s\n", sn);
+
+  free(sn);
+
+  return 1;
 };
