@@ -245,7 +245,10 @@ int aim_freetlv(struct aim_tlv_t **oldtlv);
 int aim_puttlv_16(u_char *, u_short, u_short);
 int aim_puttlv_32(u_char *, u_short, u_long);
 int aim_puttlv_str(u_char *buf, u_short t, u_short l, u_char *v);
-
+int aim_writetlvchain(u_char *buf, int buflen, struct aim_tlvlist_t **list);
+int aim_addtlvtochain16(struct aim_tlvlist_t **list, unsigned short type, unsigned short val);
+int aim_addtlvtochain32(struct aim_tlvlist_t **list, unsigned short type, unsigned long val);
+int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str);
 
 /*
  * Get command from connections / Dispatch commands

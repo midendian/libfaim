@@ -630,14 +630,33 @@ int aim_handleredirect_middle(struct aim_session_t *sess,
   struct aim_tlvlist_t *tlvlist;
   int ret = 1;
   
-  tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10);
+  if (!(tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10)))
+    {
+      printf("libfaim: major bug: unable to read tlvchain from redirect\n");
+      return ret;
+    }
   
-  tmptlv = aim_gettlv(tlvlist, 0x000d, 1);
+  if (!(tmptlv = aim_gettlv(tlvlist, 0x000d, 1))) 
+    {
+      printf("libfaim: major bug: no service ID in tlvchain from redirect\n");
+      aim_freetlvchain(&tlvlist);
+      return ret;
+    }
   serviceid = aimutil_get16(tmptlv->value);
 
-  ip = aim_gettlv_str(tlvlist, 0x0005, 1);
+  if (!(ip = aim_gettlv_str(tlvlist, 0x0005, 1))) 
+    {
+      printf("libfaim: major bug: no IP in tlvchain from redirect (service 0x%02x)\n", serviceid);
+      aim_freetlvchain(&tlvlist);
+      return ret;
+    }
   
-  tmptlv = aim_gettlv(tlvlist, 0x0006, 1);
+  if (!(tmptlv = aim_gettlv(tlvlist, 0x0006, 1)))
+    {
+      printf("libfaim: major bug: no cookie in tlvchain from redirect (service 0x%02x)\n", serviceid);
+      aim_freetlvchain(&tlvlist);
+      return ret;
+    }
   memcpy(cookie, tmptlv->value, AIM_COOKIELEN);
 
   if (serviceid == AIM_CONN_TYPE_CHAT)
@@ -658,6 +677,10 @@ int aim_handleredirect_middle(struct aim_session_t *sess,
       if (userfunc)
 	ret =  userfunc(sess, command, serviceid, ip, cookie);
     }
+
+  /*
+   * XXX: Is there a leak here?  Where does IP get freed?
+   */
   aim_freetlvchain(&tlvlist);
 
   return ret;

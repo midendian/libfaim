@@ -67,6 +67,129 @@ void aim_freetlvchain(struct aim_tlvlist_t **list)
   return;
 }
 
+int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str)
+{
+  struct aim_tlvlist_t *new;
+  struct aim_tlvlist_t *cur;
+
+  if (!list)
+    return 0;
+
+  new = (struct aim_tlvlist_t *)malloc(sizeof(struct aim_tlvlist_t));
+  memset(new, 0x00, sizeof(struct aim_tlvlist_t));
+
+  new->tlv = aim_createtlv();	
+  new->tlv->type = type;
+  new->tlv->length = strlen(str);
+  new->tlv->value = (u_char *)malloc(new->tlv->length*sizeof(u_char));
+  memcpy(new->tlv->value, str, new->tlv->length);
+
+  new->next = NULL;
+
+  if (*list == NULL) {
+    *list = new;
+  } else if ((*list)->next == NULL) {
+    (*list)->next = new;
+  } else {
+    for(cur = *list; cur->next; cur = cur->next)
+      ;
+    cur->next = new;
+  }
+  return new->tlv->length;
+}
+
+int aim_addtlvtochain16(struct aim_tlvlist_t **list, unsigned short type, unsigned short val)
+{
+  struct aim_tlvlist_t *new;
+  struct aim_tlvlist_t *cur;
+
+  if (!list)
+    return 0;
+
+  new = (struct aim_tlvlist_t *)malloc(sizeof(struct aim_tlvlist_t));
+  memset(new, 0x00, sizeof(struct aim_tlvlist_t));
+
+  new->tlv = aim_createtlv();	
+  new->tlv->type = type;
+  new->tlv->length = 2;
+  new->tlv->value = (u_char *)malloc(new->tlv->length*sizeof(u_char));
+  aimutil_put16(new->tlv->value, val);
+
+  new->next = NULL;
+
+  if (*list == NULL) {
+    *list = new;
+  } else if ((*list)->next == NULL) {
+    (*list)->next = new;
+  } else {
+    for(cur = *list; cur->next; cur = cur->next)
+      ;
+    cur->next = new;
+  }
+  return 2;
+}
+
+int aim_addtlvtochain32(struct aim_tlvlist_t **list, unsigned short type, unsigned long val)
+{
+  struct aim_tlvlist_t *new;
+  struct aim_tlvlist_t *cur;
+
+  if (!list)
+    return 0;
+
+  new = (struct aim_tlvlist_t *)malloc(sizeof(struct aim_tlvlist_t));
+  memset(new, 0x00, sizeof(struct aim_tlvlist_t));
+
+  new->tlv = aim_createtlv();	
+  new->tlv->type = type;
+  new->tlv->length = 4;
+  new->tlv->value = (u_char *)malloc(new->tlv->length*sizeof(u_char));
+  aimutil_put32(new->tlv->value, val);
+
+  new->next = NULL;
+
+  if (*list == NULL) {
+    *list = new;
+  } else if ((*list)->next == NULL) {
+    (*list)->next = new;
+  } else {
+    for(cur = *list; cur->next; cur = cur->next)
+      ;
+    cur->next = new;
+  }
+  return 4;
+}
+
+int aim_writetlvchain(u_char *buf, int buflen, struct aim_tlvlist_t **list)
+{
+  int goodbuflen = 0;
+  int i = 0;
+  struct aim_tlvlist_t *cur;
+
+  if (!list || !buf || !buflen)
+    return 0;
+
+  /* do an initial run to test total length */
+  for (cur = *list; cur; cur = cur->next) {
+    goodbuflen += 2 + 2; /* type + len */
+    goodbuflen += cur->tlv->length;
+  }
+
+  if (goodbuflen > buflen)
+    return 0; /* not enough buffer */
+
+  /* do the real write-out */
+  for (cur = *list; cur; cur = cur->next) {
+    i += aimutil_put16(buf+i, cur->tlv->type);
+    i += aimutil_put16(buf+i, cur->tlv->length);
+    memcpy(buf+i, cur->tlv->value, cur->tlv->length);
+    i += cur->tlv->length;
+  }
+
+  return i;
+}
+
+
 /*
  * Grab the Nth TLV of type type in the TLV list list.
  */
