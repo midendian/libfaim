@@ -1,6 +1,13 @@
 
 No release numbers
 ------------------
+ - Mon Jun  4 12:45:18 PDT 2001
+  - Don't use snacid's for generic requests (gets around recent blocks)
+  - If they start doing snacid-based blocks again, an audit will have
+      to be done to see what WinAIM requests uses snacids for and what 
+      it leaves it blank for.  That will be tedious and I'm not going to 
+      do it. 
+
  - Thu May 31 23:00:50 PDT 2001
   - Store two hardcoded hashes in login.c.  Sigh.
   - Add prototype for aim_callhandler_noparam in aim_internal.h
