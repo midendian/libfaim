@@ -228,14 +228,14 @@ faim_export int aim_clearhandlers(struct aim_conn_t *conn)
  if (!conn)
    return -1;
 
- cur = conn->handlerlist;
- while(cur) {
+ for (cur = conn->handlerlist; cur; ) {
    struct aim_rxcblist_t *tmp;
 
    tmp = cur->next;
    free(cur);
    cur = tmp;
  }
+ conn->handlerlist = NULL;
 
  return 0;
 }
