@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Fri Mar 16 23:12:58 UTC 2001
+  - Remove one level from aim_rxdispatch()
+
  - Wed Mar 14 20:21:49 UTC 2001
   - Clean up declarations of TLV functions (ie, const)
   - Add -o and -O to faimtest (I didn't use your patch, josh)
