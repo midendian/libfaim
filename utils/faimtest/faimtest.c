@@ -570,8 +570,14 @@ static int faimtest_icbmparaminfo(struct aim_session_t *sess, struct command_rx_
 
 	dvprintf("ICBM Parameters: maxchannel = %d, default flags = 0x%08lx, max msg len = %d, max sender evil = %f, max reciever evil = %f, min msg interval = %ld\n", params->maxchan, params->flags, params->maxmsglen, ((float)params->maxsenderwarn)/10.0, ((float)params->maxrecverwarn)/10.0, params->minmsginterval);
 
+	/*
+	 * Set these to your taste, or client medium.  Setting minmsginterval
+	 * higher is good for keeping yourself from getting flooded (esp
+	 * if you're on a slow connection or something where that would be
+	 * useful).
+	 */
 	params->maxmsglen = 8000;
-	params->minmsginterval = 0;
+	params->minmsginterval = 0; /* in milliseconds */
 
 	aim_seticbmparam(sess, command->conn, params);
 
@@ -1905,7 +1911,7 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
 	reason = va_arg(ap, int);
 	va_end(ap);
 
-	dvprintf("faimtest: missed %d messages from %s (reason %d: %s)\n", nummissed, userinfo->sn, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
+	dvprintf("faimtest: missed %d messages from %s on channel %d (reason %d: %s)\n", nummissed, userinfo->sn, chan, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
 
 	return 1;
 }

@@ -1131,37 +1131,31 @@ static int paraminfo(struct aim_session_t *sess, aim_module_t *mod, struct comma
 
 static int missedcall(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
-	int i = 0;
+	int i, ret = 0;
 	aim_rxcallback_t userfunc;
 	unsigned short channel, nummissed, reason;
 	struct aim_userinfo_s userinfo;
+	
+	for (i = 0; i < datalen; ) {
 
-	/*
-	 * XXX: supposedly, this entire packet can repeat as many times
-	 * as necessary. Should implement that.
-	 */
+		/* Channel ID. */
+		channel = aimutil_get16(data+i);
+		i += 2;
 
-	/*
-	 * Channel ID.
-	 */
-	channel = aimutil_get16(data+i);
-	i += 2;
+		/* Extract the standard user info block. */
+		i += aim_extractuserinfo(sess, data+i, &userinfo);
 
-	/*
-	 * Extract the standard user info block.
-	 */
-	i += aim_extractuserinfo(sess, data+i, &userinfo);
+		nummissed = aimutil_get16(data+i);
+		i += 2;
 
-	nummissed = aimutil_get16(data+i);
-	i += 2;
+		reason = aimutil_get16(data+i);
+		i += 2;
 
-	reason = aimutil_get16(data+i);
-	i += 2;
+		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+			 ret = userfunc(sess, rx, channel, &userinfo, nummissed, reason);
+	}
 
-	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		return userfunc(sess, rx, channel, &userinfo, nummissed, reason);
-
-	return 0;
+	return ret;
 }
 
 static int msgack(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
