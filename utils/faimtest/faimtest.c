@@ -1105,6 +1105,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
  */
 static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, va_list ap)
 {
+	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 	char *tmpstr;
 	struct aim_incomingim_ch1_args *args;
 	int clienttype = AIM_CLIENTTYPE_UNKNOWN;
@@ -1209,6 +1210,9 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 
 	}
 
+	if (priv->buddyicon && (args->icbmflags & AIM_IMFLAGS_BUDDYREQ))
+		aim_send_icon(sess, conn, userinfo->sn, priv->buddyicon, priv->buddyiconlen, priv->buddyiconstamp, priv->buddyiconsum);
+
 	return 1;
 }
 
@@ -1272,7 +1276,7 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 
 	} else if (args->reqclass == AIM_CAPS_BUDDYICON) {
 
-		dvprintf("faimtest: Buddy Icon from %s, length = %u\n", userinfo->sn, args->info.icon.length);
+		dvprintf("faimtest: Buddy Icon from %s, length = %lu\n", userinfo->sn, args->info.icon.length);
 
 	} else {
 

@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Fri Sep  7 19:59:43 PDT 2001
+  - Fix buddyicons. Yay! (checksums are 32bits all the time. duh.)
+
  - Mon Sep  3 18:48:26 PDT 2001
   - Reformat everything to use real tabs (and to my latest coding style)
   - Abstract out the numerical data types to fu8/16/32_t for portability.

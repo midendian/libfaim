@@ -84,7 +84,7 @@ faim_export fu16_t aim_fingerprintclient(fu8_t *msghdr, int len)
 }
 
 /* This should be endian-safe now... but who knows... */
-faim_export fu16_t aim_iconsum(const fu8_t *buf, int buflen)
+faim_export fu32_t aim_iconsum(const fu8_t *buf, int buflen)
 {
 	fu32_t sum;
 	int i;
@@ -94,7 +94,7 @@ faim_export fu16_t aim_iconsum(const fu8_t *buf, int buflen)
 
 	sum = ((sum & 0xffff0000) >> 16) + (sum & 0x0000ffff);
 
-	return sum & 0xffff;
+	return sum;
 }
 
 /*
@@ -260,11 +260,10 @@ faim_export int aim_send_im_ext(aim_session_t *sess, aim_conn_t *conn, struct ai
 	 * Set the I HAVE A REALLY PURTY ICON flag.
 	 */
 	if (args->flags & AIM_IMFLAGS_HASICON) {
-		aimbs_put16(&fr->data, 0x0009);
+		aimbs_put16(&fr->data, 0x0008);
 		aimbs_put16(&fr->data, 0x000c);
 		aimbs_put32(&fr->data, args->iconlen);
-		aimbs_put16(&fr->data, 0x0001); /* XXX is this right?! */
-		aimbs_put16(&fr->data, args->iconsum);
+		aimbs_put32(&fr->data, args->iconsum);
 		aimbs_put32(&fr->data, args->iconstamp);
 	}
 
@@ -303,7 +302,7 @@ faim_export int aim_send_im(aim_session_t *sess, aim_conn_t *conn, const char *d
  * This is also performance sensative. (If you can believe it...)
  *
  */
-faim_export int aim_send_icon(aim_session_t *sess, aim_conn_t *conn, const char *sn, const fu8_t *icon, int iconlen, time_t stamp, fu16_t iconsum)
+faim_export int aim_send_icon(aim_session_t *sess, aim_conn_t *conn, const char *sn, const fu8_t *icon, int iconlen, time_t stamp, fu32_t iconsum)
 {
 	int i;
 	fu8_t ck[8];
@@ -365,8 +364,7 @@ faim_export int aim_send_icon(aim_session_t *sess, aim_conn_t *conn, const char 
 	/* TLV t(2711) */
 	aimbs_put16(&fr->data, 0x2711);
 	aimbs_put16(&fr->data, 4+4+4+iconlen+strlen(AIM_ICONIDENT));
-	aimbs_put16(&fr->data, 0x0000); /* XXX is this right?! */
-	aimbs_put16(&fr->data, iconsum);
+	aimbs_put32(&fr->data, iconsum);
 	aimbs_put32(&fr->data, iconlen);
 	aimbs_put32(&fr->data, stamp);
 	aimbs_putraw(&fr->data, icon, iconlen);
