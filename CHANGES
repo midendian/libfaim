@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Mon May  7 15:19:55 PDT 2001
+  - Rename rxhandler_t to aim_rxhandler_t.  This has been 
+     bugging me for a while.
+
  - Thu May  3 15:47:23 PDT 2001
   - Clean up getcap/putcaps
   - Add GAMES2 and SENDBUDDYLIST caps (the latter is new in winaim 4.7beta)
