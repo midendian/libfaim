@@ -781,7 +781,7 @@ faim_export int aim_handlerendconnect(struct aim_session_t *sess, struct aim_con
 #define AIM_TRANSFER_DENY_NOTSUPPORTED 0x0000
 #define AIM_TRANSFER_DENY_DECLINE 0x0001
 #define AIM_TRANSFER_DENY_NOTACCEPTING 0x0002
-faim_export unsigned long aim_denytransfer(struct aim_session_t *sess, struct aim_conn_t *conn, char *sender, char *cookie, unsigned short code);
+faim_export int aim_denytransfer(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sender, const char *cookie, unsigned short code);
 faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn, char *cookie, char *ip, unsigned short listingfiles, unsigned short listingtotsize, unsigned short listingsize, unsigned int listingchecksum, unsigned short rendid);
 
 faim_export int aim_getinfo(struct aim_session_t *, struct aim_conn_t *, const char *, unsigned short);

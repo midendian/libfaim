@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Wed Aug 22 22:11:18 PDT 2001
+  - Reformat the rest of im.c
+  - Fix a few returns, particularly in error cases
+
  - Thu Aug 16 06:17:57 PDT 2001
   - Reformat a bit of im.c and aim.h
   - Rearrange encoding/subencoding checks in IM parsing
