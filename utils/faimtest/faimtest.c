@@ -1245,16 +1245,21 @@ int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
-  char *sn = NULL, *msg = NULL;
+  char *msg = NULL;
   struct aim_conn_t *conn;
+  struct aim_directim_priv *priv;
 
   va_start(ap, command);
   conn = va_arg(ap, struct aim_conn_t *);
-  sn = va_arg(ap, char *);
   msg = va_arg(ap, char *);
   va_end(ap);
 
-  dvprintf("faimtest: Directim from %s: %s\n", sn, msg);
+  if(!(priv = conn->priv)) {
+    dvprintf("faimtest: directim: no private struct on conn with fd %d\n", conn->fd);
+    return -1;
+  }
+
+  dvprintf("faimtest: Directim from %s: %s\n", priv->sn, msg);
   if (!strncmp(msg, "sendmsg", 7)) {
     int i;
     i = atoi(msg+8);
@@ -1300,13 +1305,19 @@ int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_s
 int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
-  char *sn;
-  
-  va_start(ap, command);
-  sn = va_arg(ap, char *);
-  va_end(ap);
+  struct aim_conn_t *conn;
+  struct aim_directim_priv *priv;
 
-  dvprintf("faimtest: ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", sn);
+  va_start(ap, command);
+  conn = va_arg(ap, struct aim_conn_t *);
+  va_end(ap);
+  
+  if(!(priv = (struct aim_directim_priv *)conn->priv)) {
+    dvprintf("faimtest: no private struct on conn with fd %d!\n", conn->fd);
+    return -1;
+  }
+
+  dvprintf("faimtest: ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", priv->sn);
   return 1;
 }
 

@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Sun Mar 11 05:51:45 UTC 2001 (jbm)
+  - Split off aim_internal.h 
+  - Add aim_tx_cleanqueue()
+  - Remove sn from directim callback (use priv)
+
  - Mon Mar  5 01:19:48 UTC 2001
   - Fix typo in last CHANGES entry.
   - Add fix from Eric to keep efence from complaining about malloc(0)
