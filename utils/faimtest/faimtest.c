@@ -74,6 +74,14 @@ int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+#define FILESUPPORT
+#ifdef FILESUPPORT
+int faimtest_getfile_filereq(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_getfile_filesend(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_getfile_complete(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_getfile_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+#endif
+
 int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
@@ -143,7 +151,13 @@ int main(void)
   int keepgoing = 1;
   char *proxy, *proxyusername, *proxypass;
 
+  char *listingpath;
+
   int selstat = 0;
+
+#ifdef FILESUPPORT
+  FILE *listingfile;
+#endif
 
   if ( !(screenname = getenv("SCREENNAME")) ||
        !(password = getenv("PASSWORD")))
@@ -158,6 +172,10 @@ int main(void)
   proxyusername = getenv("SOCKSNAME");
   proxypass = getenv("SOCKSPASS");
 
+#ifdef FILESUPPORT
+  listingpath = getenv("LISTINGPATH");
+#endif
+
 #ifdef _WIN32
   if (initwsa() != 0) {
     printf("faimtest: could not initialize windows sockets\n");
@@ -166,6 +184,25 @@ int main(void)
 #endif /* _WIN32 */
 
   aim_session_init(&aimsess);
+
+#ifdef FILESUPPORT
+  if(listingpath) {
+    char *listingname;
+    if(!(listingname = (char *)calloc(1, strlen(listingpath)+strlen("/listing.txt")))) {
+      perror("listingname calloc.");
+      exit(-1);
+    }
+    sprintf(listingname, "%s/listing.txt", listingpath);
+    if( (listingfile = fopen(listingname, "r")) == NULL) {
+      printf("Couldn't open %s... bombing.\n", listingname);
+      exit(-1);
+    }
+
+    aim_oft_registerlisting(&aimsess, listingfile, listingpath);
+
+    free(listingname);
+  }
+#endif
 
   if (proxy)
     aim_setupproxy(&aimsess, proxy, proxyusername, proxypass);
@@ -212,16 +249,16 @@ int main(void)
     case 2: /* incoming data pending */
       if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
 	if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
-	  printf("connection error (rend)\n");
+	  printf("connection error (rend out)\n");
 	}
       } else {
 	if (aim_get_command(&aimsess, waitingconn) >= 0) {
 	  aim_rxdispatch(&aimsess);
 	} else {
-	  printf("connection error\n");
+	  printf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
 	  aim_conn_kill(&aimsess, &waitingconn);
 	  if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
-	    printf("major connetion error\n");
+	    printf("major connection error\n");
 	    keepgoing = 0;
 	  }
 	}
@@ -313,9 +350,7 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
       aim_chat_clientready(sess, command->conn);
       break;
 
-    case AIM_CONN_TYPE_RENDEZVOUS: /* this is an overloaded function?? - mid */
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, faimtest_directim_incoming, 0);
-      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
+    case AIM_CONN_TYPE_RENDEZVOUS: /* empty */
       break;
 
     default:
@@ -737,8 +772,33 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       break;
     }
     case AIM_CAPS_GETFILE: {
-      printf("faimtset: get file!\n");
+#ifdef FILESUPPORT
+      char *ip, *cookie;
+      struct aim_conn_t *newconn;
+
+      userinfo = va_arg(ap, struct aim_userinfo_s *);
+      ip = va_arg(ap, char *);
+      cookie = va_arg(ap, char *);
+      va_end(ap);
+      
+      printf("faimtest: get file request from %s (at %s)\n", userinfo->sn, ip);
+
+      sleep(1);
+
+      if( (newconn = aim_accepttransfer(sess, command->conn, userinfo->sn, cookie, ip, sess->oft.listing, reqclass)) == NULL ) {
+	printf("faimtest: getfile: requestconn: apparent error in accepttransfer\n");
+	break;
+      }
+      
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEFILEREQ,  faimtest_getfile_filereq, 0);
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEFILESEND, faimtest_getfile_filesend, 0);
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILECOMPLETE, faimtest_getfile_complete, 0);      
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEDISCONNECT, faimtest_getfile_disconnect, 0);      
+
+      printf("faimtest: getfile connect succeeded, handlers added.\n");
+
       break;
+#endif
     }
     case AIM_CAPS_SENDFILE: {
       printf("faimtest: send file!\n");
@@ -814,7 +874,6 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
   return 1;
 }
 
-#if 0
 int faimtest_directim_initiate(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
@@ -839,7 +898,6 @@ int faimtest_directim_initiate(struct aim_session_t *sess, struct command_rx_str
 
   return 1;
 }
-#endif
 
 int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -896,7 +954,18 @@ int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_str
 
 int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  printf("faimtest: directim_disconnect\n");
+  va_list ap;
+  struct aim_conn_t *conn;
+  char *sn;
+
+  ap = va_start(ap, command);
+  conn = va_arg(ap, struct aim_conn_t *);
+  sn = va_arg(ap, char *);
+  va_end(ap);
+
+  aim_conn_kill(sess, &conn);
+
+  printf("faimtest: directim: disconnected from %s\n", sn);
   return 1;
 }
 
@@ -1297,6 +1366,102 @@ int faimtest_parse_msgack(struct aim_session_t *sess, struct command_rx_struct *
   return 1;
 }
 
+#ifdef FILESUPPORT
+int faimtest_getfile_filereq(struct aim_session_t *ses, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_conn_t *oftconn;
+  struct aim_fileheader_t *fh;
+  char *cookie;
+
+  ap = va_start(ap, command);
+  oftconn = va_arg(ap, struct aim_conn_t *);
+  fh = va_arg(ap, struct aim_fileheader_t *);
+  cookie = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: request for file %s.\n", fh->name);
+
+  return 1;
+}
+
+
+int faimtest_getfile_filesend(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_conn_t *oftconn;
+  struct aim_fileheader_t *fh;
+  char *path, *cookie;
+
+  FILE *file;
+
+  ap = va_start(ap, command);
+  oftconn = va_arg(ap, struct aim_conn_t *);
+  fh = va_arg(ap, struct aim_fileheader_t *);
+  cookie = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: sending file %s.\n", fh->name);
+
+  if( (path = (char *)calloc(1, strlen(sess->oft.listingdir) +strlen(fh->name)+2)) == NULL) {
+    perror("calloc:");
+    printf("faimtest: error in calloc of path\n");
+    return 0; /* XXX: no idea what winaim expects here =) */
+  }
+  
+  snprintf(path, strlen(sess->oft.listingdir)+strlen(fh->name)+2, "%s/%s", sess->oft.listingdir, fh->name);
+
+
+  if( (file = fopen(path, "r")) == NULL) {
+    printf("faimtest: getfile_send fopen failed for %s. damn.\n", path);
+    return 0;
+  }
+
+  if (aim_getfile_send(oftconn, file, fh) == -1) {
+    printf("faimtest: getfile_send failed. damn.\n");
+  } else {
+    printf("faimtest: looks like getfile went clean\n");
+  }
+
+  free(fh);  
+  return 1;
+}
+
+int faimtest_getfile_complete(struct aim_session_t *sess, struct command_rx_struct *command, ...) 
+{
+  va_list ap;
+  struct aim_conn_t *conn;
+  struct aim_fileheader_t *fh;
+
+  ap = va_start(ap, command);
+  conn = va_arg(ap, struct aim_conn_t *);
+  fh = va_arg(ap, struct aim_fileheader_t *);
+  va_end(ap);
+
+  printf("faimtest: completed file transfer for %s.\n", fh->name);
+
+  /*  aim_conn_kill(sess, &conn); */ /* we'll let winaim close the conn */
+  return 1;
+}
+
+int faimtest_getfile_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_conn_t *conn;
+  char *sn;
+
+  ap = va_start(ap, command);
+  conn = va_arg(ap, struct aim_conn_t *);
+  sn = va_arg(ap, char *);
+  va_end(ap);
+
+  aim_conn_kill(sess, &conn);
+
+  printf("faimtest: getfile: disconnected from %s\n", sn);
+  return 1;
+}
+#endif
+
 int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   va_list ap;
@@ -1308,7 +1473,7 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
 
   printf("faimtest: ratechange: %lu\n", newrate);
 
-  return (1);
+  return 1;
 }
 
 int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...)

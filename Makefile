@@ -61,3 +61,6 @@ cleanutils:
 
 clean: cleanutils
 	rm -f $(LIBFAIM_OBJECTS) $(SONAME) libfaim.a *~ core
+
+tags:
+	etags *.[ch] faim/*.[ch] utils/faimtest/faimtest.c
