@@ -1631,7 +1631,7 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
 			   "limit cleared"};
   va_list ap;
   int code;
-  unsigned long parmid, windowsize, clear, alert, limit, disconnect;
+  unsigned long rateclass, windowsize, clear, alert, limit, disconnect;
   unsigned long currentavg, maxavg;
 
   va_start(ap, command); 
@@ -1640,12 +1640,9 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
   code = va_arg(ap, int);
 
   /*
-   * Known parameter ID's...
-   *   0x0001  Warnings
-   *   0x0003  BOS (normal ICBMs, userinfo requests, etc)
-   *   0x0005  Chat messages
+   * See comments above aim_parse_ratechange_middle() in aim_rxhandlers.c.
    */
-  parmid = va_arg(ap, unsigned long);
+  rateclass = va_arg(ap, unsigned long);
 
   /*
    * Not sure what this is exactly.  I think its the temporal 
@@ -1665,9 +1662,9 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
   va_end(ap);
 
 
-  printf("faimtest: rate %s (paramid 0x%04lx): curavg = %ld, maxavg = %ld, alert at %ld, clear warning at %ld, limit at %ld, disconnect at %ld (window size = %ld)\n",
+  printf("faimtest: rate %s (rate class 0x%04lx): curavg = %ld, maxavg = %ld, alert at %ld, clear warning at %ld, limit at %ld, disconnect at %ld (window size = %ld)\n",
 	 (code < 5)?codes[code]:"invalid",
-	 parmid,
+	 rateclass,
 	 currentavg, maxavg,
 	 alert, clear,
 	 limit, disconnect,
