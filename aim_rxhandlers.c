@@ -708,7 +708,7 @@ int aim_parse_unknown(struct aim_session_t *sess,
       faimdprintf(1, "0x%2x ", command->data[i]);
     }
   
-  printf("\n\n");
+  faimdprintf(1, "\n\n");
 
   return 1;
 }
