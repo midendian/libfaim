@@ -117,6 +117,23 @@ int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
+#ifdef _WIN32
+/*
+ * This is really all thats needed to link against libfaim on win32.
+ *
+ * Note that this particular version of faimtest has never been tested
+ * on win32, but I'm fairly sure it should.
+ */
+int initwsa(void)
+{
+  WORD wVersionRequested;
+  WSADATA wsaData;
+
+  wVersionRequested = MAKEWORD(2,2);
+  return WSAStartup(wVersionRequested, &wsaData);
+}
+#endif /* _WIN32 */
+
 static char *screenname,*password,*server=NULL;
 
 int main(void)
@@ -135,6 +152,13 @@ int main(void)
     }
 
   server = getenv("AUTHSERVER");
+
+#ifdef _WIN32
+  if (initwsa() != 0) {
+    printf("faimtest: could not initialize windows sockets\n");
+    return -1;
+  }
+#endif /* _WIN32 */
 
   aim_session_init(&aimsess);
 

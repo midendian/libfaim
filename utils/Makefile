@@ -1,6 +1,6 @@
 include Makefile.dynamicrules
 
-UTIL_DIRS = faimtest aimdebugd #aimdump aimpasswd
+UTIL_DIRS = faimtest #aimdebugd aimdump aimpasswd
 
 utils_all: 
 	@dirs='$(UTIL_DIRS)'; \
