@@ -250,7 +250,7 @@ faim_internal int aim_chat_parse_infoupdate(struct aim_session_t *sess,
 
   if (detaillevel != 0x02) {
     if (detaillevel == 0x01)
-      printf("faim: chat_roomupdateinfo: detail level 2 not supported\n");
+      printf("faim: chat_roomupdateinfo: detail level 1 not supported\n");
     else
       printf("faim: chat_roomupdateinfo: unknown detail level %d\n", detaillevel);
     return 1;
