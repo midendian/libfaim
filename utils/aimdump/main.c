@@ -432,9 +432,9 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
   pkt += 6;
   newlen -= 6;
   
-  if ((snac->family == 0x0000) && (snac->subtype == 0x0001))
+  if (snac->family == 0x0000)
     {
-      printf("\t\tNo SNAC. ACK only.\n");
+      printf("\t\tNo SNAC.\n");
     }
   else
     {
