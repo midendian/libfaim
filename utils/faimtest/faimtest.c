@@ -1344,12 +1344,13 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
   break;
   case 0x0008: {
     char *fqcn, *name, *ck;
-    unsigned short instance, flags, maxmsglen, maxoccupancy, unknown;
+    unsigned short instance, flags, maxmsglen, maxoccupancy, unknown, exchange;
     unsigned char createperms;
     unsigned long createtime;
 
     fqcn = va_arg(ap, char *);
     instance = va_arg(ap, int);
+    exchange = va_arg(ap, int);
     flags = va_arg(ap, int);
     createtime = va_arg(ap, unsigned long);
     maxmsglen = va_arg(ap, int);
@@ -1360,7 +1361,7 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
     ck = va_arg(ap, char *);
     va_end(ap);
 
-    printf("faimtest: recieved room create reply for %s\n", fqcn);
+    printf("faimtest: recieved room create reply for %s/0x%04x\n", fqcn, exchange);
   }
   break;
   default:
