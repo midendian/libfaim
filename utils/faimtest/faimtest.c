@@ -869,6 +869,30 @@ static void printuserflags(fu16_t flags)
 	return;
 }
 
+static int faimtest_handleselfinfo(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	aim_userinfo_t *userinfo;
+
+	va_list ap;
+	va_start(ap, fr);
+	userinfo = va_arg(ap, aim_userinfo_t *);
+	va_end(ap);
+
+	dprintf("Self userinfo:\n");
+	dvprintf("userinfo: sn: %s\n", userinfo->sn);
+	dvprintf("userinfo: warnlevel: %f\n", aim_userinfo_warnlevel(userinfo));
+	dvprintf("userinfo: flags: 0x%04x = ", userinfo->flags);
+	printuserflags(userinfo->flags);
+	dinlineprintf("\n");
+
+	dvprintf("userinfo: membersince: %lu\n", userinfo->membersince);
+	dvprintf("userinfo: onlinesince: %lu\n", userinfo->onlinesince);
+	dvprintf("userinfo: idletime: 0x%04x\n", userinfo->idletime);
+	dvprintf("userinfo: capabilities = %s = 0x%08lx\n", (userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present", userinfo->capabilities);
+
+	return 1;
+}
+
 static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	aim_userinfo_t *userinfo;
@@ -1170,7 +1194,8 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 			for (z = 0; z < i; z++)
 				newbuf[z] = (z % 10)+0x30;
 			newbuf[i] = '\0';
-			aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_ACK | AIM_IMFLAGS_AWAY, newbuf);
+			dvprintf("sending message to '%s': '%s'\n", userinfo->sn, newbuf);
+			aim_send_im(sess, userinfo->sn, 0 /*AIM_IMFLAGS_ACK | AIM_IMFLAGS_AWAY*/, newbuf);
 			free(newbuf);
 		}
 
@@ -1852,6 +1877,7 @@ void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_bos, 0);
 
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SELFINFO, faimtest_handleselfinfo, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0003, ssirights, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0006, ssidata, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x000f, ssidatanochange, 0);
