@@ -695,7 +695,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
       perror("read");
     printf("faim: rend: read error (fd: %i) %02x%02x%02x%02x%02x%02x (%i)\n", conn->fd, hdrbuf1[0],hdrbuf1[1],hdrbuf1[0],hdrbuf1[0],hdrbuf1[0],hdrbuf1[0],hdrlen);
     faim_mutex_unlock(&conn->active);
-    aim_conn_kill(sess, &conn);
+    aim_conn_close(conn);
     return -1;
   }
 
@@ -710,7 +710,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     printf("faim: rend: read2 error\n");
     free(hdr);
     faim_mutex_unlock(&conn->active);
-    aim_conn_kill(sess, &conn);
+    aim_conn_close(conn);
     return 0; /* see comment on previous read check */
   }
 
@@ -752,8 +752,8 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 	printf("faim: rend: read3 error\n");
 	free(msg);
 	faim_mutex_unlock(&conn->active);
-	aim_conn_kill(sess, &conn);
-	return 0;
+	aim_conn_close(conn);
+	return -1;
       }
       faim_mutex_unlock(&conn->active);
       msg[payloadlength] = '\0';
@@ -996,7 +996,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
   case 0x0204: { /* get file: finished. close it up */
     printf("looks like we're done with a transfer (oft 0x0204)\n");
     faim_mutex_unlock(&conn->active);
-    aim_conn_kill(sess, &conn);
+    aim_conn_close(conn);
     break;
   }
   default: {

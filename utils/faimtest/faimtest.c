@@ -57,6 +57,7 @@ int faimtest_authsvrready(struct aim_session_t *, struct command_rx_struct *comm
 int faimtest_pwdchngdone(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_serverready(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_parse_msgack(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_motd(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_login(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_chatnav_info(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -73,6 +74,7 @@ int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -159,6 +161,7 @@ int main(void)
 	  aim_rxdispatch(&aimsess);
 	} else {
 	  printf("connection error\n");
+	  aim_conn_kill(&aimsess, &waitingconn);
 	  if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
 	    printf("major connetion error\n");
 	    keepgoing = 0;
@@ -401,10 +404,11 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_misses, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_misses, 0);
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_ratechange, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_misses, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
-    
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
+
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
@@ -563,7 +567,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	  aim_logoff(sess);
       } else if (strstr(tmpstr, "goodday")) {
 	printf("faimtest: icbm: sending response\n");
-	aim_send_im(sess, command->conn, userinfo->sn, 0, "Good day to you too.");
+	aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
       } else if (!strncmp(tmpstr, "open chatnav", 12)) {
 	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
 	//aim_chat_join(sess, command->conn, "thishereisaname2_chat85");
@@ -1138,3 +1142,36 @@ int faimtest_debugconn_connect(struct aim_session_t *sess, struct command_rx_str
   /* go right into main loop (don't open a BOS connection, etc) */
   return 1;
 }
+
+/*
+ * Recieved in response to an IM sent with the AIM_IMFLAGS_ACK option.
+ */
+int faimtest_parse_msgack(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  unsigned short type;
+  char *sn = NULL;
+
+  ap = va_start(ap, command);
+  type = va_arg(ap, unsigned short);
+  sn = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: msgack: 0x%04x / %s\n", type, sn);
+
+  return 1;
+}
+
+int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  unsigned long newrate;
+  
+  va_start(ap, command); 
+  newrate = va_arg(ap, unsigned long);
+  va_end(ap);
+
+  printf("faimtest: ratechange: %lu\n", newrate);
+
+  return (1);
+};

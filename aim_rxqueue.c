@@ -42,7 +42,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
    */
   faim_mutex_lock(&conn->active);
   if (read(conn->fd, generic, 6) < 6){
-    aim_conn_kill(sess, &conn);
+    aim_conn_close(conn);
     faim_mutex_unlock(&conn->active);
     return -1;
   }
@@ -53,6 +53,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
    */
   if (generic[0] != 0x2a) {
     faimdprintf(1, "Bad incoming data!");
+    aim_conn_close(conn);
     faim_mutex_unlock(&conn->active);
     return -1;
   }	
@@ -91,7 +92,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
   if (read(conn->fd, newrx->data, newrx->commandlen) < newrx->commandlen){
     free(newrx->data);
     free(newrx);
-    aim_conn_kill(sess, &conn);
+    aim_conn_close(conn);
     faim_mutex_unlock(&conn->active);
     return -1;
   }
