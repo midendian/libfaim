@@ -13,7 +13,7 @@
 #include <faim/faimconfig.h>
 #include <faim/aim_cbtypes.h>
 
-#if !defined(FAIM_USEPTHREADS) || !defined(FAIM_USEFAKELOCKS)
+#if !defined(FAIM_USEPTHREADS) && !defined(FAIM_USEFAKELOCKS)
 #error pthreads or fakelocks are currently required.
 #endif
 
