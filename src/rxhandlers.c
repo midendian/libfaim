@@ -507,6 +507,11 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
 
       }
+
+      /* Try it raw and see if we can get it to happen... */
+      if (!workingPtr->handled) /* XXX this is probably bad. */
+	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
+
     }
   }
 
