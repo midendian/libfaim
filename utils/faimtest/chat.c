@@ -167,6 +167,35 @@ static int faimtest_chatnav_info(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
+static int chat_rateinfo(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+
+	aim_ratesack(sess, fr->conn);
+
+	aim_clientready(sess, fr->conn);
+
+	if (fr->conn->type == AIM_CONN_TYPE_CHATNAV) {
+
+		dprintf("chatnav ready\n");
+		
+		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CTN, AIM_CB_CTN_INFO, faimtest_chatnav_info, 0);
+
+		aim_chatnav_reqrights(sess, fr->conn);
+	
+	} else if (fr->conn->type == AIM_CONN_TYPE_CHAT) {
+
+		dprintf("chat ready\n");
+		
+		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN, faimtest_chat_join, 0);
+		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE, faimtest_chat_leave, 0);
+		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE, faimtest_chat_infoupdate, 0);
+		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG, faimtest_chat_incomingmsg, 0);
+
+	}
+
+	return 1;
+}
+
 static int chat_serverready(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	int famcount, i;
@@ -183,28 +212,10 @@ static int chat_serverready(aim_session_t *sess, aim_frame_t *fr, ...)
 		dvinlineprintf("0x%04x ", families[i]);
 	dinlineprintf("\n");
 
-	if (fr->conn->type == AIM_CONN_TYPE_CHATNAV) {
-
-		dprintf("chatnav got server ready\n");
-		
-		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CTN, AIM_CB_CTN_INFO, faimtest_chatnav_info, 0);
-		aim_bos_reqrate(sess, fr->conn);
-		aim_bos_ackrateresp(sess, fr->conn);
-		aim_chatnav_clientready(sess, fr->conn);
-		aim_chatnav_reqrights(sess, fr->conn);
-	
-	} else if (fr->conn->type == AIM_CONN_TYPE_CHAT) {
-
-		dprintf("chat got server ready\n");
-		
-		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN, faimtest_chat_join, 0);
-		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE, faimtest_chat_leave, 0);
-		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE, faimtest_chat_infoupdate, 0);
-		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG, faimtest_chat_incomingmsg, 0);
-		aim_bos_reqrate(sess, fr->conn);
-		aim_bos_ackrateresp(sess, fr->conn);
-		aim_chat_clientready(sess, fr->conn);
-	}
+	/*
+	 * Never send anything until we have rate info.
+	 */
+	aim_reqrates(sess, fr->conn);
 
 	return 1;
 }
@@ -222,6 +233,7 @@ void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 	}
 
 	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, chat_serverready, 0);
+	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, chat_rateinfo, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_auth_sendcookie(sess, tstconn, cookie);
 
@@ -250,6 +262,7 @@ void chat_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie, con
 	aim_chat_attachname(tstconn, roomname);
 
 	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, chat_serverready, 0);
+	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, chat_rateinfo, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_auth_sendcookie(sess, tstconn, cookie);
 

@@ -363,18 +363,12 @@ int faimtest_serverready(aim_session_t *sess, aim_frame_t *fr, ...)
 		dvinlineprintf("0x%04x ", families[i]);
 	dinlineprintf("\n");
 
+	aim_setversions(sess, fr->conn);
+	aim_reqrates(sess, fr->conn); /* request rate info */
+
 	if (fr->conn->type == AIM_CONN_TYPE_AUTH) {
-
-		aim_auth_setversions(sess, fr->conn);
-		aim_bos_reqrate(sess, fr->conn); /* request rate info */
-
 		dprintf("done with auth server ready\n");
-
 	} else if (fr->conn->type == AIM_CONN_TYPE_BOS) {
-
-		aim_setversions(sess, fr->conn);
-		aim_bos_reqrate(sess, fr->conn); /* request rate info */
-
 		dprintf("done with BOS server ready\n");
 	}
 
@@ -404,8 +398,8 @@ int faimtest_parse_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_rateresp_auth(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 
-	aim_bos_ackrateresp(sess, fr->conn);
-	aim_auth_clientready(sess, fr->conn);
+	aim_ratesack(sess, fr->conn);
+	aim_clientready(sess, fr->conn);
 
 	dprintf("faimtest: connected to authorization/admin service\n");
 
@@ -555,7 +549,8 @@ static int faimtest_rateresp_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 	snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", priv->ohcaptainmycaptain ? priv->ohcaptainmycaptain : "blah");
 	snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", priv->ohcaptainmycaptain);
 
-	aim_bos_ackrateresp(sess, fr->conn);  /* ack rate info response */
+	aim_ratesack(sess, fr->conn);  /* ack rate info response */
+
 	aim_bos_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
 	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST);
@@ -650,7 +645,7 @@ static int faimtest_bosrights(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	dvprintf("BOS rights: Max permit = %d / Max deny = %d\n", maxpermits, maxdenies);
 
-	aim_bos_clientready(sess, fr->conn);
+	aim_clientready(sess, fr->conn);
 
 	dprintf("officially connected to BOS.\n");
 
@@ -1225,6 +1220,10 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 			aim_send_im(sess, conn, userinfo->sn, 0, newbuf);
 			free(newbuf);
 		}
+
+	} else if (strstr(tmpstr, "seticqstatus")) {
+
+		aim_icq_setstatus(sess, conn, AIM_ICQ_STATE_DND);
 
 	} else {
 

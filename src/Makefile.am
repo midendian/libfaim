@@ -12,10 +12,12 @@ libfaim_la_SOURCES =	admin.c		\
 			ft.c		\
 			im.c		\
 			info.c		\
+			invite.c	\
 			login.c		\
 			meta.c		\
 			misc.c		\
 			msgcookie.c	\
+			popups.c	\
 			rxhandlers.c	\
 			rxqueue.c	\
 			search.c	\
@@ -23,6 +25,7 @@ libfaim_la_SOURCES =	admin.c		\
 			ssi.c		\
 			stats.c		\
 			tlv.c		\
+			translate.c	\
 			txqueue.c	\
 			util.c		\
 			md5.c
