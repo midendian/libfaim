@@ -76,6 +76,37 @@ int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_s
 int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_buddyrights(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+
+static char *msgerrreasons[] = {
+  "Invalid error",
+  "Invalid SNAC",
+  "Rate to host",
+  "Rate to client",
+  "Not logged on",
+  "Service unavailable",
+  "Service not defined",
+  "Obsolete SNAC",
+  "Not supported by host",
+  "Not supported by client",
+  "Refused by client",
+  "Reply too big",
+  "Responses lost",
+  "Request denied",
+  "Busted SNAC payload",
+  "Insufficient rights",
+  "In local permit/deny",
+  "Too evil (sender)",
+  "Too evil (receiver)",
+  "User temporarily unavailable",
+  "No match",
+  "List overflow",
+  "Request ambiguous",
+  "Queue full",
+  "Not while on AOL"};
+static int msgerrreasonslen = 25;
 
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -261,8 +292,33 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
   return 1;
 }
 
+int faimtest_parse_buddyrights(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{	
+  va_list ap;
+  unsigned short maxbuddies, maxwatchers;
+
+  va_start(ap, command);
+  maxbuddies = va_arg(ap, unsigned short);
+  maxwatchers = va_arg(ap, unsigned short);
+  va_end(ap);
+
+  printf("faimtest: buddy list rights: Max buddies = %d / Max watchers = %d\n", maxbuddies, maxwatchers);
+
+  return 1;
+}
+
 int faimtest_bosrights(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
+  unsigned short maxpermits, maxdenies;
+  va_list ap;
+
+  va_start(ap, command);
+  maxpermits = va_arg(ap, unsigned short);
+  maxdenies = va_arg(ap, unsigned short);
+  va_end(ap);
+
+  printf("faimtest: BOS rights: Max permit = %d / Max deny = %d\n", maxpermits, maxdenies);
+
   aim_bos_clientready(sess, command->conn);
 
   printf("faimtest: officially connected to BOS.\n");
@@ -403,14 +459,15 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, faimtest_reportinterval, 0);
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_RIGHTSINFO, faimtest_parse_buddyrights, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_misses, 0);
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_locerr, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_ratechange, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_EVIL, faimtest_parse_evilnotify, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_misses, 0);
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_msgerr, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
 
@@ -599,6 +656,8 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	struct aim_conn_t *newconn;
 	newconn = aim_directim_initiate(sess, command->conn, NULL, userinfo->sn);
 	//aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINITIATE, faimtest_directim_initiate, 0);
+      } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
+	aim_send_im(sess, command->conn, "vaxherder", 0, "sendmsg 7986");
       } else if (!strncmp(tmpstr, "sendmsg", 7)) {
 	int i;
 	i = atoi(tmpstr+8);
@@ -896,56 +955,84 @@ int faimtest_parse_offgoing(struct aim_session_t *sess, struct command_rx_struct
 
 int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
+  static char *codes[] = {
+    "Unknown",
+    "Mandatory upgrade",
+    "Advisory upgrade",
+    "System bulletin",
+    "Top o' the world!"};
+  static int codeslen = 5;
+
   char *msg;
-  u_short id;
+  unsigned short id;
   va_list ap;
   
   va_start(ap, command);
-  id = va_arg(ap, u_short);
+  id = va_arg(ap, unsigned short);
   msg = va_arg(ap, char *);
   va_end(ap);
 
-  printf("faimtest: motd: %s (%d)\n", msg, id);
+  printf("faimtest: motd: %s (%d / %s)\n", msg, id, 
+	 (id < codeslen)?codes[id]:"unknown");
 
   return 1;
 }
 
+int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  char *destsn;
+  unsigned short reason;
+
+  va_start(ap, command);
+  destsn = va_arg(ap, char *);
+  reason = va_arg(ap, unsigned short);
+  va_end(ap);
+
+  printf("faimtest: message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+  
+  return 1;
+}
+
+int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  char *destsn;
+  unsigned short reason;
+
+  va_start(ap, command);
+  destsn = va_arg(ap, char *);
+  reason = va_arg(ap, unsigned short);
+  va_end(ap);
+
+  printf("faimtest: user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+  
+  return 1;
+}
+
 /* 
- * Handles callbacks for: AIM_CB_RATECHANGE, AIM_CB_USERERROR, 
- *   AIM_CB_MISSED_IM, and AIM_CB_MISSED_CALL.
+ * Handles callbacks for AIM_CB_MISSED_CALL.
  */
 int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  u_short family;
-  u_short subtype;
+  static char *missedreasons[] = {
+    "Unknown",
+    "Message too large"};
+  static int missedreasonslen = 2;
 
-  family = aimutil_get16(command->data+0);
-  subtype= aimutil_get16(command->data+2);
+  va_list ap;
+  unsigned short chan, nummissed, reason;
+  struct aim_userinfo_s *userinfo;
   
-  switch (family)
-    {
-    case 0x0001:
-      if (subtype == 0x000a) /* or AIM_CB_RATECHANGE */
-	printf("\n****STOP SENDING/RECIEVING MESSAGES SO FAST!****\n\n");
-      break;
-    case 0x0002:
-      if (subtype == 0x0001) /* or AIM_CB_USERERROR */
-	{
-	  u_long snacid = 0x00000000;
-	  
-	  snacid = aimutil_get32(&command->data[6]);
-	  
-	  printf("Received unknown error in SNAC family 0x0002 (snacid = %08lx)\n", snacid);
-	}
-      break;
-    case 0x0004:
-      if (subtype == 0x0001) /* or AIM_CB_MISSED_IM */
-	printf("\n***LAST IM DIDN\'T MAKE IT BECAUSE THE BUDDY IS NOT ONLINE***\n\n");
-      else if (subtype == 0x000a) /* or AIM_CB_MISSED_CALL */
-	printf("You missed some messages from %s because they were sent too fast\n", &(command->data[13]));
-      break;
-    }
+  va_start(ap, command);
+  chan = va_arg(ap, unsigned short);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
+  nummissed = va_arg(ap, unsigned short);
+  reason = va_arg(ap, unsigned short);
+  va_end(ap);
 
+  printf("faimtest: missed %d messages from %s (reason %d: %s)\n", nummissed, userinfo->sn, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
+  
   return 0;
 }
 
