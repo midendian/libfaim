@@ -551,7 +551,11 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   char *sn = NULL, *bosip = NULL, *errurl = NULL, *email = NULL;
   unsigned char *cookie = NULL;
   int errorcode = 0, regstatus = 0;
-  
+  int latestbuild = 0, latestbetabuild = 0;
+  char *latestrelease = NULL, *latestbeta = NULL;
+  char *latestreleaseurl = NULL, *latestbetaurl = NULL;
+  char *latestreleaseinfo = NULL, *latestbetainfo = NULL;
+
   va_start(ap, command);
   sn = va_arg(ap, char *);
   errorcode = va_arg(ap, int);
@@ -560,6 +564,17 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   email = va_arg(ap, char *);
   bosip = va_arg(ap, char *);
   cookie = va_arg(ap, unsigned char *);
+
+  latestrelease = va_arg(ap, char *);
+  latestbuild = va_arg(ap, int);
+  latestreleaseurl = va_arg(ap, char *);
+  latestreleaseinfo = va_arg(ap, char *);
+
+  latestbeta = va_arg(ap, char *);
+  latestbetabuild = va_arg(ap, int);
+  latestbetaurl = va_arg(ap, char *);
+  latestbetainfo = va_arg(ap, char *);
+
   va_end(ap);
 
   printf("Screen name: %s\n", sn);
@@ -577,6 +592,12 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   printf("Reg status: %2d\n", regstatus);
   printf("Email: %s\n", email);
   printf("BOS IP: %s\n", bosip);
+
+  if (latestbeta)
+    printf("Latest beta version: %s, build %d, at %s (more info at %s)\n", latestbeta, latestbetabuild, latestbetaurl, latestbetainfo);
+
+  if (latestrelease)
+    printf("Latest released version: %s, build %d, at %s (more info at %s)\n", latestrelease, latestbuild, latestreleaseurl, latestreleaseinfo);
 
   printf("Closing auth connection...\n");
   aim_conn_kill(sess, &command->conn);
