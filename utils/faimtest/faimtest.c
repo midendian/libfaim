@@ -93,8 +93,6 @@ int main(void)
   struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
   int keepgoing = 1;
 
-  struct client_info_s info = {"FAIMtest (Hi guys!)", 4, 3, 3141, "us", "en", 0x0004, 0x0001, 0x00000055};
-
   int selstat = 0;
 
   if ( !(screenname = getenv("SCREENNAME")) ||
@@ -121,20 +119,16 @@ int main(void)
     aim_conn_kill(&aimsess, &authconn);
     return -1;
   }
-#ifdef SNACLOGIN
-  /* new login code -- not default -- pending new password encryption algo */
+
   aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
   aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);
     
   aim_sendconnack(&aimsess, authconn);
-  aim_request_login(&aimsess, authconn, FAIMTEST_SCREENNAME);
-#else
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_parse_authresp, 0);
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
-  aim_send_login(&aimsess, authconn, screenname, password, &info);
-#endif
+  aim_request_login(&aimsess, authconn, screenname);
+
   aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
-  printf("faimtest: login sent\n");
+
+  printf("faimtest: login request sent\n");
 
   while (keepgoing) {
     waitingconn = aim_select(&aimsess, NULL, &selstat);
@@ -938,24 +932,20 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
   return 0;
 }
 
-#ifdef SNACLOGIN
 int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
-  u_char authcookie[11];
-  int i;
+  struct client_info_s info = {"faimtest (with SNAC login)", 4, 1, 2010, "us", "en", 0x0004, 0x0000, 0x0000004b}; /* 4.1.2010 */
+  unsigned char *key;
+  va_list ap;
   
-  for (i = 0; i < (int)command->data[11]; i++)
-    authcookie[i] = command->data[12+i];
-  authcookie[i] = '\0';
+  va_start(ap, command);
+  key = va_arg(ap, char *);
+  va_end(ap);
 
-  printf("faimtest: logincookie: %s\n", authcookie);
-  
-  aim_send_login(sess, command->conn, FAIMTEST_SCREENNAME, FAIMTEST_PASSWORD, &info);
+  aim_send_login(sess, command->conn, screenname, password, &info, key);
  
   return 1;
 }
-#endif
 
 int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
