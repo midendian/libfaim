@@ -389,7 +389,7 @@ struct aim_userinfo_s {
 #define AIM_FLAG_ALLUSERS	0x001f
 
 
-#ifdef FAIM_INTERNAL
+#if defined(FAIM_INTERNAL) || defined(FAIM_NEED_TLV)
 /*
  * TLV handling
  */

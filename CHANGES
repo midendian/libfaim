@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Thu Feb  8 20:12:39 UTC 2001
+  - Let TLV functions out of aim.h if FAIM_NEED_TLV is defined.
+
  - Thu Feb  8 02:31:25 UTC 2001
   - Remove aim_purgecookies() -- never used anyway
   - Clean up a few bits of aim_msgcookie.c
