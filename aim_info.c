@@ -14,6 +14,10 @@ u_long aim_getinfo(struct aim_session_t *sess,
 		   const char *sn)
 {
   struct command_tx_struct newpacket;
+  int i = 0;
+
+  if (!sess || !conn || !sn)
+    return 0;
 
   if (conn)
     newpacket.conn = conn;
@@ -26,12 +30,13 @@ u_long aim_getinfo(struct aim_session_t *sess,
   newpacket.commandlen = 12 + 1 + strlen(sn);
   newpacket.data = (char *) malloc(newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, 0x0002, 0x0005, 0x0000, sess->snac_nextid);
+  i = aim_putsnac(newpacket.data, 0x0002, 0x0005, 0x0000, sess->snac_nextid);
 
-  aimutil_put16(newpacket.data+10, 0x0001);
-  aimutil_put8(newpacket.data+12, strlen(sn));
-  aimutil_putstr(newpacket.data+13, sn, strlen(sn));
+  i += aimutil_put16(newpacket.data+i, 0x0001);
+  i += aimutil_put8(newpacket.data+i, strlen(sn));
+  i += aimutil_putstr(newpacket.data+i, sn, strlen(sn));
 
+  newpacket.lock = 0;
   aim_tx_enqueue(sess, &newpacket);
 
   {
@@ -43,7 +48,7 @@ u_long aim_getinfo(struct aim_session_t *sess,
     snac.flags = 0x0000;
 
     snac.data = malloc(strlen(sn)+1);
-    memcpy(snac.data, sn, strlen(sn)+1);
+    strcpy(snac.data, sn);
 
     aim_newsnac(sess, &snac);
   }
@@ -316,8 +321,16 @@ int aim_parse_userinfo_middle(struct aim_session_t *sess,
     snacid = aimutil_get32(&command->data[6]);
     snac = aim_remsnac(sess, snacid);
 
-    free(snac->data);
-    free(snac);
+    if (snac)
+      {
+	if (snac->data)
+	  free(snac->data);
+	else
+	  printf("faim: parse_userinfo_middle: warning: no ->data in cached SNAC\n");
+	free(snac);
+      }
+    else
+      printf("faim: parseuserinfo_middle: warning: no SNAC cached with for this response (%08lx)\n", snacid);
 
   }
   
