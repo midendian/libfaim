@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ -  Wed Jun 27 00:13:20 EDT 2001
+  - Some comments about UNICODE in faimtest.
+
  - Fri Jun 15 17:51:27 EDT 2001
   - Make faimtest compile on RH7.1 (new gcc).
   - Add aim_conn_getsess()

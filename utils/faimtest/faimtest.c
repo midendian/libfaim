@@ -1373,6 +1373,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     char *tmpstr;
     struct aim_incomingim_ch1_args *args;
     int clienttype = AIM_CLIENTTYPE_UNKNOWN;
+    char realmsg[8192+1] = {""};
 
     args = va_arg(ap, struct aim_incomingim_ch1_args *);
     va_end(ap);
@@ -1404,22 +1405,70 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     
     dvprintf("faimtest: icbm: encoding flags = {%04x, %04x}\n", args->flag1, args->flag2);
 
-    dvprintf("faimtest: icbm: message: %s\n", args->msg);
+    /*
+     * Quickly convert it to eight bit format, replacing non-ASCII UNICODE 
+     * characters with their equivelent HTML entity.
+     */
+    if (args->icbmflags & AIM_IMFLAGS_UNICODE) {
+      int i;
+
+      for (i = 0; i < args->msglen; i += 2) {
+	unsigned short uni;
+
+	uni = ((args->msg[i] & 0xff) << 8) | (args->msg[i+1] & 0xff);
+
+	if ((uni < 128) || ((uni >= 160) && (uni <= 255))) { /* ISO 8859-1 */
+
+	  snprintf(realmsg+strlen(realmsg), sizeof(realmsg)-strlen(realmsg),
+		   "%c", uni);
+
+	} else { /* something else, do UNICODE entity */
+
+	  snprintf(realmsg+strlen(realmsg), sizeof(realmsg)-strlen(realmsg),
+		   "&#%04x;", uni);
+
+	}
+
+      }
+
+    } else {
+
+      /*
+       * For non-UNICODE encodings (ASCII and ISO 8859-1), there is no
+       * need to do anything special here.  Most terminals/whatever will
+       * be able to display such characters unmodified.
+       *
+       * Beware that PC-ASCII 128 through 159 are _not_ actually defined in 
+       * ASCII or ISO 8859-1, and you should send them as UNICODE.  WinAIM
+       * will send these characters in a UNICODE message, so you need
+       * to do so as well.
+       *
+       * You may not think it necessary to handle UNICODE messages.  You're
+       * probably wrong.  For one thing, Microsoft "Smart Quotes" will
+       * be sent by WinAIM as UNICODE (not HTML UNICODE, but real UNICODE).
+       * If you don't parse UNICODE at all, your users will get a blank
+       * message instead of the message containing Smart Quotes.
+       *
+       */
+      strncpy(realmsg, args->msg, sizeof(realmsg));
+    }
+
+    dvprintf("faimtest: icbm: message: %s\n", realmsg);
 
     if (args->icbmflags & AIM_IMFLAGS_HASICON)
       aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");
 
-    if (args->msg) {
+    if (realmsg) {
       int i = 0;
 
-      while (args->msg[i] == '<') {
-	if (args->msg[i] == '<') {
-	  while (args->msg[i] != '>')
+      while (realmsg[i] == '<') {
+	if (realmsg[i] == '<') {
+	  while (realmsg[i] != '>')
 	    i++;
 	  i++;
 	}
       }
-      tmpstr = args->msg+i;
+      tmpstr = realmsg+i;
 
       faimtest_handlecmd(sess, command, userinfo, tmpstr);
 
