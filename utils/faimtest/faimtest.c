@@ -180,33 +180,54 @@ int main(void)
   exit(0);
 }
 
+int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+
+  switch(command->conn->type) {
+  case AIM_CONN_TYPE_BOS: {
+    /* this is the new buddy list */
+    char buddies[] = "Buddy1&Buddy2&ThisHereIsAName2&";
+    /* this is the new profile */
+    char profile[] = "Hello";  
+
+    aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response */
+    aim_bos_reqpersonalinfo(sess, command->conn);
+    aim_bos_reqlocaterights(sess, command->conn);
+    aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_VOICE | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE);
+    aim_bos_reqbuddyrights(sess, command->conn);
+
+    /* send the buddy list and profile (required, even if empty) */
+    aim_bos_setbuddylist(sess, command->conn, buddies);
+
+    /* dont really know what this does */
+    aim_addicbmparam(sess, command->conn);
+    aim_bos_reqicbmparaminfo(sess, command->conn);  
+  
+    aim_bos_reqrights(sess, command->conn);  
+    /* set group permissions -- all user classes */
+    aim_bos_setgroupperm(sess, command->conn, AIM_CLASS_ALLUSERS);
+    aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE|AIM_PRIVFLAGS_ALLOWMEMBERSINCE);
+
+    break;  
+  }
+
+  default: 
+    printf("faimtest: got rate response for unhandled connection type %04x\n", command->conn->type);
+    break;
+  }
+
+  return 1;
+}
+
 int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   switch (command->conn->type)
     {
     case AIM_CONN_TYPE_BOS:
 
-      aim_bos_reqrate(sess, command->conn); /* request rate info */
-      aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response -- can we say timing? */
-      aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE|AIM_PRIVFLAGS_ALLOWMEMBERSINCE);
-      
-#if 0
-      aim_bos_reqpersonalinfo(sess, command->conn);
-#endif
-      
-      /* Request advertisement service -- see comment in handleredirect */
-      aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_ADS);
       aim_setversions(sess, command->conn);
+      aim_bos_reqrate(sess, command->conn); /* request rate info */
 
-#if 0
-      aim_bos_reqrights(sess, command->conn);
-      aim_bos_reqbuddyrights(sess, command->conn);
-      aim_bos_reqlocaterights(sess, command->conn);
-      aim_bos_reqicbmparaminfo(sess, command->conn);
-#endif
-      
-      /* set group permissions -- all user classes */
-      aim_bos_setgroupperm(sess, command->conn, AIM_CLASS_ALLUSERS);
       fprintf(stderr, "faimtest: done with BOS ServerReady\n");
       break;
 
@@ -240,6 +261,15 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
   return 1;
 }
 
+int faimtest_bosrights(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  aim_bos_clientready(sess, command->conn);
+
+  printf("faimtest: officially connected to BOS.\n");
+
+  return 1;
+}
+
 /*
   handleredirect()...
 
@@ -262,11 +292,6 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   char *ip;
   char *cookie;
 
-  /* this is the new buddy list */
-  char buddies[] = "Buddy1&Buddy2&ThisHereIsAName2&";
-  /* this is the new profile */
-  char profile[] = "Hello";  
-
   va_start(ap, command);
   serviceid = va_arg(ap, int);
   ip = va_arg(ap, char *);
@@ -274,24 +299,6 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
  
   switch(serviceid)
     {
-    case 0x0005: /* Advertisements */
-      /*
-       * The craziest explanation yet as to why we finish logging in when
-       * we get the advertisements redirect, of which we don't use anyway....
-       *                    IT WAS EASY!
-       */
-
-      /* send the buddy list and profile (required, even if empty) */
-      aim_bos_setbuddylist(sess, command->conn, buddies);
-      aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_VOICE | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE);
-
-      /* send final login command (required) */
-      aim_bos_clientready(sess, command->conn); /* tell BOS we're ready to go live */
-
-      /* you should now be ready to go */
-      printf("\nYou are now officially online.\n");      
-
-      break;
     case 0x0007: /* Authorizer */
       {
 	struct aim_conn_t *tstconn;
@@ -389,6 +396,8 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
     fprintf(stderr, "faimtest: could not connect to BOS\n");
     aim_conn_kill(sess, &bosconn);
   } else {
+    aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
+    aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
