@@ -107,7 +107,7 @@ static int faimtest_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 	if (errorcode || !bosip || !cookie) {
 		dvprintf("Login Error Code 0x%04x\n", errorcode);
 		dvprintf("Error URL: %s\n", errurl);
-		//aim_conn_kill(sess, &fr->conn);
+		aim_conn_kill(sess, &fr->conn);
 		return 1;
 	}
 

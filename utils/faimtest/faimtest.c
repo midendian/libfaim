@@ -1059,9 +1059,9 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
 
 		directim_start(sess, conn, userinfo->sn);
 
-	} else if(!(strncmp(tmpstr, "lookup", 6))) {
+	} else if(strstr(tmpstr, "lookup")) {
 
-		aim_usersearch_address(sess, conn, tmpstr+7);
+		aim_usersearch_address(sess, conn, "mid@auk.cx");
 
 	} else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 

@@ -27,6 +27,55 @@ faim_export int aim_sendflapver(aim_session_t *sess, aim_conn_t *conn)
 }
 
 /*
+ * This is a bit confusing.
+ *
+ * Normal SNAC login goes like this:
+ *   - connect
+ *   - server sends flap version
+ *   - client sends flap version
+ *   - client sends screen name (17/6)
+ *   - server sends hash key (17/7)
+ *   - client sends auth request (17/2 -- aim_send_login)
+ *   - server yells
+ *
+ * XOR login (for ICQ) goes like this:
+ *   - connect
+ *   - server sends flap version
+ *   - client sends auth request which contains flap version (aim_send_login)
+ *   - server yells
+ *
+ * For the client API, we make them implement the most complicated version,
+ * and for the simpler version, we fake it and make it look like the more
+ * complicated process.
+ *
+ * This is done by giving the client a faked key, just so we can convince
+ * them to call aim_send_login right away, which will detect the session
+ * flag that says this is XOR login and ignore the key, sending an ICQ
+ * login request instead of the normal SNAC one.
+ *
+ * As soon as AOL makes ICQ log in the same way as AIM, this is /gone/.
+ *
+ * XXX This may cause problems if the client relies on callbacks only
+ * being called from the context of aim_rxdispatch()...
+ *
+ */
+static int goddamnicq(aim_session_t *sess, aim_conn_t *conn, const char *sn)
+{
+	aim_frame_t fr;
+	aim_rxcallback_t userfunc;
+	
+	sess->flags &= ~AIM_SESS_FLAGS_SNACLOGIN;
+	sess->flags |= AIM_SESS_FLAGS_XORLOGIN;
+
+	fr.conn = conn;
+	
+	if ((userfunc = aim_callhandler(sess, conn, 0x0017, 0x0007)))
+		userfunc(sess, &fr, "");
+
+	return 0;
+}
+
+/*
  * In AIM 3.5 protocol, the first stage of login is to request login from the 
  * Authorizer, passing it the screen name for verification.  If the name is 
  * invalid, a 0017/0003 is spit back, with the standard error contents.  If 
@@ -44,6 +93,9 @@ faim_export int aim_request_login(aim_session_t *sess, aim_conn_t *conn, const c
 	if (!sess || !conn || !sn)
 		return -EINVAL;
 
+	if ((sn[0] >= '0') || (sn[0] <= '9'))
+		return goddamnicq(sess, conn, sn);
+
 	sess->flags |= AIM_SESS_FLAGS_SNACLOGIN;
 
 	aim_sendflapver(sess, conn);
@@ -56,6 +108,51 @@ faim_export int aim_request_login(aim_session_t *sess, aim_conn_t *conn, const c
 
 	aim_addtlvtochain_raw(&tl, 0x0001, strlen(sn), sn);
 	aim_writetlvchain(&fr->data, &tl);
+	aim_freetlvchain(&tl);
+
+	aim_tx_enqueue(sess, fr);
+
+	return 0;
+}
+
+/*
+ * Part two of the ICQ hack.  Note the ignoring of the key and clientinfo.
+ */
+static int goddamnicq2(aim_session_t *sess, aim_conn_t *conn, const char *sn, const char *password)
+{
+	static const char clientstr[] = {"ICQ Inc. - Product of ICQ (TM) 2000b.4.65.1.3281.85"};
+	static const char lang[] = {"en"};
+	static const char country[] = {"us"};
+	aim_frame_t *fr;
+	aim_tlvlist_t *tl = NULL;
+	char *password_encoded;
+
+	if (!(password_encoded = (char *) malloc(strlen(password))))
+		return -ENOMEM;
+
+	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x01, 1152))) {
+		free(password_encoded);
+		return -ENOMEM;
+	}
+
+	aim_encode_password(password, password_encoded);
+
+	aimbs_put32(&fr->data, 0x00000001);
+	aim_addtlvtochain_raw(&tl, 0x0001, strlen(sn), sn);
+	aim_addtlvtochain_raw(&tl, 0x0002, strlen(password), password_encoded);
+	aim_addtlvtochain_raw(&tl, 0x0003, strlen(clientstr), clientstr);
+	aim_addtlvtochain16(&tl, 0x0016, 0x010a);
+	aim_addtlvtochain16(&tl, 0x0017, 0x0004);
+	aim_addtlvtochain16(&tl, 0x0018, 0x0041);
+	aim_addtlvtochain16(&tl, 0x0019, 0x0001);
+	aim_addtlvtochain16(&tl, 0x001a, 0x0cd1);
+	aim_addtlvtochain32(&tl, 0x0014, 0x00000055);
+	aim_addtlvtochain_raw(&tl, 0x000f, strlen(lang), lang);
+	aim_addtlvtochain_raw(&tl, 0x000e, strlen(country), country);
+
+	aim_writetlvchain(&fr->data, &tl);
+
+	free(password_encoded);
 	aim_freetlvchain(&tl);
 
 	aim_tx_enqueue(sess, fr);
@@ -126,9 +223,14 @@ faim_export int aim_send_login(aim_session_t *sess, aim_conn_t *conn, const char
 {
 	aim_frame_t *fr;
 	aim_tlvlist_t *tl = NULL;
+	fu8_t digest[16];
+	aim_snacid_t snacid;
 
 	if (!clientinfo || !sn || !password)
 		return -EINVAL;
+
+	if (sess->flags & AIM_SESS_FLAGS_XORLOGIN)
+		return goddamnicq2(sess, conn, sn, password);
 
 	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, 1152)))
 		return -ENOMEM;
@@ -145,40 +247,23 @@ faim_export int aim_send_login(aim_session_t *sess, aim_conn_t *conn, const char
 		clientinfo->unknown = 0x00000055;
 	}
 
-	if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN)
-		aim_putsnac(&fr->data, 0x0017, 0x0002, 0x0000, 0x00010000);
-	else
-		aimbs_put32(&fr->data, 0x00000001);
+	snacid = aim_cachesnac(sess, 0x0017, 0x0002, 0x0000, NULL, 0);
+	aim_putsnac(&fr->data, 0x0017, 0x0002, 0x0000, snacid);
 
 	aim_addtlvtochain_raw(&tl, 0x0001, strlen(sn), sn);
 
-	if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
-		fu8_t digest[16];
-
-		aim_encode_password_md5(password, key, digest);
-		aim_addtlvtochain_raw(&tl, 0x0025, 16, digest);
-	} else { 
-		char *password_encoded;
-
-		password_encoded = (char *) malloc(strlen(password));
-		aim_encode_password(password, password_encoded);
-		aim_addtlvtochain_raw(&tl, 0x0002, strlen(password), password_encoded);
-		free(password_encoded);
-	}
+	aim_encode_password_md5(password, key, digest);
+	aim_addtlvtochain_raw(&tl, 0x0025, 16, digest);
 
 	aim_addtlvtochain_raw(&tl, 0x0003, strlen(clientinfo->clientstring), clientinfo->clientstring);
-
 	aim_addtlvtochain16(&tl, 0x0016, (fu16_t)clientinfo->major2);
 	aim_addtlvtochain16(&tl, 0x0017, (fu16_t)clientinfo->major);
 	aim_addtlvtochain16(&tl, 0x0018, (fu16_t)clientinfo->minor);
 	aim_addtlvtochain16(&tl, 0x0019, (fu16_t)clientinfo->minor2);
 	aim_addtlvtochain16(&tl, 0x001a, (fu16_t)clientinfo->build);
-
 	aim_addtlvtochain_raw(&tl, 0x000e, strlen(clientinfo->country), clientinfo->country);
 	aim_addtlvtochain_raw(&tl, 0x000f, strlen(clientinfo->lang), clientinfo->lang);
-
-	if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN)
-		aim_addtlvtochain16(&tl, 0x0009, 0x0015);
+	aim_addtlvtochain16(&tl, 0x0009, 0x0015);
 
 	aim_writetlvchain(&fr->data, &tl);
 

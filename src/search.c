@@ -20,10 +20,10 @@ faim_export int aim_usersearch_address(aim_session_t *sess, aim_conn_t *conn, co
 	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, 10+strlen(address))))
 		return -ENOMEM;
 
-	snacid = aim_cachesnac(sess, 0x000a, 0x0002, 0x0000, address, strlen(address)+1);
-
+	snacid = aim_cachesnac(sess, 0x000a, 0x0002, 0x0000, strdup(address), strlen(address)+1);
 	aim_putsnac(&fr->data, 0x000a, 0x0002, 0x0000, snacid);
-	aimbs_putraw(&fr->data, address, strlen(address)); /* XXX this doesn't seem right at all... */
+	
+	aimbs_putraw(&fr->data, address, strlen(address)); 
 
 	aim_tx_enqueue(sess, fr);
 
@@ -56,22 +56,17 @@ static int error(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_mo
 
 static int reply(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
-	int j, m, ret = 0;
+	int j = 0, m, ret = 0;
 	aim_tlvlist_t *tlvlist;
 	char *cur = NULL, *buf = NULL;
 	aim_rxcallback_t userfunc;
 	aim_snac_t *snac2;
+	char *searchaddr = NULL;
 
-	if (!(snac2 = aim_remsnac(sess, snac->id))) {
-		faimdprintf(sess, 2, "search reply: couldn't get a snac for 0x%08lx\n", snac->id);
-		return 0;
-	}
+	if ((snac2 = aim_remsnac(sess, snac->id)))
+		searchaddr = (char *)snac2->data;
 
 	tlvlist = aim_readtlvchain(bs);
-		return 0;
-
-	j = 0;
-
 	m = aim_counttlvchain(&tlvlist);
 
 	/* XXX uhm. */
@@ -87,7 +82,7 @@ static int reply(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_mo
 	aim_freetlvchain(&tlvlist);
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		ret = userfunc(sess, rx, snac2->data /* address */, j, buf);
+		ret = userfunc(sess, rx, searchaddr, j, buf);
 
 	/* XXX freesnac()? */
 	if (snac2)

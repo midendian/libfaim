@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Sat Sep  8 19:05:05 PDT 2001
+  - Redo ICQ login
+  - Fix search by email (oops).
+
  - Sat Sep  8 17:07:09 PDT 2001
   - Fix directim so you can do it more than once without crashing.
    - This removes the connect/disconnect callbacks.  They were pointless, as
