@@ -683,7 +683,7 @@ faim_internal int aim_listenestablish(u_short portnum)
   const int on = 1;
   struct sockaddr_in sockin;
   
-  if ((listenfd = socket(PF_INET, SOCK_STREAM, AF_INET)) < 0) {
+  if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket(listenfd)");
     return -1;
   } 
