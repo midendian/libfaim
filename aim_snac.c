@@ -38,7 +38,7 @@ u_long aim_newsnac(struct aim_session_t *sess,
   while (cur->next != NULL)
     cur = cur->next;
   cur->next = snac;
-  printf("faim: snac: added %08lx\n", snac->id);
+
   return(snac->id);
 }
 
@@ -46,14 +46,12 @@ struct aim_snac_t *aim_remsnac(struct aim_session_t *sess,
 			       u_long id) 
 {
   struct aim_snac_t *cur;
-  
+
+  cur = sess->outstanding_snacs;
+
   if (cur == NULL)
     return(NULL);
 
-  printf("faim: snac: searching for %08lx to remove\n", id);
-
-  cur = sess->outstanding_snacs;
-  
   if (cur->id == id) {
     sess->outstanding_snacs = cur->next;
     return(cur);
@@ -94,7 +92,7 @@ int aim_cleansnacs(struct aim_session_t *sess,
     {
       if ( (cur) && (((cur->issuetime) + maxage) < curtime))
 	{
-#if 1/* DEBUG > 1*/
+#if DEBUG > 1
 	  printf("aimsnac: WARNING purged obsolete snac %08lx\n", cur->id);
 #endif
 	  remed = aim_remsnac(sess, cur->id);

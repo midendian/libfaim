@@ -43,7 +43,6 @@ u_long aim_getinfo(struct aim_session_t *sess,
     struct aim_snac_t snac;
     
     snac.id = sess->snac_nextid;
-    printf("faim: getuserinfo: caching snac %08lx\n", snac.id);
     snac.family = 0x0002;
     snac.type = 0x0005;
     snac.flags = 0x0000;
