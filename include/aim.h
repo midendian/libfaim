@@ -938,6 +938,7 @@ faim_export int aim_admin_changepasswd(aim_session_t *, aim_conn_t *, const char
 faim_export int aim_admin_reqconfirm(aim_session_t *sess, aim_conn_t *conn);
 faim_export int aim_admin_getinfo(aim_session_t *sess, aim_conn_t *conn, fu16_t info);
 faim_export int aim_admin_setemail(aim_session_t *sess, aim_conn_t *conn, const char *newemail);
+faim_export int aim_admin_setnick(aim_session_t *sess, aim_conn_t *conn, const char *newnick);
 
 /* aim_buddylist.c */
 faim_export int aim_add_buddy(aim_session_t *, aim_conn_t *, const char *);

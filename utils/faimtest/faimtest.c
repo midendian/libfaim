@@ -1134,9 +1134,13 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 		aim_send_im(sess, priv->ohcaptainmycaptain, 0, "sendmsg 7900");
 
-	} else if (!strncmp(tmpstr, "reqauth", 7)) {
+	} else if (!strncmp(tmpstr, "reqadmin", 8)) {
 
 		aim_reqservice(sess, conn, AIM_CONN_TYPE_AUTH);
+
+	} else if (!strncmp(tmpstr, "changenick", 10)) {
+
+		aim_admin_setnick(sess, aim_getconn_type(sess, AIM_CONN_TYPE_AUTH), "diputs8  1");
 
 	} else if (!strncmp(tmpstr, "reqconfirm", 10)) {
 
