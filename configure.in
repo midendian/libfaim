@@ -49,7 +49,7 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS(gethostname gettimeofday select socket strdup strstr strtol uname)
 
 AC_CHECK_LIB(readline, rl_callback_handler_install,
-	READLINELIB="-lreadline",
+	READLINELIB="-lreadline -lcurses",
 	AC_MSG_ERROR(unable to find GNU readline),
 	"-lcurses"
 )
