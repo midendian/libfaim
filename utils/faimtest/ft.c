@@ -390,7 +390,7 @@ void getfile_start(aim_session_t *sess, aim_conn_t *conn, const char *sn)
 	return;
 }
 
-void getfile_requested(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args)
+void getfile_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, struct aim_incomingim_ch2_args *args)
 {
 	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 	aim_conn_t *newconn;
@@ -448,7 +448,7 @@ void directim_start(aim_session_t *sess, aim_conn_t *conn, const char *sn)
 	return;
 }
 
-void directim_requested(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args)
+void directim_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, struct aim_incomingim_ch2_args *args)
 {
 	aim_conn_t *newconn;
 

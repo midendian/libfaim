@@ -4,12 +4,12 @@
 static int faimtest_chat_join(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	int count, i;
 
 	va_start(ap, fr);
 	count = va_arg(ap, int);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
 	dvprintf("faimtest: chat: %s:  New occupants have joined:\n", (char *)fr->conn->priv);
@@ -22,12 +22,12 @@ static int faimtest_chat_join(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_chat_leave(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	int count , i;
 
 	va_start(ap, fr);
 	count = va_arg(ap, int);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
 	dvprintf("faimtest: chat: %s:  Some occupants have left:\n", (char *)fr->conn->priv);
@@ -41,7 +41,7 @@ static int faimtest_chat_leave(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	struct aim_chat_roominfo *roominfo;
 	char *roomname;
 	int usercount, i;
@@ -54,7 +54,7 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 	roominfo = va_arg(ap, struct aim_chat_roominfo *);
 	roomname = va_arg(ap, char *);
 	usercount = va_arg(ap, int);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	roomdesc = va_arg(ap, char *);
 	unknown_c9 = (fu16_t)va_arg(ap, unsigned int);
 	creationtime = va_arg(ap, fu32_t);
@@ -86,12 +86,12 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_chat_incomingmsg(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	char *msg;
 	char tmpbuf[1152];
 
 	va_start(ap, fr);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);	
+	userinfo = va_arg(ap, aim_userinfo_t *);	
 	msg = va_arg(ap, char *);
 	va_end(ap);
 

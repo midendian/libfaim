@@ -938,21 +938,21 @@ static void printuserflags(fu16_t flags)
 
 static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	char *prof_encoding = NULL;
 	char *prof = NULL;
 	fu16_t inforeq = 0;
 
 	va_list ap;
 	va_start(ap, fr);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	prof_encoding = va_arg(ap, char *);
 	prof = va_arg(ap, char *);
 	inforeq = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
 	dvprintf("faimtest: userinfo: sn: %s\n", userinfo->sn);
-	dvprintf("faimtest: userinfo: warnlevel: 0x%04x\n", userinfo->warnlevel);
+	dvprintf("faimtest: userinfo: warnlevel: %f\n", aim_userinfo_warnlevel(userinfo));
 	dvprintf("faimtest: userinfo: flags: 0x%04x = ", userinfo->flags);
 	printuserflags(userinfo->flags);
 	dinlineprintf("\n");
@@ -973,7 +973,7 @@ static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, const char *tmpstr)
+static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, const char *tmpstr)
 {
 	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 
@@ -1237,7 +1237,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
 /*
  * Channel 1: Standard Message
  */
-static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch1_args *args)
+static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, struct aim_incomingim_ch1_args *args)
 {
 	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 	char *tmpstr;
@@ -1247,7 +1247,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 
 	dvprintf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
 	dvprintf("faimtest: icbm: probable client type: %d\n", clienttype);
-	dvprintf("faimtest: icbm: warnlevel = 0x%04x\n", userinfo->warnlevel);
+	dvprintf("faimtest: icbm: warnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
 	dvprintf("faimtest: icbm: flags = 0x%04x = ", userinfo->flags);
 	printuserflags(userinfo->flags);
 	dinlineprintf("\n");
@@ -1255,7 +1255,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	dvprintf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
 	dvprintf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
 	dvprintf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
-	dvprintf("faimtest: icbm: capabilities = 0x%04x\n", userinfo->capabilities);
+	dvprintf("faimtest: icbm: capabilities = %s = 0x%04x\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
 
 	dprintf("faimtest: icbm: icbmflags = ");
 	if (args->icbmflags & AIM_IMFLAGS_AWAY)
@@ -1364,13 +1364,13 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 /*
  * Channel 2: Rendevous Request
  */
-static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *conn, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args)
+static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, struct aim_incomingim_ch2_args *args)
 {
 
 	if (args->reqclass == AIM_CAPS_VOICE) {
 
 		dvprintf("faimtest: voice invitation: source sn = %s\n", userinfo->sn);
-		dvprintf("faimtest: voice invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
+		dvprintf("faimtest: voice invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
 		dvprintf("faimtest: voice invitation: \tclass = 0x%04x = ", userinfo->flags);
 		printuserflags(userinfo->flags);
 		dinlineprintf("\n");
@@ -1389,7 +1389,7 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 	} else if (args->reqclass == AIM_CAPS_CHAT) {
 
 		dvprintf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
-		dvprintf("faimtest: chat invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
+		dvprintf("faimtest: chat invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
 		dvprintf("faimtest: chat invitation: \tclass = 0x%04x = ", userinfo->flags);
 		printuserflags(userinfo->flags);
 		dinlineprintf("\n");
@@ -1430,13 +1430,13 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 static int faimtest_parse_incoming_im(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	fu16_t channel;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	va_list ap;
 	int ret = 0;
 
 	va_start(ap, fr);
 	channel = (fu16_t)va_arg(ap, unsigned int);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 
 	if (channel == 1) {
 		struct aim_incomingim_ch1_args *args;
@@ -1463,14 +1463,14 @@ static int faimtest_parse_incoming_im(aim_session_t *sess, aim_frame_t *fr, ...)
 
 static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 
 	va_list ap;
 	va_start(ap, fr);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("%ld  %s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+	dvprintf("%ld  %s is now online (flags: %04x = %s%s%s%s%s%s%s%s) (caps = %s = 0x%04x)\n",
 			time(NULL),
 			userinfo->sn, userinfo->flags,
 			(userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
@@ -1481,20 +1481,21 @@ static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 			(userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
 			(userinfo->flags&AIM_FLAG_UNKNOWN40)?" UNKNOWN40":"",
 			(userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
+			userinfo->capspresent ? "present" : "not present",
 			userinfo->capabilities);
 	return 1;
 }
 
 static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 	va_list ap;
 	
 	va_start(ap, fr);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("%ld  %s is now offline (flags: %04x = %s%s%s%s%s%s%s%s) (caps = 0x%04x)\n",
+	dvprintf("%ld  %s is now offline (flags: %04x = %s%s%s%s%s%s%s%s) (caps = %s = 0x%04x)\n",
 			 time(NULL),
 			 userinfo->sn, userinfo->flags,
 			 (userinfo->flags&AIM_FLAG_UNCONFIRMED)?" UNCONFIRMED":"",
@@ -1505,6 +1506,7 @@ static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 			 (userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
 			 (userinfo->flags&AIM_FLAG_UNKNOWN40)?" UNKNOWN40":"",
 			 (userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
+			 userinfo->capspresent ? "present" : "not present",
 			 userinfo->capabilities);
 
 	return 1;
@@ -1569,11 +1571,11 @@ static int faimtest_parse_misses(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	va_list ap;
 	fu16_t chan, nummissed, reason;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 
 	va_start(ap, fr);
 	chan = (fu16_t)va_arg(ap, unsigned int);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	nummissed = (fu16_t)va_arg(ap, unsigned int);
 	reason = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
@@ -1691,11 +1693,11 @@ static int faimtest_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
 	fu16_t newevil;
-	struct aim_userinfo_s *userinfo;
+	aim_userinfo_t *userinfo;
 
 	va_start(ap, fr);
 	newevil = (fu16_t)va_arg(ap, unsigned int);
-	userinfo = va_arg(ap, struct aim_userinfo_s *);
+	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
 	/*
