@@ -314,7 +314,6 @@ static int aim_proxyconnect(struct aim_session_t *sess,
  *
  * Opens a new connection to the specified dest host of type type.
  *
- * TODO: fix for proxies
  * FIXME: Return errors in a more sane way.
  *
  */
@@ -323,8 +322,6 @@ faim_export struct aim_conn_t *aim_newconn(struct aim_session_t *sess,
 {
   struct aim_conn_t *connstruct;
   int ret;
-  struct sockaddr_in sa;
-  struct hostent *hp;
   u_short port = FAIM_LOGIN_PORT;
   char *host = NULL;
   int i=0;

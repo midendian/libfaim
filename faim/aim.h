@@ -442,6 +442,8 @@ faim_internal unsigned long aim_genericreq_l(struct aim_session_t *, struct aim_
 faim_internal unsigned long aim_genericreq_s(struct aim_session_t *, struct aim_conn_t *conn, u_short family, u_short subtype, u_short *);
 
 faim_internal struct aim_fileheader_t *aim_oft_getfh(unsigned char *hdr);
+faim_export int aim_oft_registerlisting(struct aim_session_t *sess, FILE *file, char* listingdir);
+faim_export int aim_getfile_send(struct aim_conn_t *conn, FILE *tosend, struct aim_fileheader_t *fh);
 
 /* aim_login.c */
 faim_export int aim_sendconnack(struct aim_session_t *sess, struct aim_conn_t *conn);

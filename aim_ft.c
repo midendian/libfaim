@@ -851,7 +851,6 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
     if(hdrlen < 0)
       perror("read");
     else { /* disconnected */
-      int i = -1;
       switch(conn->subtype) {
       case AIM_CONN_SUBTYPE_OFT_DIRECTIM: { /* XXX: clean up cookies here ? */
 	struct aim_directim_priv *priv = NULL;
