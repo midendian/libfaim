@@ -141,6 +141,7 @@ int main(void)
   struct aim_session_t aimsess;
   struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
   int keepgoing = 1;
+  char *proxy, *proxyusername, *proxypass;
 
   int selstat = 0;
 
@@ -153,6 +154,10 @@ int main(void)
 
   server = getenv("AUTHSERVER");
 
+  proxy = getenv("SOCKSPROXY");
+  proxyusername = getenv("SOCKSNAME");
+  proxypass = getenv("SOCKSPASS");
+
 #ifdef _WIN32
   if (initwsa() != 0) {
     printf("faimtest: could not initialize windows sockets\n");
@@ -161,6 +166,9 @@ int main(void)
 #endif /* _WIN32 */
 
   aim_session_init(&aimsess);
+
+  if (proxy)
+    aim_setupproxy(&aimsess, proxy, proxyusername, proxypass);
 
   authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER);
 
