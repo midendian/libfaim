@@ -512,6 +512,8 @@ int aim_rxdispatch(struct aim_session_t *sess)
 		    workingPtr->handled = 1;
 		    aim_conn_setstatus(workingPtr->conn, AIM_CONN_STATUS_READY);
 		  }
+		else if ((family == 0x000d) && (subtype == 0x0009))
+		  workingPtr->handled = aim_chatnav_parse_info(sess, workingPtr);
 		else
 		  {
 		    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
@@ -519,8 +521,44 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	      }
 	      break;
 	    case AIM_CONN_TYPE_CHAT:
-	      printf("\nAHH! Dont know what to do with CHAT stuff yet!\n");
-	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_DEFAULT, workingPtr);
+	      {
+		u_short family, subtype;
+
+		family = aimutil_get16(workingPtr->data);
+		subtype= aimutil_get16(workingPtr->data+2);
+		
+		if ((family == 0x0000) && (subtype == 0x00001))
+		  workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0000, 0x0001, workingPtr);
+		else if (family == 0x0001)
+		  {
+		    if (subtype == 0x0001)
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0001, workingPtr);
+		    else if (subtype == 0x0003)
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0003, workingPtr);
+		    else if (subtype == 0x0007)
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0007, workingPtr);
+		    else
+		      printf("Chat: unknown snac %04x/%04x\n", family, subtype);
+		  }
+		else if (family == 0x000e)
+		  {
+		    if (subtype == 0x0002)
+		      workingPtr->handled = aim_chat_parse_infoupdate(sess, workingPtr);
+		    else if (subtype == 0x0003)
+		      workingPtr->handled = aim_chat_parse_joined(sess, workingPtr);	
+		    else if (subtype == 0x0004)
+		      workingPtr->handled = aim_chat_parse_leave(sess, workingPtr);	
+		    else if (subtype == 0x0006)
+		      workingPtr->handled = aim_chat_parse_incoming(sess, workingPtr);
+		    else	
+		      printf("Chat: unknown snac %04x/%04x\n", family, subtype); 
+		  }
+		else
+		  {
+		    printf("Chat: unknown snac %04x/%04x\n", family, subtype);
+		    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_DEFAULT, workingPtr);
+		  }
+	      }
 	      break;
 	    default:
 	      printf("\nAHHHHH! UNKNOWN CONNECTION TYPE! (0x%02x)\n\n", workingPtr->conn->type);
@@ -589,10 +627,24 @@ int aim_handleredirect_middle(struct aim_session_t *sess,
   tmptlv = aim_gettlv(tlvlist, 0x0006, 1);
   memcpy(cookie, tmptlv->value, AIM_COOKIELEN);
 
-  userfunc = aim_callhandler(command->conn, 0x0001, 0x0005);
-  if (userfunc)
-    ret =  userfunc(sess, command, serviceid, ip, cookie);
-
+  if (serviceid == AIM_CONN_TYPE_CHAT)
+    {
+      /*
+       * Chat hack.
+       *
+       */
+      userfunc = aim_callhandler(command->conn, 0x0001, 0x0005);
+      if (userfunc)
+	ret =  userfunc(sess, command, serviceid, ip, cookie, sess->pendingjoin);
+      free(sess->pendingjoin);
+      sess->pendingjoin = NULL;
+    }
+  else
+    {
+      userfunc = aim_callhandler(command->conn, 0x0001, 0x0005);
+      if (userfunc)
+	ret =  userfunc(sess, command, serviceid, ip, cookie);
+    }
   aim_freetlvchain(&tlvlist);
 
   return ret;

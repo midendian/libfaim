@@ -1,14 +1,31 @@
 
 No release numbers
 ------------------
+ - Sun Jan  2 10:31:19 UTC 2000
+   - Cleanups in aim_info.c
+   - Can compile with -Ddebug=100 again
+   - Implemented chat: Joining/Leaving, info parsing, IM parsing/sending
+   - Implemented some chatnav: rights req/parsing, room creation
+
+ - Thu Dec 30 10:08:42 UTC 1999
+   - Fixed bug in aim_im.c when (encoding == NULL) || (lang == NULL)
+   - Added detection of voice chat requests
+   - Added AIM_CLASS_* defines, including new Away flag
+   - Added awaymsg parameter to bos_setprofile.
+     - If awaymsg is nonnull, you will be advertised as being away (your
+         class will be ORed with AIM_CLASS_AWAY), otherwise you'll show 
+         up normal.
+
  - Wed Dec 29 10:06:35 UTC 1999
    - Fixed small bug in IM parser
    - Added stubs for the capability TLVs in userinfo.
 
  - Wed Dec 29 09:14:45 UTC 1999
-   - Added a capability block to aim_bos_setprofile.  Can now get chat invites again.
+   - Added a capability block to aim_bos_setprofile.  Can now get chat 
+       invites again.
    - Extended ICBM parser to support channel 2 messages (chat invites)
-     - A channel parameter has been prepended to the varargs -- REQUIRES CLIENT CHANGES.
+     - A channel parameter has been prepended to the varargs -- REQUIRES 
+         CLIENT CHANGES.
      - Extended faimtest to support chat invites.
    - Changed faimtest to get sn/password from environment
 

@@ -49,7 +49,6 @@
 int faimtest_parse_oncoming(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_offgoing(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_login_phase3d_f(struct aim_session_t *, struct command_rx_struct *, ...);
-int faimtest_auth_error(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_authresp(struct aim_session_t *, struct command_rx_struct *, ...);
 int faimtest_parse_incoming_im(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_userinfo(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -60,6 +59,11 @@ int faimtest_serverready(struct aim_session_t *, struct command_rx_struct *comma
 int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_motd(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_login(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_chatnav_info(struct aim_session_t *, struct command_rx_struct *command, ...);
+int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 static char *screenname,*password;
 
@@ -175,8 +179,24 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
       aim_bos_setgroupperm(sess, command->conn, 0x1f);
       fprintf(stderr, "faimtest: done with BOS ServerReady\n");
       break;
+
     case AIM_CONN_TYPE_CHATNAV:
       fprintf(stderr, "faimtest: chatnav: got server ready\n");
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CTN, AIM_CB_CTN_INFO, faimtest_chatnav_info, 0);
+      aim_bos_reqrate(sess, command->conn);
+      aim_bos_ackrateresp(sess, command->conn);
+      aim_chatnav_clientready(sess, command->conn);
+      aim_chatnav_reqrights(sess, command->conn);
+
+      break;
+    case AIM_CONN_TYPE_CHAT:
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN, faimtest_chat_join, 0);
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE, faimtest_chat_leave, 0);
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE, faimtest_chat_infoupdate, 0);
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_INCOMINGMSG, faimtest_chat_incomingmsg, 0);
+      aim_bos_reqrate(sess, command->conn);
+      aim_bos_ackrateresp(sess, command->conn);
+      aim_chat_clientready(sess, command->conn);
       break;
     default:
       fprintf(stderr, "faimtest: unknown connection type on Server Ready\n");
@@ -207,7 +227,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   char *cookie;
 
   /* this is the new buddy list */
-  char buddies[] = "Buddy1&Buddy2&";
+  char buddies[] = "Buddy1&Buddy2&ThisHereIsAName2&";
   /* this is the new profile */
   char profile[] = "Hello";  
 
@@ -215,8 +235,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   serviceid = va_arg(ap, int);
   ip = va_arg(ap, char *);
   cookie = va_arg(ap, char *);
-  va_end(ap);
-
+ 
   switch(serviceid)
     {
     case 0x0005: /* Advertisements */
@@ -228,7 +247,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 
       /* send the buddy list and profile (required, even if empty) */
       aim_bos_setbuddylist(sess, command->conn, buddies);
-      aim_bos_setprofile(sess, command->conn, profile);
+      aim_bos_setprofile(sess, command->conn, profile, NULL);
 
       /* send final login command (required) */
       aim_bos_clientready(sess, command->conn); /* tell BOS we're ready to go live */
@@ -259,25 +278,37 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	    fprintf(stderr, "faimtest: unable to connect to chatnav server\n");
 	    return 1;
 	  }
+#if 0
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_CTN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
+#endif
+	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
 	aim_auth_sendcookie(sess, tstconn, cookie);
 	fprintf(stderr, "\achatnav: connected\n");
       }
       break;
     case 0x000e: /* Chat */
       {
-#if 0
+	char *roomname = NULL;
 	struct aim_conn_t *tstconn = NULL;
+
+	roomname = va_arg(ap, char *);
+
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
 	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR))
 	  {
 	    fprintf(stderr, "faimtest: unable to connect to chat server\n");
 	    return 1;
-	  }
-	aim_auth_sendcookie(sess, aim_getconn_type(sess, AIM_CONN_TYPE_CHAT), cookie);
-	fprintf(stderr, "\achat: connected\n");
-#endif
+	  }		
+	printf("faimtest: chat: connected\n");
+
+	/*
+	 * We must do this to attach the stored name to the connection!
+	 */
+	aim_chat_attachname(tstconn, roomname);
+
+	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+	aim_auth_sendcookie(sess, tstconn, cookie);
       }
       break;
     default:
@@ -285,30 +316,10 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
       /* dunno */
     }
 
-  return 1;
-}
-
-#if 0
-int faimtest_auth_error(struct aim_session_t *sess, struct command_rx_struct *command, ...)
-{
-  va_list ap;
-  char *errorurl;
-  short errorcode;
-
-  va_start(ap, command);
-  printf("Screen name: %s\n", sess->logininfo.screen_name);
-  errorurl = va_arg(ap, char *);
-  printf("Error URL: %s\n", errorurl);
-  errorcode = va_arg(ap, short);
-  printf("Error code: 0x%02x\n", errorcode);
   va_end(ap);
 
-  aim_conn_close(aim_getconn_type(sess, AIM_CONN_TYPE_AUTH));
-  exit(0);
-  
-  return 0;
+  return 1;
 }
-#endif
 
 int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -503,12 +514,23 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	      printf("faimtest: icbm: sending response\n");
 	      aim_send_im(sess, command->conn, userinfo->sn, 0, "Good day to you too.");
 	    }
-#if 0
-	  else if (!strncmp(tmpstr, "joinchat", 8))
+	  else if (!strncmp(tmpstr, "open chatnav", 12))
 	    {
-	      aim_chat_join(sess, command->conn, "GoodDay");
+	      aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
+	      //aim_chat_join(sess, command->conn, "thishereisaname2_chat85");
 	    }
-#endif
+	  else if (!strncmp(tmpstr, "create", 6))
+	    {
+	      aim_chatnav_createroom(sess, aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV), "WorldDomination", 0x0004);
+	    }
+	  else if (!strncmp(tmpstr, "close chatnav", 13))
+	    aim_conn_close(aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV));
+	  else if (!strncmp(tmpstr, "join", 4))
+	    {
+	      aim_chat_join(sess, command->conn, 0x0004, "worlddomination");
+	    }
+	  else if (!strncmp(tmpstr, "leave", 5))
+	    aim_chat_leaveroom(sess, "worlddomination");
 	  else 
 	    {
 #if 0
@@ -522,43 +544,74 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	}
     }
   /*
-   * Channel 2: Chat Invitation
+   * Channel 2: Rendevous Request
    */
   else if (channel == 2)
     {
       struct aim_userinfo_s *userinfo;
-      char *roomname,*msg,*encoding,*lang;
-      u_short exchange, instance;
+      int rendtype = 0;
 
-      userinfo = va_arg(ap, struct aim_userinfo_s *);
-      roomname = va_arg(ap, char *);
-      msg = va_arg(ap, char *);
-      encoding = va_arg(ap, char *);
-      lang = va_arg(ap, char *);
-      exchange = va_arg(ap, u_short);
-      instance = va_arg(ap, u_short);
-      va_end(ap);
-      
-      printf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
-      printf("faimtest: chat invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
-      printf("faimtest: chat invitation: \tclass = 0x%04x ", userinfo->class);
-      if (userinfo->class & 0x0010)
-	printf("(FREE) ");
-      if (userinfo->class & 0x0001)
-	printf("(TRIAL) ");
-      if (userinfo->class & 0x0004)
-	printf("(AOL) ");
-      printf("\n");
-      /* we dont get membersince on chat invites! */
-      printf("faimtest: chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
-      printf("faimtest: chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
-      
-      printf("faimtest: chat invitation: message = %s\n", msg);
-      printf("faimtest: chat invitation: room name = %s\n", roomname);
-      printf("faimtest: chat invitation: encoding = %s\n", encoding);
-      printf("faimtest: chat invitation: language = %s\n", lang);
-      printf("faimtest: chat invitation: exchange = 0x%04x\n", exchange);
-      printf("faimtest: chat invitation: instance = 0x%04x\n", instance);
+      rendtype = va_arg(ap, int);
+      if (rendtype == 0)
+	{
+	  char *msg,*encoding,*lang;
+	  struct aim_chat_roominfo *roominfo;
+	  
+	  userinfo = va_arg(ap, struct aim_userinfo_s *);
+	  roominfo = va_arg(ap, struct aim_chat_roominfo *);
+	  msg = va_arg(ap, char *);
+	  encoding = va_arg(ap, char *);
+	  lang = va_arg(ap, char *);
+	  va_end(ap);
+	  
+	  printf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
+	  printf("faimtest: chat invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
+	  printf("faimtest: chat invitation: \tclass = 0x%04x ", userinfo->class);
+	  if (userinfo->class & 0x0010)
+	    printf("(FREE) ");
+	  if (userinfo->class & 0x0001)
+	    printf("(TRIAL) ");
+	  if (userinfo->class & 0x0004)
+	    printf("(AOL) ");
+	  printf("\n");
+	  /* we dont get membersince on chat invites! */
+	  printf("faimtest: chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
+	  printf("faimtest: chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
+	  
+	  printf("faimtest: chat invitation: message = %s\n", msg);
+	  printf("faimtest: chat invitation: room name = %s\n", roominfo->name);
+	  printf("faimtest: chat invitation: encoding = %s\n", encoding);
+	  printf("faimtest: chat invitation: language = %s\n", lang);
+	  printf("faimtest: chat invitation: exchange = 0x%04x\n", roominfo->exchange);
+	  printf("faimtest: chat invitation: instance = 0x%04x\n", roominfo->instance);
+	  printf("faimtest: chat invitiation: autojoining %s...\n", roominfo->name);
+	  /*
+	   * Automatically join room...
+	   */ 
+	  aim_chat_join(sess, command->conn, 0x0004, roominfo->name);
+	}	
+      else if (rendtype == 1)
+	{
+	  userinfo = va_arg(ap, struct aim_userinfo_s *);
+	  va_end(ap);
+	  
+	  printf("faimtest: voice invitation: source sn = %s\n", userinfo->sn);
+	  printf("faimtest: voice invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
+	  printf("faimtest: voice invitation: \tclass = 0x%04x ", userinfo->class);
+	  if (userinfo->class & 0x0010)
+	    printf("(FREE) ");
+	  if (userinfo->class & 0x0001)
+	    printf("(TRIAL) ");
+	  if (userinfo->class & 0x0004)
+	    printf("(AOL) ");
+	  printf("\n");
+	  /* we dont get membersince on chat invites! */
+	  printf("faimtest: voice invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
+	  printf("faimtest: voice invitation: \tidletime = 0x%04x\n", userinfo->idletime);
+	  
+	}
+      else
+	printf("faimtest: icbm: unknown rendtype (%d)\n", rendtype);
     }
   else
     printf("faimtest does not support channels > 2 (chan = %02x)\n", channel);
@@ -602,7 +655,15 @@ int faimtest_parse_oncoming(struct aim_session_t *sess, struct command_rx_struct
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   va_end(ap);
 
-  printf("\n%s is now online\n", userinfo->sn);
+  printf("\n%s is now online (class: %04x = %s%s%s%s%s%s%s%s)\n", userinfo->sn, userinfo->class,
+	 (userinfo->class&AIM_CLASS_TRIAL)?" TRIAL":"",
+	 (userinfo->class&AIM_CLASS_UNKNOWN2)?" UNKNOWN2":"",
+	 (userinfo->class&AIM_CLASS_AOL)?" AOL":"",
+	 (userinfo->class&AIM_CLASS_UNKNOWN4)?" UNKNOWN4":"",
+	 (userinfo->class&AIM_CLASS_FREE)?" FREE":"",
+	 (userinfo->class&AIM_CLASS_AWAY)?" AWAY":"",
+	 (userinfo->class&AIM_CLASS_UNKNOWN40)?" UNKNOWN40":"",
+	 (userinfo->class&AIM_CLASS_UNKNOWN80)?" UNKNOWN80":"");
 
   return 1;
 }
@@ -694,3 +755,143 @@ int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *c
   return 1;
 }
 #endif
+
+int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_userinfo_s *userinfo;
+  int count = 0, i = 0;
+  
+  va_start(ap, command);
+  count = va_arg(ap, int);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
+  va_end(ap);
+
+  printf("faimtest: chat: %s:  New occupants have joined:\n", (char *)command->conn->priv);
+  while (i < count)
+    printf("faimtest: chat: %s: \t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+
+  return 1;
+}
+
+int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_userinfo_s *userinfo;
+  int count = 0, i = 0;
+  
+  va_start(ap, command);
+  count = va_arg(ap, int);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
+  va_end(ap);
+
+  printf("faimtest: chat: %s:  Some occupants have left:\n", (char *)command->conn->priv);
+  while (i < count)
+    printf("faimtest: chat: %s: \t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+
+  return 1;
+}
+
+int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_userinfo_s *userinfo;
+  struct aim_chat_roominfo *roominfo;
+  char *roomname;
+  int usercount,i;
+  char *roomdesc;
+
+  va_start(ap, command);
+  roominfo = va_arg(ap, struct aim_chat_roominfo *);
+  roomname = va_arg(ap, char *);
+  usercount= va_arg(ap, int);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
+  roomdesc = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: chat: %s:  info update:\n", (char *)command->conn->priv);
+  printf("faimtest: chat: %s:  \tRoominfo: {%04x, %s, %04x}\n", 
+	 (char *)command->conn->priv,
+	 roominfo->exchange,
+	 roominfo->name,
+	 roominfo->instance);
+  printf("faimtest: chat: %s:  \tRoomname: %s\n", (char *)command->conn->priv, roomname);
+  printf("faimtest: chat: %s:  \tRoomdesc: %s\n", (char *)command->conn->priv, roomdesc);
+  printf("faimtest: chat: %s:  \tOccupants: (%d)\n", (char *)command->conn->priv, usercount);
+  
+  i = 0;
+  while (i < usercount)
+    printf("faimtest: chat: %s:  \t\t%s\n", (char *)command->conn->priv, userinfo[i++].sn);
+
+  return 1;
+}
+
+int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_userinfo_s *userinfo;
+  char *msg;
+  char tmpbuf[1152];
+ 
+  va_start(ap, command);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);	
+  msg = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: chat: %s: incoming msg from %s: %s\n", (char *)command->conn->priv, userinfo->sn, msg);
+
+  /*
+   * Do an echo for testing purposes.  But not for ourselves ("oops!")
+   */
+  if (strcmp(userinfo->sn, sess->logininfo.screen_name) != 0)
+    {
+      sprintf(tmpbuf, "(%s said \"%s\")", userinfo->sn, msg);
+      aim_chat_send_im(sess, command->conn, tmpbuf);
+    }
+
+  return 1;
+}
+
+int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  u_short type;
+  va_list ap;
+
+  ap = va_start(ap, command);
+  type = va_arg(ap, u_short);
+
+  switch(type)
+    {
+    case 0x0002:
+      {
+	int maxrooms;
+	struct aim_chat_exchangeinfo *exchanges;
+	int exchangecount,i = 0;
+	
+	maxrooms = va_arg(ap, u_char);
+	exchangecount = va_arg(ap, int);
+	exchanges = va_arg(ap, struct aim_chat_exchangeinfo *);
+	va_end(ap);
+
+	printf("faimtest: chat info: Chat Rights:\n");
+	printf("faimtest: chat info: \tMax Concurrent Rooms: %d\n", maxrooms);
+	
+	printf("faimtest: chat info: \tExchange List: (%d total)\n", exchangecount);
+	while (i < exchangecount)
+	  {
+	    printf("faimtest: chat info: \t\t%x: %s (%s/%s)\n", 
+		   exchanges[i].number,	
+		   exchanges[i].name,
+		   exchanges[i].charset1,
+		   exchanges[i].lang1);
+	    i++;
+	  }
+	
+      }
+      break;
+    default:
+      va_end(ap);
+      printf("faimtest: chatnav info: unknown type (%04x)\n", type);
+    }
+  return 1;
+}

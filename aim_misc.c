@@ -241,7 +241,8 @@ u_long aim_bos_setbuddylist(struct aim_session_t *sess,
  */
 u_long aim_bos_setprofile(struct aim_session_t *sess,
 			  struct aim_conn_t *conn, 
-			  char *profile)
+			  char *profile,
+			  char *awaymsg)
 {
   struct command_tx_struct newpacket;
   int i = 0;
@@ -269,6 +270,9 @@ u_long aim_bos_setprofile(struct aim_session_t *sess,
     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
 
   newpacket.commandlen = 1152+strlen(profile)+1; /*arbitrarily large */
+  if (awaymsg)	
+    newpacket.commandlen += strlen(awaymsg);
+
   newpacket.data = (char *) malloc(newpacket.commandlen);
 
   i += aim_putsnac(newpacket.data, 0x0002, 0x004, 0x0000, sess->snac_nextid);
@@ -277,9 +281,11 @@ u_long aim_bos_setprofile(struct aim_session_t *sess,
   /* why do we send this twice?  */
   i += aim_puttlv_str(newpacket.data+i, 0x0003, strlen("text/x-aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
   
-  /* a blank TLV 0x0004   --- not sure what this is either */
-  i += aimutil_put16(newpacket.data+i, 0x0004);
-  i += aimutil_put16(newpacket.data+i, 0x0000);
+  /* Away message -- we send this no matter what, even if its blank */
+  if (awaymsg)
+    i += aim_puttlv_str(newpacket.data+i, 0x0004, strlen(awaymsg), awaymsg);
+  else
+    i += aim_puttlv_str(newpacket.data+i, 0x0004, 0x0000, NULL);
 
   /* Capability information. */
   i += aim_puttlv_str(newpacket.data+i, 0x0005, 0x0060, funkydata);
@@ -413,6 +419,8 @@ u_long aim_bos_ackrateresp(struct aim_session_t *sess,
     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
   newpacket.commandlen = 18;
+  if (conn->type != AIM_CONN_TYPE_BOS)
+    newpacket.commandlen += 2;
 
   newpacket.data = (char *) malloc(newpacket.commandlen);
   aim_putsnac(newpacket.data, 0x0001, 0x0008, 0x0000, sess->snac_nextid);
@@ -425,6 +433,11 @@ u_long aim_bos_ackrateresp(struct aim_session_t *sess,
   newpacket.data[15] = 0x03;
   newpacket.data[16] = 0x00;
   newpacket.data[17] = 0x04;
+  if (conn->type != AIM_CONN_TYPE_BOS)
+    {
+      newpacket.data[16] = 0x00;
+      newpacket.data[17] = 0x05;
+    }
 
   aim_tx_enqueue(sess, &newpacket);
 
@@ -483,7 +496,7 @@ u_long aim_setversions(struct aim_session_t *sess,
                                struct aim_conn_t *conn)
 {
   struct command_tx_struct newpacket;
-  int i,j;
+  int i;
 
   newpacket.lock = 1;
   if (conn)
@@ -531,7 +544,6 @@ u_long aim_setversions(struct aim_session_t *sess,
 
 #if 0
   for (j = 0; j < 0x10; j++)
-A
     {
       i += aimutil_put16(newpacket.data+i, j); /* family */
       i += aimutil_put16(newpacket.data+i, 0x0003); /* version */

@@ -355,13 +355,12 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       free(msg);
     }
   else if (channel == 0x0002)
-    {
+    {	
+      int rendtype;
       struct aim_tlv_t *block1;
       struct aim_tlvlist_t *list2;
       struct aim_tlv_t *tmptlv;
       int a;
-      u_short exchange,instance;
-      char *roomname,*msg,*encoding,*lang;
       
       /* Class. */
       if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
@@ -388,46 +387,83 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 
       a = 0x1a; /* skip -- not sure what this information is! */
 
-      list2 = aim_readtlvchain(block1->value+a, block1->length-a);
-      if (aim_gettlv(list2, 0x2711, 1))
+      /*
+       * XXX: Ignore if there's no data, only cookie information.
+       *
+       * Its probably just an accepted invitation or something.
+       *  
+       */
+      if (block1->length <= 0x1a)
 	{
-	  struct aim_tlv_t *name;
-	  int len;
-
-	  name = aim_gettlv(list2, 0x2711, 1);
-	  
-	  exchange = aimutil_get16(name->value+0);
-
-	  len = aimutil_get16(name->value+2);
-	  roomname = (char *)malloc(len+1);
-	  memcpy(roomname, name->value+3, len);
-	  roomname[len] = '\0';
-
-	  instance = aimutil_get16(name->value+3+len);
+	  aim_freetlvchain(&tlvlist);
+	  return 1;
 	}
 
-      if (aim_gettlv(list2, 0x000c, 1))
-	  msg = aim_gettlv_str(list2, 0x000c, 1);
+      list2 = aim_readtlvchain(block1->value+a, block1->length-a);
 
-      if (aim_gettlv(list2, 0x000d, 1))
-	  encoding = aim_gettlv_str(list2, 0x000d, 1);
- 
-      if (aim_gettlv(list2, 0x000e, 1))
-	  lang = aim_gettlv_str(list2, 0x000e, 1);
+      if (aim_gettlv(list2, 0x0004, 1) /* start connection */ ||  
+	  aim_gettlv(list2, 0x000b, 1) /* close conncetion */)
+	{
+	  rendtype = 1; /* voice request */
+
+	  /*
+	   * Call client.
+	   */
+	  userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	  if (userfunc)
+	    i = userfunc(sess, 
+			 command, 
+			 channel, 
+			 rendtype,
+			 &userinfo);
+	  else 
+	    i = 0;
+	}
+      else
+	{
+	  struct aim_chat_roominfo roominfo;
+	  char *msg=NULL,*encoding=NULL,*lang=NULL;
+
+	  rendtype = 0; /* chat invite */
+	  if (aim_gettlv(list2, 0x2711, 1))
+	    {
+	      struct aim_tlv_t *nametlv;
+	      
+	      nametlv = aim_gettlv(list2, 0x2711, 1);
+	      aim_chat_readroominfo(nametlv->value, &roominfo);
+	    }
+	  
+	  if (aim_gettlv(list2, 0x000c, 1))
+	    msg = aim_gettlv_str(list2, 0x000c, 1);
+	  
+	  if (aim_gettlv(list2, 0x000d, 1))
+	    encoding = aim_gettlv_str(list2, 0x000d, 1);
+	  
+	  if (aim_gettlv(list2, 0x000e, 1))
+	    lang = aim_gettlv_str(list2, 0x000e, 1);
       
-      /*
-       * Call client.
-       */
-      userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
-      if (userfunc)
-	i = userfunc(sess, command, channel, &userinfo, roomname, msg, encoding+1, lang+1, exchange, instance);
-      else 
-	i = 0;
+	  /*
+	   * Call client.
+	   */
+	  userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+	  if (userfunc)
+	    i = userfunc(sess, 
+			 command, 
+			 channel, 
+			 rendtype,
+			 &userinfo, 
+			 &roominfo, 
+			 msg, 
+			 encoding?encoding+1:NULL, 
+			 lang?lang+1:NULL);
+	  else 
+	    i = 0;
       
-      free(roomname);
-      free(msg);
-      free(encoding);
-      free(lang);
+	  free(roominfo.name);
+	  free(msg);
+	  free(encoding);
+	  free(lang);
+	}
       aim_freetlvchain(&list2);
     }
 

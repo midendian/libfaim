@@ -59,7 +59,7 @@ int aim_tx_enqueue(struct aim_session_t *sess,
 
 #if debug > 2
   printf("calling aim_tx_printqueue()\n");
-  aim_tx_printqueue();
+  aim_tx_printqueue(sess);
   printf("back from aim_tx_printqueue()\n");
 #endif
 
@@ -98,7 +98,7 @@ u_int aim_get_next_txseqnum(struct aim_conn_t *conn)
  *
  */
 #if debug > 2
-int aim_tx_printqueue(void)
+int aim_tx_printqueue(struct aim_session_t *sess)
 {
   struct command_tx_struct *workingPtr = NULL;
 
@@ -280,7 +280,7 @@ int aim_tx_purgequeue(struct aim_session_t *sess)
 	   (sess->queue_outgoing->sent == 1) )
 	{
 #if debug > 1
-	  printf("purgequeue(): purging seqnum 0x%04x\n", aim_queue_outgoing->seqnum);
+	  printf("purgequeue(): purging seqnum 0x%04x\n", sess->queue_outgoing->seqnum);
 #endif
 	  workingPtr2 = sess->queue_outgoing;
 	  sess->queue_outgoing = NULL;

@@ -177,6 +177,13 @@ struct aim_session_t {
   struct command_rx_struct *queue_incoming; 
   
   /*
+   * This is a dreadful solution to the what-room-are-we-joining
+   * problem.  (There's no connection between the service
+   * request and the resulting redirect.)
+   */ 
+  char *pendingjoin;
+
+  /*
    * Outstanding snac handling 
    *
    * XXX: Should these be per-connection? -mid
@@ -198,6 +205,15 @@ struct aim_userinfo_s {
   u_long onlinesince;
   u_long sessionlen;  
 };
+
+#define AIM_CLASS_TRIAL 	0x0001
+#define AIM_CLASS_UNKNOWN2	0x0002
+#define AIM_CLASS_AOL		0x0004
+#define AIM_CLASS_UNKNOWN4	0x0008
+#define AIM_CLASS_FREE 		0x0010
+#define AIM_CLASS_AWAY		0x0020
+#define AIM_CLASS_UNKNOWN40	0x0040
+#define AIM_CLASS_UNKNOWN80	0x0080
 
 /*
  * TLV handling
@@ -321,7 +337,7 @@ void aim_session_init(struct aim_session_t *);
 u_long aim_bos_setidle(struct aim_session_t *, struct aim_conn_t *, u_long);
 u_long aim_bos_changevisibility(struct aim_session_t *, struct aim_conn_t *, int, char *);
 u_long aim_bos_setbuddylist(struct aim_session_t *, struct aim_conn_t *, char *);
-u_long aim_bos_setprofile(struct aim_session_t *, struct aim_conn_t *, char *);
+u_long aim_bos_setprofile(struct aim_session_t *, struct aim_conn_t *, char *, char *);
 u_long aim_bos_setgroupperm(struct aim_session_t *, struct aim_conn_t *, u_long);
 u_long aim_bos_clientready(struct aim_session_t *, struct aim_conn_t *);
 u_long aim_bos_reqrate(struct aim_session_t *, struct aim_conn_t *);
@@ -333,6 +349,7 @@ u_long aim_bos_reqrights(struct aim_session_t *, struct aim_conn_t *);
 u_long aim_bos_reqbuddyrights(struct aim_session_t *, struct aim_conn_t *);
 u_long aim_bos_reqlocaterights(struct aim_session_t *, struct aim_conn_t *);
 u_long aim_bos_reqicbmparaminfo(struct aim_session_t *, struct aim_conn_t *);
+u_long aim_setversions(struct aim_session_t *sess, struct aim_conn_t *conn);
 
 /* aim_rxhandlers.c */
 int aim_rxdispatch(struct aim_session_t *);
@@ -371,6 +388,41 @@ u_long aim_remove_buddy(struct aim_session_t *, struct aim_conn_t *, char *);
 /* aim_search.c */
 u_long aim_usersearch_address(struct aim_session_t *, struct aim_conn_t *, char *);
 /* u_long aim_usersearch_name(struct aim_session_t *, struct aim_conn_t *, char *); */
+
+
+struct aim_chat_roominfo {
+  u_short exchange;
+  char *name;
+  u_short instance;
+};
+int aim_chat_readroominfo(u_char *buf, struct aim_chat_roominfo *outinfo);
+int aim_chat_parse_infoupdate(struct aim_session_t *sess, struct command_rx_struct *command);
+int aim_chat_parse_joined(struct aim_session_t *sess, struct command_rx_struct *command);
+int aim_chat_parse_leave(struct aim_session_t *sess, struct command_rx_struct *command);
+int aim_chat_parse_incoming(struct aim_session_t *sess, struct command_rx_struct *command);
+u_long aim_chat_send_im(struct aim_session_t *sess, struct aim_conn_t *conn, char *msg);
+u_long aim_chat_join(struct aim_session_t *sess, struct aim_conn_t *conn, u_short exchange, const char *roomname);
+u_long aim_chat_clientready(struct aim_session_t *sess, struct aim_conn_t *conn);
+int aim_chat_attachname(struct aim_conn_t *conn, char *roomname);
+char *aim_chat_getname(struct aim_conn_t *conn);
+struct aim_conn_t *aim_chat_getconn(struct aim_session_t *, char *name);
+
+u_long aim_chatnav_reqrights(struct aim_session_t *sess, struct aim_conn_t *conn);
+u_long aim_chatnav_clientready(struct aim_session_t *sess, struct aim_conn_t *conn);
+
+u_long aim_chat_invite(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn, char *msg, u_short exchange, char *roomname, u_short instance);
+
+struct aim_chat_exchangeinfo {
+  u_short number;
+  char *name;
+  char *charset1;
+  char *lang1;
+  char *charset2;
+  char *lang2;
+};
+int aim_chatnav_parse_info(struct aim_session_t *sess, struct command_rx_struct *command);
+u_long aim_chatnav_createroom(struct aim_session_t *sess, struct aim_conn_t *conn, char *name, u_short exchange);
+int aim_chat_leaveroom(struct aim_session_t *sess, char *name);
 
 /* aim_util.c */
 int aimutil_put8(u_char *, u_char);

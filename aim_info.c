@@ -108,6 +108,7 @@ int aim_extractuserinfo(u_char *buf, struct aim_userinfo_s *outinfo)
 	   *      0x0004  AOL Main Service user
 	   *      0x0008  Unknown bit 4
 	   *      0x0010  Free (AIM) user 
+	   *      0x0020  Away
 	   *
 	   * In some odd cases, we can end up with more
 	   * than one of these.  We only want the first,
@@ -306,6 +307,7 @@ int aim_parse_userinfo_middle(struct aim_session_t *sess,
   char *prof = NULL;
   u_int i = 0;
   rxcallback_t userfunc=NULL;
+  struct aim_tlvlist_t *tlvlist;
 
   {
     u_long snacid = 0x000000000;
@@ -320,43 +322,18 @@ int aim_parse_userinfo_middle(struct aim_session_t *sess,
   }
   
   i = 10;
+
+  /*
+   * extractuserinfo will give us the basic metaTLV information
+   */
   i += aim_extractuserinfo(command->data+i, &userinfo);
-
-  if (i < command->commandlen)
-    {
-      if (aimutil_get16(&command->data[i]) == 0x0001)
-        {
-          int len = 0;
-
-	  len = aimutil_get16(&command->data[i+2]);
-
-          prof_encoding = (char *) malloc(len+1);
-          memcpy(prof_encoding, &(command->data[i+4]), len);
-          prof_encoding[len] = '\0';
-
-          i += (2+2+len);
-        }
-      else
-        {
-          printf("faim: userinfo: **warning: unexpected TLV after TLVblock t(%04x) l(%04x)\n", aimutil_get16(command->data+i), aimutil_get16(command->data+i+2));
-          i += 2 + 2 + command->data[i+3];
-        }
-    }
-
-  if (i < command->commandlen)
-    {
-      if (aimutil_get16(&command->data[i]) == 0x0002)
-	{
-	  int len = 0;
-	  len = aimutil_get16(&command->data[i+2]);
-	  
-	  prof = (char *) malloc(len+1);
-	  memcpy(prof, &(command->data[i+4]), len);
-	  prof[len] = '\0';
-	}
-      else
-	printf("faim:userinfo: **warning: profile not found, but still have data\n");
-    }
+  
+  /*
+   * However, in this command, there's usually more TLVs following...
+   */ 
+  tlvlist = aim_readtlvchain(command->data+i, command->commandlen-i);
+  prof_encoding = aim_gettlv_str(tlvlist, 0x0001, 1);
+  prof = aim_gettlv_str(tlvlist, 0x0002, 1);
 
   userfunc = aim_callhandler(command->conn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO);
   if (userfunc)
@@ -367,9 +344,10 @@ int aim_parse_userinfo_middle(struct aim_session_t *sess,
 		   prof_encoding, 
 		   prof); 
     }
-
+  
   free(prof_encoding);
   free(prof);
+  aim_freetlvchain(&tlvlist);
 
   return 1;
 }

@@ -31,7 +31,7 @@ struct aim_tlvlist_t *aim_readtlvchain(u_char *buf, int maxlen)
 	      cur = (struct aim_tlvlist_t *)malloc(sizeof(struct aim_tlvlist_t));
 	      memset(cur, 0x00, sizeof(struct aim_tlvlist_t));
 
-	      cur->tlv = aim_createtlv();
+	      cur->tlv = aim_createtlv();	
 	      cur->tlv->type = type;
 	      cur->tlv->length = length;
 	      cur->tlv->value = (u_char *)malloc(length*sizeof(u_char));
@@ -201,13 +201,12 @@ int aim_puttlv_32(u_char *buf, u_short t, u_long v)
 int aim_puttlv_str(u_char *buf, u_short t, u_short l, u_char *v)
 {
   int curbyte;
-  if (!v || !buf)
-    return 0;
   
   curbyte  = 0;
   curbyte += aimutil_put16(buf+curbyte, (u_short)(t&0xffff));
   curbyte += aimutil_put16(buf+curbyte, (u_short)(l&0xffff));
-  memcpy(buf+curbyte, v, l);
+  if (v)
+    memcpy(buf+curbyte, v, l);
   curbyte += l;
   return curbyte;
 }

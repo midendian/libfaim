@@ -45,6 +45,9 @@ void aim_conn_close(struct aim_conn_t *deadconn)
   deadconn->forcedlatency = 0;
   aim_clearhandlers(deadconn);
   deadconn->handlerlist = NULL;
+  if (deadconn->priv)
+    free(deadconn->priv);
+  deadconn->priv = NULL;
 }
 
 struct aim_conn_t *aim_getconn_type(struct aim_session_t *sess,
@@ -240,9 +243,9 @@ void aim_session_init(struct aim_session_t *sess)
   if (!sess)
     return;
 
-  sess->logininfo.screen_name[0] = '\0';
+  memset(sess->logininfo.screen_name, 0x00, MAXSNLEN);
   sess->logininfo.BOSIP = NULL;
-  sess->logininfo.cookie[0] = '\0';
+  memset(sess->logininfo.cookie, 0x00, AIM_COOKIELEN);
   sess->logininfo.email = NULL;
   sess->logininfo.regstatus = 0x00;
   
@@ -255,10 +258,12 @@ void aim_session_init(struct aim_session_t *sess)
       sess->conns[i].lastactivity = 0;
       sess->conns[i].forcedlatency = 0;
       sess->conns[i].handlerlist = NULL;
+      sess->conns[i].priv = NULL;
     }
   
   sess->queue_outgoing = NULL;
   sess->queue_incoming = NULL;
+  sess->pendingjoin = NULL;
   sess->outstanding_snacs = NULL;
   sess->snac_nextid = 0x00000001;
 

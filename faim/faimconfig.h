@@ -18,7 +18,7 @@
  *
  * Default: 0  
 */
-#define debug 0 
+#define debug 0
 
 /*
  * Maximum number of connections the library can simultaneously
