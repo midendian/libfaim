@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Sun Dec 17 07:19:04 UTC 2000
+  - Update the capability block list
+
  - Sat Dec 16 01:34:19 UTC 2000
   - Rename paramid to rateclass
   - Add a long comment about the rate system
