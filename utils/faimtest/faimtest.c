@@ -1976,7 +1976,7 @@ int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struc
 	char *roomname;
 	int usercount,i;
 	char *roomdesc;
-	unsigned short unknown_c9, unknown_d2, unknown_d5, maxmsglen;
+	unsigned short unknown_c9, unknown_d2, unknown_d5, maxmsglen, maxvisiblemsglen;
 	unsigned long creationtime;
 
 	va_start(ap, command);
@@ -1990,6 +1990,7 @@ int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struc
 	maxmsglen = va_arg(ap, int);
 	unknown_d2 = va_arg(ap, int);
 	unknown_d5 = va_arg(ap, int);
+	maxvisiblemsglen = va_arg(ap, int);
 	va_end(ap);
 
 	dvprintf("faimtest: chat: %s:  info update:\n", (char *)command->conn->priv);
@@ -2003,9 +2004,10 @@ int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struc
 
 	dvprintf("faimtest: chat: %s:  \tUnknown_c9: 0x%04x\n", (char *)command->conn->priv, unknown_c9);
 	dvprintf("faimtest: chat: %s:  \tCreation time: %lu (time_t)\n", (char *)command->conn->priv, creationtime);
-	dvprintf("faimtest: chat: %s:  \tMax message length: %d bytes\n", (char *)command->conn->priv, maxmsglen);
 	dvprintf("faimtest: chat: %s:  \tUnknown_d2: 0x%04x\n", (char *)command->conn->priv, unknown_d2);
 	dvprintf("faimtest: chat: %s:  \tUnknown_d5: 0x%02x\n", (char *)command->conn->priv, unknown_d5);
+	dvprintf("faimtest: chat: %s:  \tMax message length: %d bytes\n", (char *)command->conn->priv, maxmsglen);
+	dvprintf("faimtest: chat: %s:  \tMax visible message length: %d bytes\n", (char *)command->conn->priv, maxvisiblemsglen);
 
 	return 1;
 }

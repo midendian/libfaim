@@ -1,6 +1,13 @@
 
 No release numbers
 ------------------
+ - Sat Aug 25 19:46:38 PDT 2001
+  - Pass "Maximum visible message length" to client in chat info update
+    - This is the real maximum message length now.  There is still a
+      "complexity" limit that will prevent you from sending messages 
+      even if they are less than this limit (102 right now), but I don't 
+      know how that is calculated.
+
  - Sat Aug 25 19:19:16 PDT 2001
   - Keep parsing missed calls for entire packet
     - This is really easy to test now.  Just talk to someone with
