@@ -1817,7 +1817,7 @@ static int ssidata(aim_session_t *sess, aim_frame_t *fr, ...)
 	list = va_arg(ap, struct aim_ssi_item *);
 	va_end(ap);
 
-	dprintf("got SSI data:\n");
+	dvprintf("got SSI data: (0x%02x, 0x%04x, %ld)\n", fmtver, rev, stamp);
 	for (l = list; l; l = l->next) {
 		dvprintf("\t0x%04x (%s) - 0x%04x/0x%04x\n",
 				l->type,
@@ -1825,7 +1825,7 @@ static int ssidata(aim_session_t *sess, aim_frame_t *fr, ...)
 				l->gid, l->bid);
 	}
 
-	aim_ssi_ackdata(sess, fr->conn);
+	aim_ssi_enable(sess, fr->conn);
 
 	return 1;
 }
@@ -1835,7 +1835,7 @@ static int ssidatanochange(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	dprintf("server says we have the latest SSI data already\n");
 
-	aim_ssi_ackdata(sess, fr->conn);
+	aim_ssi_enable(sess, fr->conn);
 
 	return 1;
 }

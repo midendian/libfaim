@@ -128,12 +128,15 @@ static int parsedata(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, ai
 }
 
 /*
- * SSI Data Acknowledge.
+ * SSI Data Enable Presence.
  *
- * Should be sent after receiving 13/6 or 13/f.
+ * Should be sent after receiving 13/6 or 13/f to tell the server you
+ * are ready to begin using the list.  It will promptly give you the
+ * presence information for everyone in your list and put your permit/deny
+ * settings into effect.
  * 
  */
-faim_export int aim_ssi_ackdata(aim_session_t *sess, aim_conn_t *conn)
+faim_export int aim_ssi_enable(aim_session_t *sess, aim_conn_t *conn)
 {
 	return aim_genericreq_n(sess, conn, 0x0013, 0x0007);
 }
