@@ -76,6 +76,15 @@ faim_export float aim_userinfo_warnlevel(aim_userinfo_t *ui)
 	return (ui->warnlevel / 10);
 }
 
+faim_export time_t aim_userinfo_createtime(aim_userinfo_t *ui)
+{
+
+	if (!ui)
+		return 0;
+
+	return (time_t)ui->createtime;
+}
+
 faim_export time_t aim_userinfo_membersince(aim_userinfo_t *ui)
 {
 
@@ -366,13 +375,20 @@ faim_internal int aim_extractuserinfo(aim_session_t *sess, aim_bstream_t *bs, ai
 
 		} else if (type == 0x0002) {
 			/*
-			 * Type = 0x0002: Member-Since date. 
+			 * Type = 0x0002: Account creation time.
 			 *
 			 * The time/date that the user originally registered for
 			 * the service, stored in time_t format.
+			 *
+			 * I'm not sure how this differs from type 5 ("member
+			 * since").
+			 *
+			 * Note: This is the field formerly known as "member
+			 * since".  All these years and I finally found out
+			 * that I got the name wrong.
 			 */
-			outinfo->membersince = aimbs_get32(bs);
-			outinfo->present |= AIM_USERINFO_PRESENT_MEMBERSINCE;
+			outinfo->createtime = aimbs_get32(bs);
+			outinfo->present |= AIM_USERINFO_PRESENT_CREATETIME;
 
 		} else if (type == 0x0003) {
 			/*
@@ -397,6 +413,19 @@ faim_internal int aim_extractuserinfo(aim_session_t *sess, aim_bstream_t *bs, ai
 			 */
 			outinfo->idletime = aimbs_get16(bs);
 			outinfo->present |= AIM_USERINFO_PRESENT_IDLE;
+
+		} else if (type == 0x0005) {
+			/*
+			 * Type = 0x0005: Member since date. 
+			 *
+			 * The time/date that the user originally registered for
+			 * the service, stored in time_t format.
+			 *
+			 * This is sometimes sent instead of type 2 ("account
+			 * creation time"), particularly in the self-info.
+			 */
+			outinfo->membersince = aimbs_get32(bs);
+			outinfo->present |= AIM_USERINFO_PRESENT_MEMBERSINCE;
 
 		} else if (type == 0x0006) {
 			/*
@@ -466,6 +495,19 @@ faim_internal int aim_extractuserinfo(aim_session_t *sess, aim_bstream_t *bs, ai
 			outinfo->sessionlen = aimbs_get32(bs);
 			outinfo->present |= AIM_USERINFO_PRESENT_SESSIONLEN;
 
+		} else if (type == 0x001d) {
+			/*
+			 * Type 29: Unknown.
+			 *
+			 * Currently very rare. Always 18 bytes of mostly zero.
+			 */
+
+		} else if (type == 0x001e) {
+			/*
+			 * Type 30: Unknown.
+			 *
+			 * Always four bytes, but it doesn't look like an int.
+			 */
 		} else {
 
 			/*
