@@ -586,6 +586,10 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	
 	break;
       }
+      case AIM_CONN_TYPE_RENDEZVOUS_OUT: {
+	/* not possible */
+	break;
+      }
       default:
 	printf("\ninternal error: unknown connection type (very bad.) (type = %d, fd = %d, commandlen = %02x)\n\n", workingPtr->conn->type, workingPtr->conn->fd, workingPtr->commandlen);
 	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
@@ -606,7 +610,7 @@ int aim_rxdispatch(struct aim_session_t *sess)
 }
 
 int aim_parsemotd_middle(struct aim_session_t *sess,
-			      struct command_rx_struct *command, ...)
+			 struct command_rx_struct *command, ...)
 {
   rxcallback_t userfunc = NULL;
   char *msg;

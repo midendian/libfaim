@@ -24,6 +24,7 @@ LIBFAIM_OBJECTS = \
 	aim_util.o \
 	aim_meta.o \
 	aim_msgcookie.o \
+	aim_ft.o \
 	aim_ads.o
 
 all: libfaim allutils

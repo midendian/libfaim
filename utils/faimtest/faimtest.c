@@ -67,6 +67,13 @@ int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *com
 int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_debugconn_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
+int faimtest_directim_request(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_directim_initiate(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   if (command->data) {
@@ -143,11 +150,21 @@ int main(void)
       break;
 
     case 2: /* incoming data pending */
-      if (aim_get_command(&aimsess, waitingconn) < 0) {
-	  printf("\afaimtest: connection error!\n");
-	  keepgoing = 0; /* fall through and hit the aim_logoff() */
-      } else
-	aim_rxdispatch(&aimsess);
+      if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
+	if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
+	  printf("connection error (rend)\n");
+	}
+      } else {
+	if (aim_get_command(&aimsess, waitingconn) >= 0) {
+	  aim_rxdispatch(&aimsess);
+	} else {
+	  printf("connection error\n");
+	  if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
+	    printf("major connetion error\n");
+	    keepgoing = 0;
+	  }
+	}
+      }
       break;
       
     default:
@@ -213,6 +230,12 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
       aim_bos_ackrateresp(sess, command->conn);
       aim_chat_clientready(sess, command->conn);
       break;
+
+    case AIM_CONN_TYPE_RENDEZVOUS: /* this is an overloaded function?? - mid */
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, faimtest_directim_incoming, 0);
+      aim_conn_addhandler(sess, command->conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
+      break;
+
     default:
       fprintf(stderr, "faimtest: unknown connection type on Server Ready\n");
     }
@@ -545,7 +568,7 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
 	//aim_chat_join(sess, command->conn, "thishereisaname2_chat85");
       } else if (!strncmp(tmpstr, "create", 6)) {
-	aim_chatnav_createroom(sess, aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV), "WorldDomination", 0x0004);
+	aim_chatnav_createroom(sess,aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV), (strlen(tmpstr) < 7)?"WorldDomination":tmpstr+7, 0x0004);
       } else if (!strncmp(tmpstr, "close chatnav", 13)) {
 	struct aim_conn_t *chatnavconn;
 	chatnavconn = aim_getconn_type(sess, AIM_CONN_TYPE_CHATNAV);
@@ -557,6 +580,10 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       else if (!strncmp(tmpstr, "getinfo", 7)) {
 	aim_getinfo(sess, command->conn, "75784102", AIM_GETINFO_GENERALINFO);
 	aim_getinfo(sess, command->conn, "15853637", AIM_GETINFO_AWAYMESSAGE);
+      } else if (!strncmp(tmpstr, "open directim", 13)) {
+	struct aim_conn_t *newconn;
+	newconn = aim_directim_initiate(sess, command->conn, NULL, userinfo->sn);
+	//aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINITIATE, faimtest_directim_initiate, 0);
       } else if (!strncmp(tmpstr, "sendmsg", 7)) {
 	int i;
 	i = atoi(tmpstr+8);
@@ -654,6 +681,32 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       aim_chat_join(sess, command->conn, 0x0004, roominfo->name);
       break;
     }	
+    case AIM_CAPS_IMIMAGE: {
+      struct aim_directim_priv *priv;
+      struct aim_conn_t *newconn;
+
+      printf("faimtest: icbm: rendezvous imimage\n");
+     
+      userinfo = va_arg(ap, struct aim_userinfo_s *);
+      priv = va_arg(ap, struct aim_directim_priv *);
+      va_end(ap);
+
+      printf("faimtest: OFT: DirectIM: request from %s (%s)\n", userinfo->sn, priv->ip);
+      
+      if (!(newconn = aim_directim_connect(sess, command->conn, priv))) {
+	printf("faimtest: icbm: imimage: could not connect\n");
+	break;
+      }
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, faimtest_directim_incoming, 0);
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
+      aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, faimtest_directim_typing, 0);
+
+      aim_send_im_direct(sess, newconn, "goodday");
+
+      printf("faimtest: OFT: DirectIM: connected to %s\n", userinfo->sn);
+
+      break;
+    }
     default:
       printf("faimtest: icbm: unknown reqclass (%d)\n", reqclass);
     } /* switch */
@@ -661,6 +714,105 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     printf("faimtest does not support channels > 2 (chan = %02x)\n", channel);
   printf("faimtest: icbm: done with ICBM handling\n");
 
+  return 1;
+}
+
+#if 0
+int faimtest_directim_initiate(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_directim_priv *priv;
+  struct aim_conn_t *newconn;
+
+  ap = va_start(ap, command);
+  newconn = va_arg(ap, struct aim_conn_t *);
+  va_end(ap);
+
+  priv = (struct aim_directim_priv *)newconn->priv;
+
+  printf("faimtest: OFT: DirectIM: intitiate success to %s\n", priv->ip);
+  
+  aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, faimtest_directim_incoming, 0);
+  aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
+  aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, faimtest_directim_typing, 0);
+
+  aim_send_im_direct(sess, newconn, "goodday");
+
+  printf("faimtest: OFT: DirectIM: connected to %s\n", priv->sn);
+
+  return 1;
+}
+#endif
+
+int faimtest_directim_connect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_directim_priv *priv;
+  
+  ap = va_start(ap, command);
+  priv = va_arg(ap, struct aim_directim_priv *);
+
+  va_end(ap);
+  
+  printf("faimtest: directim_connect\n");
+
+  return 1;
+}
+
+int faimtest_directim_incoming(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  char *sn = NULL, *msg = NULL;
+  struct aim_conn_t *conn;
+
+  ap = va_start(ap, command);
+  conn = va_arg(ap, struct aim_conn_t *);
+  sn = va_arg(ap, char *);
+  msg = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: Directim from %s: %s\n", sn, msg);
+  if (!strncmp(msg, "sendmsg", 7)) {
+    int i;
+    i = atoi(msg+8);
+    if (i < 10000) {
+      char *newbuf;
+      int z;
+      
+      newbuf = malloc(i+1);
+      for (z = 0; z < i; z++) {
+	newbuf[z] = (z % 10)+0x30;
+      }
+      newbuf[i] = '\0';
+      aim_send_im_direct(sess, conn, newbuf);
+      free(newbuf);
+    }
+  } else if (!strncmp(msg, "goodday", 7)) {
+    aim_send_im_direct(sess, conn, "Good day to you, too");
+  } else {
+    char newmsg[1024];
+    snprintf(newmsg, sizeof(newmsg), "unknown (%s)\n", msg);
+    aim_send_im_direct(sess, conn, newmsg);
+  }
+  return 1;
+}
+
+int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  printf("faimtest: directim_disconnect\n");
+  return 1;
+}
+
+int faimtest_directim_typing(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  char *sn;
+  
+  ap = va_start(ap, command);
+  sn = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", sn);
   return 1;
 }
 

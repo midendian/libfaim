@@ -1,6 +1,16 @@
 
 No release numbers
 ------------------
+ - Sun Jul 16 11:03:28 GMT 2000
+   - Fixed 0001/000a chat printf.  (Actually a one liner a few days ago.)
+   - Started integrating josh's 3k rendezvous patch.  Currently only
+      directim is working.  And its got bugs.  But he's not online
+      right now, so I can't bitch.  I'd love to bitch here, but I'm 
+      tired. 
+     - Can definitly accept directim connections and send/recieve.
+     - See faimtest for the new callbacks.  (Urg.)
+     - Here weeee gooooo.  (Not sure if this will break everyone or not.)
+
  - Fri Jun 30 00:04:47 UTC 2000
    - Removed the forceful ICQ-related warnings, just in case they're wrong
    - Added three new fields to the client info.  
