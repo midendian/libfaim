@@ -636,6 +636,9 @@ faim_export int aim_oft_getfile_end(struct aim_session_t *sess, struct aim_conn_
 #define AIM_CAPS_GAMES 0x40
 #define AIM_CAPS_SAVESTOCKS 0x80
 
+faim_export int aim_0002_000b(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn);
+faim_export int aim_0001_0020(struct aim_session_t *sess, struct aim_conn_t *conn);
+
 #define AIM_GETINFO_GENERALINFO 0x00001
 #define AIM_GETINFO_AWAYMESSAGE 0x00003
 

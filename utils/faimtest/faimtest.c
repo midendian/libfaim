@@ -466,7 +466,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
     aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response */
     aim_bos_reqpersonalinfo(sess, command->conn);
     aim_bos_reqlocaterights(sess, command->conn);
-    aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_VOICE | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS);
+    aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_VOICE | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
     aim_bos_reqbuddyrights(sess, command->conn);
 
     /* send the buddy list and profile (required, even if empty) */
@@ -479,7 +479,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
     aim_bos_reqrights(sess, command->conn);  
     /* set group permissions -- all user classes */
     aim_bos_setgroupperm(sess, command->conn, AIM_FLAG_ALLUSERS);
-    aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE|AIM_PRIVFLAGS_ALLOWMEMBERSINCE);
+    aim_bos_setprivacyflags(sess, command->conn, AIM_PRIVFLAGS_ALLOWIDLE);
 
     break;  
   }
@@ -693,98 +693,91 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   ip = va_arg(ap, char *);
   cookie = va_arg(ap, unsigned char *);
  
-  switch(serviceid)
-    {
-    case 0x0005: /* Adverts */
-      {
-	struct aim_conn_t *tstconn;
+  switch(serviceid) {
+  case 0x0005: { /* Adverts */
+    struct aim_conn_t *tstconn;
 
-	tstconn = aim_newconn(sess, AIM_CONN_TYPE_ADS, ip);
-	if ((tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
-	  dprintf("faimtest: unable to reconnect with authorizer\n");
-	} else {
-	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
-	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
-	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
-	  aim_auth_sendcookie(sess, tstconn, cookie);
-	  dprintf("sent cookie to adverts host\n");
-	}
-
-      }  
-      break;
-    case 0x0007: /* Authorizer */
-      {
-	struct aim_conn_t *tstconn;
-	/* Open a connection to the Auth */
-	tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
-	if ((tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
-	  dprintf("faimtest: unable to reconnect with authorizer\n");
-	} else {
-	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
-	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
-	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0007, 0x0007, faimtest_accountconfirm, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
-	  aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
-	  /* Send the cookie to the Auth */
-	  aim_auth_sendcookie(sess, tstconn, cookie);
-	  dprintf("sent cookie to authorizer host\n");
-	}
-
-      }  
-      break;
-    case 0x000d: /* ChatNav */
-      {
-	struct aim_conn_t *tstconn = NULL;
-	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, ip);
-	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
-	  dprintf("faimtest: unable to connect to chatnav server\n");
-	  if (tstconn) aim_conn_kill(sess, &tstconn);
-	  return 1;
-	}
-
-	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-	aim_auth_sendcookie(sess, tstconn, cookie);
-	dprintf("\achatnav: connected\n");
-      }
-      break;
-    case 0x000e: /* Chat */
-      {
-	char *roomname = NULL;
-	int exchange;
-	struct aim_conn_t *tstconn = NULL;
-
-	roomname = va_arg(ap, char *);
-	exchange = va_arg(ap, int);
-
-	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
-	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR))
-	  {
-	    dprintf("faimtest: unable to connect to chat server\n");
-	    if (tstconn) aim_conn_kill(sess, &tstconn);
-	    return 1;
-	  }		
-	dvprintf("faimtest: chat: connected to %s on exchange %d\n", roomname, exchange);
-
-	/*
-	 * We must do this to attach the stored name to the connection!
-	 */
-	aim_chat_attachname(tstconn, roomname);
-
-	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-	aim_auth_sendcookie(sess, tstconn, cookie);
-      }
-      break;
-    default:
-      dvprintf("uh oh... got redirect for unknown service 0x%04x!!\n", serviceid);
-      /* dunno */
+    tstconn = aim_newconn(sess, AIM_CONN_TYPE_ADS, ip);
+    if ((tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
+      dprintf("faimtest: unable to reconnect with authorizer\n");
+    } else {
+      aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
+      aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
+      aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+      aim_auth_sendcookie(sess, tstconn, cookie);
+      dprintf("sent cookie to adverts host\n");
     }
+    break;
+  }  
+  case 0x0007: { /* Authorizer */
+    struct aim_conn_t *tstconn;
+    /* Open a connection to the Auth */
+    tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
+    if ((tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
+      dprintf("faimtest: unable to reconnect with authorizer\n");
+    } else {
+      aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
+      aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
+      aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0007, 0x0007, faimtest_accountconfirm, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
+      aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
+      /* Send the cookie to the Auth */
+      aim_auth_sendcookie(sess, tstconn, cookie);
+      dprintf("sent cookie to authorizer host\n");
+    }
+    break;
+  }  
+  case 0x000d: { /* ChatNav */
+    struct aim_conn_t *tstconn = NULL;
+    tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, ip);
+    if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
+      dprintf("faimtest: unable to connect to chatnav server\n");
+      if (tstconn) aim_conn_kill(sess, &tstconn);
+      return 1;
+    }
+
+    aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+    aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+    aim_auth_sendcookie(sess, tstconn, cookie);
+    dprintf("\achatnav: connected\n");
+    break;
+  }
+  case 0x000e: { /* Chat */
+    char *roomname = NULL;
+    int exchange;
+    struct aim_conn_t *tstconn = NULL;
+
+    roomname = va_arg(ap, char *);
+    exchange = va_arg(ap, int);
+
+    tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
+    if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
+      dprintf("faimtest: unable to connect to chat server\n");
+      if (tstconn) aim_conn_kill(sess, &tstconn);
+      return 1;
+    }		
+    dvprintf("faimtest: chat: connected to %s on exchange %d\n", roomname, exchange);
+
+    /*
+     * We must do this to attach the stored name to the connection!
+     */
+    aim_chat_attachname(tstconn, roomname);
+
+    aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+    aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+    aim_auth_sendcookie(sess, tstconn, cookie);
+
+    break;
+  }
+  default:
+    dvprintf("uh oh... got redirect for unknown service 0x%04x!!\n", serviceid);
+    /* dunno */
+  }
 
   va_end(ap);
 
@@ -1515,6 +1508,19 @@ int faimtest_parse_motd(struct aim_session_t *sess, struct command_rx_struct *co
 
   if (!connected)
     connected++;
+
+#if 0
+  aim_bos_reqservice(sess, command->conn, 0x0005); /* adverts */
+  aim_bos_reqservice(sess, command->conn, 0x000f); /* user directory */
+
+  /* Don't know what this does... */
+  /* XXX sess->sn should be normalized by the 0001/000f handler */
+  aim_0002_000b(sess, command->conn, sess->sn);
+#endif
+
+  /* As of 26 Mar 2001 you need to send this to keep from getting kicked off */
+  aim_0001_0020(sess, command->conn);
+
 
   return 1;
 }

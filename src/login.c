@@ -189,9 +189,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
     free(password_encoded);
   }
 
-  /* XXX is clientstring required by oscar? */
-  if (strlen(clientinfo->clientstring))
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0003, strlen(clientinfo->clientstring), clientinfo->clientstring);
+  curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0003, strlen(clientinfo->clientstring), clientinfo->clientstring);
 
   if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
 
@@ -201,9 +199,6 @@ faim_export int aim_send_login (struct aim_session_t *sess,
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0019, (unsigned short)clientinfo->minor2);
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x001a, (unsigned short)clientinfo->build);
   
-    curbyte += aim_puttlv_32(newpacket->data+curbyte, 0x0014, clientinfo->unknown);
-    curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0009, 0x0015);
-
   } else {
     /* Use very specific version numbers, to further indicate the hack. */
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0016, 0x010a);
@@ -214,16 +209,14 @@ faim_export int aim_send_login (struct aim_session_t *sess,
     curbyte += aim_puttlv_32(newpacket->data+curbyte, 0x0014, 0x00000055);
   }
 
-  if (strlen(clientinfo->country))
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, strlen(clientinfo->country), clientinfo->country);
-  else
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, 2, "us");
-
-  if (strlen(clientinfo->lang))
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, strlen(clientinfo->lang), clientinfo->lang);
-  else
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, 2, "en");
+  curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, strlen(clientinfo->country), clientinfo->country);
+  curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, strlen(clientinfo->lang), clientinfo->lang);
   
+  if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
+    curbyte += aim_puttlv_32(newpacket->data+curbyte, 0x0014, clientinfo->unknown);
+    curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0009, 0x0015);
+  }
+
   newpacket->commandlen = curbyte;
 
   newpacket->lock = 0;

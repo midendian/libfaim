@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Mon Mar 26 15:57:41 PST 2001
+  - Hrmph.
+  - Debuglevel wasn't getting set properly by aim_session_init
+
  - Sat Mar 24 03:16:32 UTC 2001
   - vaargs to msgerror and locateerror swapped
      - ** CLIENT CHANGE: Reason code comes before SN now.  This is so that

@@ -215,10 +215,10 @@ faim_export unsigned long aim_bos_setprofile(struct aim_session_t *sess,
     return -1;
 
   i += aim_putsnac(newpacket->data, 0x0002, 0x004, 0x0000, sess->snac_nextid);
-  i += aim_puttlv_str(newpacket->data+i, 0x0001, strlen("text/x-aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
+  i += aim_puttlv_str(newpacket->data+i, 0x0001, strlen("text/aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
   i += aim_puttlv_str(newpacket->data+i, 0x0002, strlen(profile), profile);
   /* why do we send this twice?  */
-  i += aim_puttlv_str(newpacket->data+i, 0x0003, strlen("text/x-aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
+  i += aim_puttlv_str(newpacket->data+i, 0x0003, strlen("text/aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
   
   /* Away message -- we send this no matter what, even if its blank */
   if (awaymsg)
@@ -361,7 +361,7 @@ faim_export unsigned long aim_setversions(struct aim_session_t *sess,
   struct command_tx_struct *newpacket;
   int i;
 
-  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10 + (4*12))))
+  if (!(newpacket = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10 + (4*16))))
     return -1;
 
   newpacket->lock = 1;
@@ -371,9 +371,6 @@ faim_export unsigned long aim_setversions(struct aim_session_t *sess,
 
   i += aimutil_put16(newpacket->data+i, 0x0001);
   i += aimutil_put16(newpacket->data+i, 0x0003);
-
-  i += aimutil_put16(newpacket->data+i, 0x0013);
-  i += aimutil_put16(newpacket->data+i, 0x0001);
 
   i += aimutil_put16(newpacket->data+i, 0x0002);
   i += aimutil_put16(newpacket->data+i, 0x0001);
@@ -397,9 +394,15 @@ faim_export unsigned long aim_setversions(struct aim_session_t *sess,
   i += aimutil_put16(newpacket->data+i, 0x0001);
 
   i += aimutil_put16(newpacket->data+i, 0x000b);
-  i += aimutil_put16(newpacket->data+i, 0x0001);
+  i += aimutil_put16(newpacket->data+i, 0x0002);
 
   i += aimutil_put16(newpacket->data+i, 0x000c);
+  i += aimutil_put16(newpacket->data+i, 0x0001);
+
+  i += aimutil_put16(newpacket->data+i, 0x0013);
+  i += aimutil_put16(newpacket->data+i, 0x0001);
+
+  i += aimutil_put16(newpacket->data+i, 0x0015);
   i += aimutil_put16(newpacket->data+i, 0x0001);
 
   newpacket->commandlen = i;

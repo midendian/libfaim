@@ -752,7 +752,7 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
   sess->snac_nextid = 0x00000001;
 
   sess->flags = 0;
-  sess->debug = 0;
+  sess->debug = debuglevel;
   sess->debugcb = defaultdebugcb;
 
   sess->modlistv = NULL;

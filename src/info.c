@@ -526,6 +526,30 @@ faim_export int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_con
   return 0;
 }
 
+faim_export int aim_0002_000b(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn)
+{
+  struct command_tx_struct *tx;
+  int i = 0;
+
+  if (!sess || !conn || !sn)
+    return 0;
+
+  if (!(tx = aim_tx_new(sess, conn, AIM_FRAMETYPE_OSCAR, 0x0002, 10+1+strlen(sn))))
+    return -1;
+
+  tx->lock = 1;
+
+  i = aim_putsnac(tx->data, 0x0002, 0x000b, 0x0000, sess->snac_nextid);
+  i += aimutil_put8(tx->data+i, strlen(sn));
+  i += aimutil_putstr(tx->data+i, sn, strlen(sn));
+  
+  tx->commandlen = i;
+  tx->lock = 0;
+  aim_tx_enqueue(sess, tx);
+
+  return 0;
+}
+
 static int rights(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
   struct aim_tlvlist_t *tlvlist;
