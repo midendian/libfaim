@@ -478,13 +478,16 @@ faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct 
 faim_internal int aim_tx_sendframe(struct aim_session_t *sess, struct command_tx_struct *cur);
 faim_internal unsigned int aim_get_next_txseqnum(struct aim_conn_t *);
 faim_internal struct command_tx_struct *aim_tx_new(unsigned char framing, int chan, struct aim_conn_t *conn, int datalen);
-faim_internal int aim_tx_enqueue__queuebased(struct aim_session_t *, struct command_tx_struct *);
-faim_internal int aim_tx_enqueue__immediate(struct aim_session_t *, struct command_tx_struct *);
 faim_internal int aim_tx_enqueue(struct aim_session_t *, struct command_tx_struct *);
 faim_internal int aim_tx_printqueue(struct aim_session_t *);
 faim_internal int aim_parse_hostonline(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 faim_internal int aim_parse_hostversions(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 #endif /* FAIM_INTERNAL */
+
+#define AIM_TX_QUEUED    0 /* default */
+#define AIM_TX_IMMEDIATE 1
+#define AIM_TX_USER      2
+faim_export int aim_tx_setenqueue(struct aim_session_t *sess, int what,  int (*func)(struct aim_session_t *, struct command_tx_struct *));
 
 faim_export int aim_tx_flushqueue(struct aim_session_t *);
 faim_export void aim_tx_purgequeue(struct aim_session_t *);

@@ -75,8 +75,7 @@ faim_internal struct command_tx_struct *aim_tx_new(unsigned char framing, int ch
  * that is, when sess->tx_enqueue is set to &aim_tx_enqueue__queuebased.
  *
  */
-faim_internal int aim_tx_enqueue__queuebased(struct aim_session_t *sess,
-					     struct command_tx_struct *newpacket)
+static int aim_tx_enqueue__queuebased(struct aim_session_t *sess, struct command_tx_struct *newpacket)
 {
   struct command_tx_struct *cur;
 
@@ -127,7 +126,7 @@ faim_internal int aim_tx_enqueue__queuebased(struct aim_session_t *sess,
  * right here. 
  * 
  */
-faim_internal int aim_tx_enqueue__immediate(struct aim_session_t *sess, struct command_tx_struct *newpacket)
+static int aim_tx_enqueue__immediate(struct aim_session_t *sess, struct command_tx_struct *newpacket)
 {
   if (newpacket->conn == NULL) {
     faimdprintf(1, "aim_tx_enqueue: ERROR: packet has no connection\n");
@@ -148,6 +147,25 @@ faim_internal int aim_tx_enqueue__immediate(struct aim_session_t *sess, struct c
   if (newpacket->data)
     free(newpacket->data);
   free(newpacket);
+
+  return 0;
+}
+
+faim_export int aim_tx_setenqueue(struct aim_session_t *sess, int what,  int (*func)(struct aim_session_t *, struct command_tx_struct *))
+{
+  if (!sess)
+    return -1;
+
+  if (what == AIM_TX_QUEUED)
+    sess->tx_enqueue = &aim_tx_enqueue__queuebased;
+  else if (what == AIM_TX_IMMEDIATE) 
+    sess->tx_enqueue = &aim_tx_enqueue__immediate;
+  else if (what == AIM_TX_USER) {
+    if (!func)
+      return -1;
+    sess->tx_enqueue = func;
+  } else
+    return -1; /* unknown action */
 
   return 0;
 }

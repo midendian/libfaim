@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Fri Feb  9 22:31:22 UTC 2001
+  - Add aim_tx_setenqueue().
+
  - Thu Feb  8 20:12:39 UTC 2001
   - Let TLV functions out of aim.h if FAIM_NEED_TLV is defined.
 

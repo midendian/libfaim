@@ -739,7 +739,7 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
    * This must always be set.  Default to the queue-based
    * version for back-compatibility.  
    */
-  sess->tx_enqueue = &aim_tx_enqueue__queuebased;
+  aim_tx_setenqueue(sess, AIM_TX_QUEUED, NULL);
 
   return;
 }
