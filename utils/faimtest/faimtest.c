@@ -368,8 +368,6 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 	snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", priv->ohcaptainmycaptain ? priv->ohcaptainmycaptain : "blah");
 	snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", priv->ohcaptainmycaptain);
 
-	aim_ratesack(sess, fr->conn);  /* ack rate info response */
-
 	aim_bos_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
 	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST);
