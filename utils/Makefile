@@ -1,12 +1,12 @@
 include Makefile.dynamicrules
 
-UTIL_DIRS = aimdump faimtest #aimpasswd
+UTIL_DIRS = faimtest #aimdump aimpasswd
 
 utils_all: 
 	@dirs='$(UTIL_DIRS)'; \
 	for i in $$dirs; do \
 	  cd $$i; \
-	  make; \
+	  $(MAKE); \
 	  cd ..; \
 	done; 
 
@@ -14,7 +14,7 @@ clean:
 	@dirs='$(UTIL_DIRS)'; \
 	for i in $$dirs; do \
 	  cd $$i; \
-	  make clean; \
+	  $(MAKE) clean; \
 	  cd ..; \
 	done;
 	@rm -f Makefile.dynamicrules

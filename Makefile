@@ -40,18 +40,18 @@ allutils: libfaim
 	@echo "LIBFAIM_INC = $$PWD" > utils/Makefile.dynamicrules; \
 	echo "LIBFAIM_LIB = $$PWD" >> utils/Makefile.dynamicrules; \
 	cd utils; \
-	make
+	$(MAKE)	
 
 install: libfaim
 	cp -r faim /usr/include
 	cp libfaim.so /usr/lib/$(SOFILENAME)
-	/sbin/ldconfig
+	@echo YOU MUST UPDATE YOUR DYNAMIC LOADER CACHE NOW
 
 cleanutils:
 	@echo "LIBFAIM_INC = $$PWD" > utils/Makefile.dynamicrules; \
 	echo "LIBFAIM_LIB = $$PWD" >> utils/Makefile.dynamicrules; \
 	cd utils; \
-	make clean
+	$(MAKE) clean
 
 clean: cleanutils
 	rm -f $(LIBFAIM_OBJECTS) $(SONAME) libfaim.a *~ core

@@ -7,7 +7,7 @@ endif
 
 LDFLAGS = 
 ifdef LIBFAIM_LIB
-LDFLAGS += -lfaim -ldl -L$(LIBFAIM_LIB)
+LDFLAGS += -lfaim -L$(LIBFAIM_LIB)
 endif
 
 AR = ar
