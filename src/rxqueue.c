@@ -396,7 +396,11 @@ faim_export int aim_get_command(aim_session_t *sess, aim_conn_t *conn)
 	 * or we break.  We must handle it just in case.
 	 */
 	if (aimbs_get8(&flaphdr) != 0x2a) {
-		faimdprintf(sess, 0, "FLAP framing disrupted");
+		fu8_t start;
+
+		aim_bstream_rewind(&flaphdr);
+		start = aimbs_get8(&flaphdr);
+		faimdprintf(sess, 0, "FLAP framing disrupted (0x%02x)", start);
 		aim_conn_close(conn);
 		return -1;
 	}	
