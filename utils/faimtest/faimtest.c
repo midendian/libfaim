@@ -1338,7 +1338,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 
 	if (args->icbmflags & AIM_IMFLAGS_HASICON) {
 		aim_send_im(sess, conn, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");
-		dvprintf("faimtest: icbm: their icon: iconstamp = %ld, iconlen = 0x%08lx, iconsum = 0x%08lx\n", args->iconstamp, args->iconlen, args->iconsum);
+		dvprintf("faimtest: icbm: their icon: iconstamp = %ld, iconlen = 0x%08lx, iconsum = 0x%04x\n", args->iconstamp, args->iconlen, args->iconsum);
 	}
 
 	if (realmsg) {
