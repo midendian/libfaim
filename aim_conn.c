@@ -102,7 +102,9 @@ void aim_conn_kill(struct aim_session_t *sess, struct aim_conn_t **deadconn)
   /* XXX: do we need this for txqueue too? */
   aim_rxqueue_cleanbyconn(sess, *deadconn);
 
-  aim_conn_init(*deadconn);
+  aim_conn_close(*deadconn);
+  if ((*deadconn)->priv)
+    free((*deadconn)->priv);
   free(*deadconn);
   deadconn = NULL;
 

@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Thu Aug 17 14:04:18 UTC 2000
+   - Fix the fd closing bug introduced last week
+
  - Tue Aug  8 04:25:35 UTC 2000
    - Preserve subtype and priv after aim_conn_close
 
