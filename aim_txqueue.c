@@ -1,24 +1,24 @@
 /*
-  aim_txqueue.c
-
-  Herein lies all the mangement routines for the transmit (Tx) queue.
-
+ *  aim_txqueue.c
+ *
+ * Herein lies all the mangement routines for the transmit (Tx) queue.
+ *
  */
 
-#include "aim.h"
+#include <aim.h>
 
 /*
-  aim_tx_enqeue()
-
-  The overall purpose here is to enqueue the passed in command struct
-  into the outgoing (tx) queue.  Basically...
-    1) Make a scope-irrelevent copy of the struct
-    2) Lock the struct
-    3) Mark as not-sent-yet
-    4) Enqueue the struct into the list
-    5) Unlock the struct once it's linked in
-    6) Return
-
+ * aim_tx_enqeue()
+ *
+ * The overall purpose here is to enqueue the passed in command struct
+ * into the outgoing (tx) queue.  Basically...
+ *   1) Make a scope-irrelevent copy of the struct
+ *   2) Lock the struct
+ *   3) Mark as not-sent-yet
+ *   4) Enqueue the struct into the list
+ *   5) Unlock the struct once it's linked in
+ *   6) Return
+ *
  */
 
 int aim_tx_enqueue(struct command_tx_struct *newpacket)
@@ -200,7 +200,6 @@ int aim_tx_flushqueue(void)
 
 	  if ( (u_int)write(workingPtr->conn->fd, curPacket, (workingPtr->commandlen + 6)) != (workingPtr->commandlen + 6))
 	    {
-	      perror("write");
 	      printf("\nWARNING: Error in sending packet 0x%4x -- will try again next time\n\n", workingPtr->seqnum);
 	      workingPtr->sent = 0; /* mark it unsent */
 	      return -1;  /* bail out */

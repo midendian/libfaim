@@ -289,7 +289,7 @@ int aim_parse_generalerrs(struct command_rx_struct *command, ...);
 /* aim_im.c */
 #define AIM_IMFLAGS_AWAY 0x01 /* mark as an autoreply */
 #define AIM_IMFLAGS_ACK 0x02 /* request a receipt notice */
-u_long aim_send_im(struct aim_conn_t *, char *, int, char *);
+u_long aim_send_im(struct aim_conn_t *, char *, u_int, char *);
 int aim_parse_incoming_im_middle(struct command_rx_struct *);
 u_long aim_seticbmparam(struct aim_conn_t *conn);
 

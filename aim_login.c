@@ -5,7 +5,7 @@
  *
  */
 
-#include "aim.h"
+#include <aim.h>
 
 
 /*
@@ -16,7 +16,7 @@
 #endif
 
 /*
- *  send_login(int socket, char *sn, char *password)
+ * send_login(int socket, char *sn, char *password)
  *  
  * This is the initial login request packet.
  *
@@ -24,11 +24,8 @@
  * encode_password().  See that function for their
  * stupid method of doing it.
  *
- *
- *
  */
 int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct client_info_s *clientinfo)
-#if 0
 {
   char *password_encoded = NULL;  /* to store encoded password */
   int curbyte=0;
@@ -40,18 +37,19 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
   else
     newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_AUTH);
 
-  newpacket.commandlen = 6+2+strlen(sn)+1+1+2+strlen(password)+6;
-
+  newpacket.commandlen = 4 + 4+strlen(sn) + 4+strlen(password) + 6;
+ 
   if (clientinfo)
     {
       if (strlen(clientinfo->clientstring))
-	newpacket.commandlen += strlen(clientinfo->clientstring)+4;
-      newpacket.commandlen += 6+6+6; 
+	newpacket.commandlen += 4+strlen(clientinfo->clientstring);
+      newpacket.commandlen += 6+6+6;
       if (strlen(clientinfo->country))
-	newpacket.commandlen += strlen(clientinfo->country)+4;
+	newpacket.commandlen += 4+strlen(clientinfo->country);
       if (strlen(clientinfo->lang))
-	newpacket.commandlen += strlen(clientinfo->lang)+4;
+	newpacket.commandlen += 4+strlen(clientinfo->lang);
     }
+  newpacket.commandlen += 6;
 
   newpacket.data = (char *) calloc (1,  newpacket.commandlen );
   newpacket.lock = 1;
@@ -71,7 +69,7 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
   free(password_encoded);
   
   curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0016, 0x0001);
-
+  
   if (clientinfo)
     {
       if (strlen(clientinfo->clientstring))
@@ -89,7 +87,7 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
 	  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(clientinfo->country));
 	  curbyte += aimutil_putstr(newpacket.data+curbyte, clientinfo->country, strlen(clientinfo->country));
 	}
-       if (strlen(clientinfo->lang))
+      if (strlen(clientinfo->lang))
 	{
 	  curbyte += aimutil_put16(newpacket.data+curbyte, 0x000f);
 	  curbyte += aimutil_put16(newpacket.data+curbyte, strlen(clientinfo->lang));
@@ -104,163 +102,6 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
 
   return 0;
 }
-#else
-{
-
-  /* this is for the client info field of this packet.  for now, just
-     put a few zeros in there and hope they don't notice. */
-  char info_field[] = {
-    0x00, 0x00, 0x00, 0x00
-  };
-  int info_field_len = 4;
-
-  char *password_encoded = NULL;  /* to store encoded password */
-  int n = 0; /* counter during packet construction */
-
-  struct command_tx_struct newpacket;
-
-  if (conn)
-    newpacket.conn = conn;
-  else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_AUTH);
-
-  /* breakdown of new_packet_login_len */
-  newpacket.commandlen = 6; /* SNAC: fixed bytes */
-  newpacket.commandlen += 2; /* SN len */
-  newpacket.commandlen += strlen(sn); /* SN text */
-  newpacket.commandlen += 1; /* SN null terminator */
-  newpacket.commandlen += 1; /* fixed byte */
-  newpacket.commandlen += 2; /* password len */
-  newpacket.commandlen += strlen(password); /* password text */
-  newpacket.commandlen += 1; /* password null term*/
-  newpacket.commandlen += 1; /* fixed byte */
-  newpacket.commandlen += 2; /* info field len */
-  newpacket.commandlen += info_field_len; /* info field text */
-  newpacket.commandlen += 1; /* info field null term */
-  newpacket.commandlen += 41; /* fixed bytes */
-
-  /* allocate buffer to use for constructing packet_login */
-  newpacket.data = (char *) malloc ( newpacket.commandlen );
-  memset(newpacket.data, 0x00, newpacket.commandlen);
-
-  newpacket.lock = 1;
-  newpacket.type = 0x01;
-
-  newpacket.data[0] = 0x00;
-  newpacket.data[1] = 0x00;
-  newpacket.data[2] = 0x00;
-  newpacket.data[3] = 0x01;
-  newpacket.data[4] = 0x00;
-  newpacket.data[5] = 0x01;
-
-  newpacket.data[6] = (char) ( (strlen(sn)) >> 8);
-  newpacket.data[7] = (char) ( (strlen(sn)) & 0xFF);
-
-  n = 8;
-  memcpy(&(newpacket.data[n]), sn, strlen(sn));
-  n += strlen(sn);
-  newpacket.data[n] = 0x00;
-  n++;
-
-  newpacket.data[n] = 0x02;
-  n++;
-
-  /* store password length as word */
-  newpacket.data[n] = (char) ( (strlen(password)) >> 8);
-  newpacket.data[n+1] = (char) ( (strlen(password)) & 0xFF);
-  n += 2;
-
-  /* allocate buffer for encoded password */
-  password_encoded = (char *) malloc(strlen(password));
-  /* encode password */
-  aim_encode_password(password, password_encoded);
-  /* store encoded password */
-  memcpy(&(newpacket.data[n]), password_encoded, strlen(password));
-
-  n += strlen(password);
-  /* free buffer */
-  free(password_encoded);
-  /* place null terminator after encoded password */
-  newpacket.data[n] = 0x00;
-  n++;
-
-  newpacket.data[n] = 0x03;
-  n++;
-
-  newpacket.data[n] = (char) ( (info_field_len) >> 8);
-  newpacket.data[n+1] = (char) ( (info_field_len) & 0xFF);
-  n += 2;
-  memcpy(&(newpacket.data[n]), info_field, info_field_len);
-  n += info_field_len;
-  newpacket.data[n] = 0x00;
-  n++;
-
-  newpacket.data[n] = 0x16;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x02;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-  newpacket.data[n] = 0x01;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x17;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x02;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x01;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x18;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x02;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x01;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x1a;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x02;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x13;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x0e;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x02;
-  newpacket.data[n+3] = 0x75;
-  n += 4;
-
-  newpacket.data[n] = 0x73;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x0f;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x02;
-  newpacket.data[n+1] = 0x65;
-  newpacket.data[n+2] = 0x6e;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-  newpacket.data[n] = 0x09;
-  newpacket.data[n+1] = 0x00;
-  newpacket.data[n+2] = 0x02;
-  newpacket.data[n+3] = 0x00;
-  n += 4;
-
-  newpacket.data[n] = 0x15;
-  n += 1;
-
-  aim_tx_enqueue(&newpacket);
-
-  return 0;
-}
-#endif
 
 /*
  *  int encode_password(

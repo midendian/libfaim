@@ -402,14 +402,14 @@ int faimtest_parse_userinfo(struct command_rx_struct *command, ...)
  *  ulong                       membersince time_t of date of signup
  *  ulong                       onsince     time_t of date of singon
  *  int                         idletime    min (sec?) idle
- *  int                         isautoreply TRUE if its an auto-response
+ *  u_int                       icbmflags   sets AIM_IMFLAGS_{AWAY,ACK}
  *
  */
 int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
 {
   struct aim_userinfo_s *userinfo;
   char *msg = NULL;
-  int isautoreply = 0;
+  u_int icbmflags = 0;
   va_list ap;
   char *tmpstr = NULL;
   u_short flag1, flag2;
@@ -417,7 +417,7 @@ int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
   va_start(ap, command);
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   msg = va_arg(ap, char *);
-  isautoreply = va_arg(ap, int);
+  icbmflags = va_arg(ap, u_int);
   flag1 = va_arg(ap, u_short);
   flag2 = va_arg(ap, u_short);
   va_end(ap);
@@ -436,7 +436,14 @@ int faimtest_parse_incoming_im(struct command_rx_struct *command, ...)
   printf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
   printf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
   printf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
-  printf("faimtest: icbm: isautoreply = %s\n", isautoreply ? "TRUE" : "FALSE");  
+
+  printf("faimtest: icbm: icbmflags = ");
+  if (icbmflags & AIM_IMFLAGS_AWAY)
+    printf("away ");
+  if (icbmflags & AIM_IMFLAGS_ACK)
+    printf("ackrequest ");
+  printf("\n");
+  
   printf("faimtest: icbm: encoding flags = {%04x, %04x}\n", flag1, flag2);
 
   printf("faimtest: icbm: message: %s\n", msg);

@@ -1,36 +1,25 @@
-
 /*
-  aim_rxhandlers.c
-
-  This file contains most all of the incoming packet handlers, along
-  with aim_rxdispatch(), the Rx dispatcher.  Queue/list management is
-  actually done in aim_rxqueue.c.
-  
+ * aim_rxhandlers.c
+ *
+ * This file contains most all of the incoming packet handlers, along
+ * with aim_rxdispatch(), the Rx dispatcher.  Queue/list management is
+ * actually done in aim_rxqueue.c.
+ *
  */
 
+#include <aim.h>
 
-#include "aim.h" /* for most everything */
-
-
+/*
+ * Bleck functions get called when there's no non-bleck functions
+ * around to cleanup the mess...
+ */
 int bleck(struct command_rx_struct *workingPtr, ...)
 {
   u_short family;
   u_short subtype;
   family = (workingPtr->data[0] << 8) + workingPtr->data[1];
   subtype = (workingPtr->data[2] << 8) + workingPtr->data[3];
-#if debug > 0
-  fprintf(stderr, "bleck: null handler for %04x/%04x\n", family, subtype);
-#endif
-  return 1;
-}
-
-int bleck2(struct command_rx_struct *workingPtr, ...)
-{
-  u_short family;
-  u_short subtype;
-  family = (workingPtr->data[0] << 8) + workingPtr->data[1];
-  subtype = (workingPtr->data[2] << 8) + workingPtr->data[3];
-  printf("OLDbleck: called for %04x/%04x -- OBSOLETE\n", family, subtype);
+  printf("bleck: null handler for %04x/%04x\n", family, subtype);
   return 1;
 }
 
@@ -171,7 +160,7 @@ int aim_rxdispatch(void)
 		   (workingPtr->data[3] == 0x01) )
 		{
 #if debug > 0
-		  fprintf(stderr, "got connection ack on auth line\n");
+		  printf("got connection ack on auth line\n");
 #endif
 		  workingPtr->handled = 1;
 		}
@@ -333,11 +322,11 @@ int aim_rxdispatch(void)
 	      }
 	      break;
 	    case AIM_CONN_TYPE_CHAT:
-	      fprintf(stderr, "\nAHH! Dont know what to do with CHAT stuff yet!\n");
+	      printf("\nAHH! Dont know what to do with CHAT stuff yet!\n");
 	      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_DEFAULT, workingPtr);
 	      break;
 	    default:
-	      fprintf(stderr, "\nAHHHHH! UNKNOWN CONNECTION TYPE! (0x%02x)\n\n", workingPtr->conn->type);
+	      printf("\nAHHHHH! UNKNOWN CONNECTION TYPE! (0x%02x)\n\n", workingPtr->conn->type);
 	      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 	      break;
 	    }

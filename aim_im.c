@@ -5,7 +5,7 @@
  *
  */
 
-#include "aim.h"
+#include <aim.h>
 
 /*
  * Send an ICBM (instant message).  
@@ -17,7 +17,7 @@
  *                        when the message is received (of type 0x0004/0x000c)
  *
  */
-u_long aim_send_im(struct aim_conn_t *conn, char *destsn, int flags, char *msg)
+u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg)
 {   
 
   int curbyte,i;
@@ -152,7 +152,7 @@ int aim_parse_incoming_im_middle(struct command_rx_struct *command)
   struct aim_userinfo_s userinfo;
   u_int i = 0, j = 0, y = 0, z = 0;
   char *msg = NULL;
-  int isautoresponse = 0;
+  u_int icbmflags = 0;
   rxcallback_t userfunc = NULL;
   u_char cookie[8];
   int channel;
@@ -215,7 +215,13 @@ int aim_parse_incoming_im_middle(struct command_rx_struct *command)
    * it will contain a second type 0x0004 TLV, with zero length.
    */
   if (aim_gettlv(tlvlist, 0x0004, 2))
-    isautoresponse = 1;
+    icbmflags |= AIM_IMFLAGS_AWAY;
+
+  /*
+   * Check Ack Request status.
+   */
+  if (aim_gettlv(tlvlist, 0x0003, 2))
+    icbmflags |= AIM_IMFLAGS_ACK;
 
   /*
    * Extract the various pieces of the userinfo struct.
@@ -320,7 +326,7 @@ int aim_parse_incoming_im_middle(struct command_rx_struct *command)
    */
   userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
   if (userfunc)
-    i = userfunc(command, &userinfo, msg, isautoresponse, flag1, flag2);
+    i = userfunc(command, &userinfo, msg, icbmflags, flag1, flag2);
   else 
     i = 0;
 

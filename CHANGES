@@ -4,6 +4,12 @@ No release numbers
  - Fri Dec 24 21:30:06 UTC 1999
    - Added an error-counting Read() that has been sitting in my inbox
    - Cleaned up header files, created aim_cbtypes.h.
+   - Added void * to aim_conn_t for private client use if they want. (Orb)
+   - Removed all stderr output.  All output is important, and goes to stdout.
+   - Renamed isautoresponse in IM parser to icbmflags.
+   - Added Orb's fix for the new login code, deleted old (see Orb, I do read
+       your mail....eventually).
+   - Added mailing lists to README.
 
  - Fri Dec 24 11:12:34 UTC 1999
    - Cleaned up both outgoing and incoming ICBM handling.  Anything
