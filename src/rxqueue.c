@@ -24,10 +24,10 @@ faim_internal int aim_recv(int fd, void *buf, size_t count)
 		int ret;
 		
 		ret = recv(fd, ((unsigned char *)buf)+cur, left, 0);
-		if (ret == -1)
+
+		/* Of course EOF is an error, only morons disagree with that. */
+		if (ret <= 0)
 			return -1;
-		else if (ret == 0)
-			return cur;
 
 		cur += ret;
 		left -= ret;
