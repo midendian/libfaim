@@ -11,7 +11,7 @@
  *
  */
 
-#include "aim.h"
+#include <faim/aim.h> 
 
 /*
  * aim_bos_setidle()
@@ -21,9 +21,11 @@
  *  time.  
  *
  */
-u_long aim_bos_setidle(struct aim_conn_t *conn, u_long idletime)
+u_long aim_bos_setidle(struct aim_session_t *sess,
+		       struct aim_conn_t *conn, 
+		       u_long idletime)
 {
-  return aim_genericreq_l(conn, 0x0001, 0x0011, &idletime);
+  return aim_genericreq_l(sess, conn, 0x0001, 0x0011, &idletime);
 }
 
 
@@ -55,7 +57,9 @@ u_long aim_bos_setidle(struct aim_conn_t *conn, u_long idletime)
  *
  *
  */
-u_long aim_bos_changevisibility(struct aim_conn_t *conn, int changetype, char *denylist)
+u_long aim_bos_changevisibility(struct aim_session_t *sess,
+				struct aim_conn_t *conn, 
+				int changetype, char *denylist)
 {
   struct command_tx_struct newpacket;
   u_short subtype;
@@ -73,7 +77,7 @@ u_long aim_bos_changevisibility(struct aim_conn_t *conn, int changetype, char *d
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
 
   newpacket.type = 0x02;
 
@@ -116,9 +120,9 @@ u_long aim_bos_changevisibility(struct aim_conn_t *conn, int changetype, char *d
 
   newpacket.lock = 0;
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
-  return (aim_snac_nextid); /* dont increment */
+  return (sess->snac_nextid); /* dont increment */
 
 }
 
@@ -134,7 +138,9 @@ u_long aim_bos_changevisibility(struct aim_conn_t *conn, int changetype, char *d
  * TODO: Clean this up.
  *
  */
-u_long aim_bos_setbuddylist(struct aim_conn_t *conn, char *buddy_list)
+u_long aim_bos_setbuddylist(struct aim_session_t *sess,
+			    struct aim_conn_t *conn, 
+			    char *buddy_list)
 {
   int i, j;
 
@@ -181,13 +187,13 @@ u_long aim_bos_setbuddylist(struct aim_conn_t *conn, char *buddy_list)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.commandlen = packet_login_phase3c_hi_b_len - 6;
   newpacket.lock = 1;
   
   newpacket.data = (char *) malloc(newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, 0x0003, 0x0004, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x0003, 0x0004, 0x0000, sess->snac_nextid);
 
   j = 10;  /* the next byte */
 
@@ -207,9 +213,9 @@ u_long aim_bos_setbuddylist(struct aim_conn_t *conn, char *buddy_list)
 
   newpacket.lock = 0;
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /* 
@@ -218,7 +224,9 @@ u_long aim_bos_setbuddylist(struct aim_conn_t *conn, char *buddy_list)
  * Gives BOS your profile.
  *
  */
-u_long aim_bos_setprofile(struct aim_conn_t *conn, char *profile)
+u_long aim_bos_setprofile(struct aim_session_t *sess,
+			  struct aim_conn_t *conn, 
+			  char *profile)
 {
   int packet_profile_len = 0;
   struct command_tx_struct newpacket;
@@ -239,13 +247,14 @@ u_long aim_bos_setprofile(struct aim_conn_t *conn, char *profile)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+
   newpacket.commandlen = packet_profile_len;
   newpacket.data = (char *) malloc(packet_profile_len);
 
   i = 0;
 
-  i += aim_putsnac(newpacket.data, 0x0002, 0x004, 0x0000, aim_snac_nextid);
+  i += aim_putsnac(newpacket.data, 0x0002, 0x004, 0x0000, sess->snac_nextid);
 
   /* TLV t(0001) */
   newpacket.data[i++] = 0x00;
@@ -266,9 +275,9 @@ u_long aim_bos_setprofile(struct aim_conn_t *conn, char *profile)
   /* TLV v(profile) */
   memcpy(&(newpacket.data[i]), profile, strlen(profile));
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
   
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /* 
@@ -277,9 +286,11 @@ u_long aim_bos_setprofile(struct aim_conn_t *conn, char *profile)
  * Set group permisson mask.  Normally 0x1f.
  *
  */
-u_long aim_bos_setgroupperm(struct aim_conn_t *conn, u_long mask)
+u_long aim_bos_setgroupperm(struct aim_session_t *sess,
+			    struct aim_conn_t *conn, 
+			    u_long mask)
 {
-  return aim_genericreq_l(conn, 0x0009, 0x0004, &mask);
+  return aim_genericreq_l(sess, conn, 0x0009, 0x0004, &mask);
 }
 
 /*
@@ -290,7 +301,8 @@ u_long aim_bos_setgroupperm(struct aim_conn_t *conn, u_long mask)
  * TODO: Dynamisize.
  *
  */
-u_long aim_bos_clientready(struct aim_conn_t *conn)
+u_long aim_bos_clientready(struct aim_session_t *sess,
+			   struct aim_conn_t *conn)
 {
   u_char command_2[] = {
      /* placeholders for dynamic data */
@@ -315,18 +327,18 @@ u_long aim_bos_clientready(struct aim_conn_t *conn)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
   newpacket.commandlen = command_2_len;
   newpacket.data = (char *) malloc (newpacket.commandlen);
   memcpy(newpacket.data, command_2, newpacket.commandlen);
   
   /* This write over the dynamic parts of the byte block */
-  aim_putsnac(newpacket.data, 0x0001, 0x0002, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x0001, 0x0002, 0x0000, sess->snac_nextid);
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /* 
@@ -337,9 +349,10 @@ u_long aim_bos_clientready(struct aim_conn_t *conn)
  *  TODO: Move to aim_conn.
  *  TODO: Move to SNAC interface.
  */
-u_long aim_bos_reqrate(struct aim_conn_t *conn)
+u_long aim_bos_reqrate(struct aim_session_t *sess,
+		       struct aim_conn_t *conn)
 {
-  return aim_genericreq_n(conn, 0x0001, 0x0006);
+  return aim_genericreq_n(sess, conn, 0x0001, 0x0006);
 }
 
 /* 
@@ -348,7 +361,8 @@ u_long aim_bos_reqrate(struct aim_conn_t *conn)
  *  Rate Information Response Acknowledge.
  *
  */
-u_long aim_bos_ackrateresp(struct aim_conn_t *conn)
+u_long aim_bos_ackrateresp(struct aim_session_t *sess,
+			   struct aim_conn_t *conn)
 {
   struct command_tx_struct newpacket;
 
@@ -356,12 +370,12 @@ u_long aim_bos_ackrateresp(struct aim_conn_t *conn)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
   newpacket.commandlen = 18;
 
   newpacket.data = (char *) malloc(newpacket.commandlen);
-  aim_putsnac(newpacket.data, 0x0001, 0x0008, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x0001, 0x0008, 0x0000, sess->snac_nextid);
 
   newpacket.data[10] = 0x00;
   newpacket.data[11] = 0x01;
@@ -372,9 +386,9 @@ u_long aim_bos_ackrateresp(struct aim_conn_t *conn)
   newpacket.data[16] = 0x00;
   newpacket.data[17] = 0x04;
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /* 
@@ -386,9 +400,11 @@ u_long aim_bos_ackrateresp(struct aim_conn_t *conn)
  *
  *
  */
-u_long aim_bos_setprivacyflags(struct aim_conn_t *conn, u_long flags)
+u_long aim_bos_setprivacyflags(struct aim_session_t *sess,
+			       struct aim_conn_t *conn, 
+			       u_long flags)
 {
-  return aim_genericreq_l(conn, 0x0001, 0x0014, &flags);
+  return aim_genericreq_l(sess, conn, 0x0001, 0x0014, &flags);
 }
 
 /*
@@ -398,7 +414,8 @@ u_long aim_bos_setprivacyflags(struct aim_conn_t *conn, u_long flags)
  * because aparently it uses SNAC flags.
  *
  */
-u_long aim_bos_reqpersonalinfo(struct aim_conn_t *conn)
+u_long aim_bos_reqpersonalinfo(struct aim_session_t *sess,
+			       struct aim_conn_t *conn)
 {
   struct command_tx_struct newpacket;
   
@@ -406,19 +423,19 @@ u_long aim_bos_reqpersonalinfo(struct aim_conn_t *conn)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
   newpacket.commandlen = 12;
 
   newpacket.data = (char *) malloc(newpacket.commandlen);
-  aim_putsnac(newpacket.data, 0x000a, 0x0001, 0x000e /* huh? */, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x000a, 0x0001, 0x000e /* huh? */, sess->snac_nextid);
   
   newpacket.data[10] = 0x0d;
   newpacket.data[11] = 0xda;
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /*
@@ -427,9 +444,11 @@ u_long aim_bos_reqpersonalinfo(struct aim_conn_t *conn)
  * Service request. 
  *
  */
-u_long aim_bos_reqservice(struct aim_conn_t *conn, u_short serviceid)
+u_long aim_bos_reqservice(struct aim_session_t *sess,
+			  struct aim_conn_t *conn, 
+			  u_short serviceid)
 {
-  return aim_genericreq_s(conn, 0x0001, 0x0004, &serviceid);
+  return aim_genericreq_s(sess, conn, 0x0001, 0x0004, &serviceid);
 }
 
 /*
@@ -438,9 +457,10 @@ u_long aim_bos_reqservice(struct aim_conn_t *conn, u_short serviceid)
  * Request BOS rights.
  *
  */
-u_long aim_bos_reqrights(struct aim_conn_t *conn)
+u_long aim_bos_reqrights(struct aim_session_t *sess,
+			 struct aim_conn_t *conn)
 {
-  return aim_genericreq_n(conn, 0x0009, 0x0002);
+  return aim_genericreq_n(sess, conn, 0x0009, 0x0002);
 }
 
 /*
@@ -449,9 +469,10 @@ u_long aim_bos_reqrights(struct aim_conn_t *conn)
  * Request Buddy List rights.
  *
  */
-u_long aim_bos_reqbuddyrights(struct aim_conn_t *conn)
+u_long aim_bos_reqbuddyrights(struct aim_session_t *sess,
+			      struct aim_conn_t *conn)
 {
-  return aim_genericreq_n(conn, 0x0003, 0x0002);
+  return aim_genericreq_n(sess, conn, 0x0003, 0x0002);
 }
 
 /*
@@ -466,7 +487,9 @@ u_long aim_bos_reqbuddyrights(struct aim_conn_t *conn)
  * back to the single.  I don't see any advantage to doing it either way.
  *
  */
-u_long aim_genericreq_n(struct aim_conn_t *conn, u_short family, u_short subtype)
+u_long aim_genericreq_n(struct aim_session_t *sess,
+			struct aim_conn_t *conn, 
+			u_short family, u_short subtype)
 {
   struct command_tx_struct newpacket;
 
@@ -475,7 +498,7 @@ u_long aim_genericreq_n(struct aim_conn_t *conn, u_short family, u_short subtype
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
 
   newpacket.commandlen = 10;
@@ -483,31 +506,34 @@ u_long aim_genericreq_n(struct aim_conn_t *conn, u_short family, u_short subtype
   newpacket.data = (char *) malloc(newpacket.commandlen);
   memset(newpacket.data, 0x00, newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, family, subtype, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, family, subtype, 0x0000, sess->snac_nextid);
  
-  aim_tx_enqueue(&newpacket);
-  return (aim_snac_nextid++);
+  aim_tx_enqueue(sess, &newpacket);
+  return (sess->snac_nextid++);
 }
 
 /*
  *
  *
  */
-u_long aim_genericreq_l(struct aim_conn_t *conn, u_short family, u_short subtype, u_long *longdata)
+u_long aim_genericreq_l(struct aim_session_t *sess,
+			struct aim_conn_t *conn, 
+			u_short family, u_short subtype, u_long *longdata)
 {
   struct command_tx_struct newpacket;
   u_long newlong;
 
   /* If we don't have data, there's no reason to use this function */
   if (!longdata)
-    return aim_genericreq_n(conn, family, subtype);
+    return aim_genericreq_n(sess, conn, family, subtype);
 
   newpacket.lock = 1;
 
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+
   newpacket.type = 0x02;
 
   newpacket.commandlen = 10+sizeof(u_long);
@@ -515,31 +541,34 @@ u_long aim_genericreq_l(struct aim_conn_t *conn, u_short family, u_short subtype
   newpacket.data = (char *) malloc(newpacket.commandlen);
   memset(newpacket.data, 0x00, newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, family, subtype, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, family, subtype, 0x0000, sess->snac_nextid);
 
   /* copy in data */
   newlong = htonl(*longdata);
   memcpy(&(newpacket.data[10]), &newlong, sizeof(u_long));
 
-  aim_tx_enqueue(&newpacket);
-  return (aim_snac_nextid++);
+  aim_tx_enqueue(sess, &newpacket);
+  return (sess->snac_nextid++);
 }
 
-u_long aim_genericreq_s(struct aim_conn_t *conn, u_short family, u_short subtype, u_short *shortdata)
+u_long aim_genericreq_s(struct aim_session_t *sess,
+			struct aim_conn_t *conn, 
+			u_short family, u_short subtype, u_short *shortdata)
 {
   struct command_tx_struct newpacket;
   u_short newshort;
 
   /* If we don't have data, there's no reason to use this function */
   if (!shortdata)
-    return aim_genericreq_n(conn, family, subtype);
+    return aim_genericreq_n(sess, conn, family, subtype);
 
   newpacket.lock = 1;
 
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+
   newpacket.type = 0x02;
 
   newpacket.commandlen = 10+sizeof(u_short);
@@ -547,14 +576,14 @@ u_long aim_genericreq_s(struct aim_conn_t *conn, u_short family, u_short subtype
   newpacket.data = (char *) malloc(newpacket.commandlen);
   memset(newpacket.data, 0x00, newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, family, subtype, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, family, subtype, 0x0000, sess->snac_nextid);
 
   /* copy in data */
   newshort = htons(*shortdata);
   memcpy(&(newpacket.data[10]), &newshort, sizeof(u_short));
 
-  aim_tx_enqueue(&newpacket);
-  return (aim_snac_nextid++);
+  aim_tx_enqueue(sess, &newpacket);
+  return (sess->snac_nextid++);
 }
 
 /*
@@ -563,9 +592,10 @@ u_long aim_genericreq_s(struct aim_conn_t *conn, u_short family, u_short subtype
  * Request Location services rights.
  *
  */
-u_long aim_bos_reqlocaterights(struct aim_conn_t *conn)
+u_long aim_bos_reqlocaterights(struct aim_session_t *sess,
+			       struct aim_conn_t *conn)
 {
-  return aim_genericreq_n(conn, 0x0002, 0x0002);
+  return aim_genericreq_n(sess, conn, 0x0002, 0x0002);
 }
 
 /*
@@ -574,7 +604,8 @@ u_long aim_bos_reqlocaterights(struct aim_conn_t *conn)
  * Request ICBM parameter information.
  *
  */
-u_long aim_bos_reqicbmparaminfo(struct aim_conn_t *conn)
+u_long aim_bos_reqicbmparaminfo(struct aim_session_t *sess,
+				struct aim_conn_t *conn)
 {
-  return aim_genericreq_n(conn, 0x0004, 0x0004);
+  return aim_genericreq_n(sess, conn, 0x0004, 0x0004);
 }

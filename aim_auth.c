@@ -5,10 +5,12 @@
 
  */
 
-#include "aim.h"
+#include <faim/aim.h> 
 
 /* this just pushes the passed cookie onto the passed connection -- NO SNAC! */
-int aim_auth_sendcookie(struct aim_conn_t *conn, char *chipsahoy)
+int aim_auth_sendcookie(struct aim_session_t *sess, 
+			struct aim_conn_t *conn, 
+			u_char *chipsahoy)
 {
   struct command_tx_struct newpacket;
   int curbyte=0;
@@ -16,27 +18,28 @@ int aim_auth_sendcookie(struct aim_conn_t *conn, char *chipsahoy)
   newpacket.lock = 1;
 
   if (conn==NULL)
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_AUTH);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
   else
     newpacket.conn = conn;
 
   newpacket.type = 0x0001;  /* channel 1 (no SNACs, you know) */
   
-  newpacket.commandlen = 4 + 2 + 2 + 0x100;
+  newpacket.commandlen = 4 + 2 + 2 + AIM_COOKIELEN;
   newpacket.data = (char *) calloc(1, newpacket.commandlen);
   
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0006);
-  curbyte += aimutil_put16(newpacket.data+curbyte, 0x0100);
-  memcpy(&(newpacket.data[curbyte]), chipsahoy, 0x100);
+  curbyte += aimutil_put16(newpacket.data+curbyte, AIM_COOKIELEN);
+  memcpy(&(newpacket.data[curbyte]), chipsahoy, AIM_COOKIELEN);
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
   
   return 0;
 }
 
-u_long aim_auth_clientready(struct aim_conn_t *conn)
+u_long aim_auth_clientready(struct aim_session_t *sess,
+			    struct aim_conn_t *conn)
 {
   struct command_tx_struct newpacket;
   int curbyte = 0;
@@ -44,16 +47,16 @@ u_long aim_auth_clientready(struct aim_conn_t *conn)
   newpacket.lock = 1;
 
   if (conn==NULL)
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_AUTH);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
   else
     newpacket.conn = conn;
 
   newpacket.type = 0x0002;
   
   newpacket.commandlen = 26;
-  newpacket.data = (char *) malloc(newpacket.commandlen);
+  newpacket.data = (u_char *) malloc(newpacket.commandlen);
   
-  curbyte += aim_putsnac(newpacket.data+curbyte, 0x0001, 0x0002, 0x0000, aim_snac_nextid);
+  curbyte += aim_putsnac(newpacket.data+curbyte, 0x0001, 0x0002, 0x0000, sess->snac_nextid);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0002);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
@@ -63,25 +66,27 @@ u_long aim_auth_clientready(struct aim_conn_t *conn)
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0001);
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
   {
     struct aim_snac_t snac;
     
-    snac.id = aim_snac_nextid;
+    snac.id = sess->snac_nextid;
     snac.family = 0x0001;
     snac.type = 0x0004;
     snac.flags = 0x0000;
 
     snac.data = NULL;
 
-    aim_newsnac(&snac);
+    aim_newsnac(sess, &snac);
   }
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
-u_long aim_auth_changepasswd(struct aim_conn_t *conn, char *new, char *current)
+u_long aim_auth_changepasswd(struct aim_session_t *sess,
+			     struct aim_conn_t *conn, 
+			     char *new, char *current)
 {
   struct command_tx_struct newpacket;
   int i;
@@ -89,7 +94,7 @@ u_long aim_auth_changepasswd(struct aim_conn_t *conn, char *new, char *current)
   newpacket.lock = 1;
 
   if (conn==NULL)
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_AUTH);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
   else
     newpacket.conn = conn;
 
@@ -98,7 +103,7 @@ u_long aim_auth_changepasswd(struct aim_conn_t *conn, char *new, char *current)
   newpacket.commandlen = 10 + 4 + strlen(current) + 4 + strlen(new);
   newpacket.data = (char *) malloc(newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, 0x0007, 0x0004, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x0007, 0x0004, 0x0000, sess->snac_nextid);
 
   /* current password TLV t(0002) */
   i = 10;
@@ -117,20 +122,20 @@ u_long aim_auth_changepasswd(struct aim_conn_t *conn, char *new, char *current)
   memcpy(&(newpacket.data[i]), new, strlen(new));
   i+=strlen(new);
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
   {
     struct aim_snac_t snac;
     
-    snac.id = aim_snac_nextid;
+    snac.id = sess->snac_nextid;
     snac.family = 0x0001;
     snac.type = 0x0004;
     snac.flags = 0x0000;
 
     snac.data = NULL;
 
-    aim_newsnac(&snac);
+    aim_newsnac(sess, &snac);
   }
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }

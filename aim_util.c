@@ -4,7 +4,7 @@
  *
  */
 
-#include "aim.h"
+#include <faim/aim.h>
 
 int aimutil_put8(u_char *buf, u_char data)
 {

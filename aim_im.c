@@ -5,7 +5,7 @@
  *
  */
 
-#include <aim.h>
+#include <faim/aim.h>
 
 /*
  * Send an ICBM (instant message).  
@@ -17,7 +17,9 @@
  *                        when the message is received (of type 0x0004/0x000c)
  *
  */
-u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg)
+u_long aim_send_im(struct aim_session_t *sess,
+		   struct aim_conn_t *conn, 
+		   char *destsn, u_int flags, char *msg)
 {   
 
   int curbyte,i;
@@ -28,7 +30,7 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
 
   /*
    * Its simplest to set this arbitrarily large and waste
@@ -36,14 +38,20 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg
    */
   newpacket.commandlen = 1152;
 
-  newpacket.data = (char *) calloc(1, newpacket.commandlen);
+  newpacket.data = (u_char *) calloc(1, newpacket.commandlen);
 
   curbyte  = 0;
   curbyte += aim_putsnac(newpacket.data+curbyte, 
-			 0x0004, 0x0006, 0x0000, aim_snac_nextid);
+			 0x0004, 0x0006, 0x0000, sess->snac_nextid);
 
   /* 
    * Generate a random message cookie 
+   *
+   * We could cache these like we do SNAC IDs.  (In fact, it 
+   * might be a good idea.)  In the message error functions, 
+   * the 8byte message cookie is returned as well as the 
+   * SNAC ID.
+   *
    */
   for (i=0;i<8;i++)
     curbyte += aimutil_put8(newpacket.data+curbyte, (u_char) random());
@@ -109,13 +117,13 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg
   
   newpacket.commandlen = curbyte;
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
 #ifdef USE_SNAC_FOR_IMS
  {
     struct aim_snac_t snac;
 
-    snac.id = aim_snac_nextid;
+    snac.id = sess->snac_nextid;
     snac.family = 0x0004;
     snac.type = 0x0006;
     snac.flags = 0x0000;
@@ -123,13 +131,13 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg
     snac.data = malloc(strlen(destsn)+1);
     memcpy(snac.data, destsn, strlen(destsn)+1);
 
-    aim_newsnac(&snac);
+    aim_newsnac(sess, &snac);
   }
 
- aim_cleansnacs(60); /* clean out all SNACs over 60sec old */
+ aim_cleansnacs(sess, 60); /* clean out all SNACs over 60sec old */
 #endif
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /*
@@ -147,7 +155,8 @@ u_long aim_send_im(struct aim_conn_t *conn, char *destsn, u_int flags, char *msg
  * room we're invited to, but obviously can't attend...
  *
  */
-int aim_parse_incoming_im_middle(struct command_rx_struct *command)
+int aim_parse_incoming_im_middle(struct aim_session_t *sess,
+				 struct command_rx_struct *command)
 {
   struct aim_userinfo_s userinfo;
   u_int i = 0, j = 0, y = 0, z = 0;
@@ -326,7 +335,7 @@ int aim_parse_incoming_im_middle(struct command_rx_struct *command)
    */
   userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
   if (userfunc)
-    i = userfunc(command, &userinfo, msg, icbmflags, flag1, flag2);
+    i = userfunc(sess, command, &userinfo, msg, icbmflags, flag1, flag2);
   else 
     i = 0;
 
@@ -342,7 +351,8 @@ int aim_parse_incoming_im_middle(struct command_rx_struct *command)
  * idea. 
  *
  */
-u_long aim_seticbmparam(struct aim_conn_t *conn)
+u_long aim_seticbmparam(struct aim_session_t *sess,
+			struct aim_conn_t *conn)
 {
   struct command_tx_struct newpacket;
   int curbyte;
@@ -351,13 +361,13 @@ u_long aim_seticbmparam(struct aim_conn_t *conn)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
 
   newpacket.commandlen = 10 + 16;
   newpacket.data = (u_char *) malloc (newpacket.commandlen);
 
-  curbyte = aim_putsnac(newpacket.data, 0x0004, 0x0002, 0x0000, aim_snac_nextid);
+  curbyte = aim_putsnac(newpacket.data, 0x0004, 0x0002, 0x0000, sess->snac_nextid);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
   curbyte += aimutil_put32(newpacket.data+curbyte, 0x00000003);
   curbyte += aimutil_put8(newpacket.data+curbyte,  0x1f);
@@ -369,7 +379,48 @@ u_long aim_seticbmparam(struct aim_conn_t *conn)
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
   curbyte += aimutil_put16(newpacket.data+curbyte, 0x0000);
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
+}
+
+int aim_parse_msgerror_middle(struct aim_session_t *sess,
+			      struct command_rx_struct *command)
+{
+  u_long snacid = 0x000000000;
+  struct aim_snac_t *snac = NULL;
+  int ret = 0;
+  rxcallback_t userfunc = NULL;
+
+  /*
+   * Get SNAC from packet and look it up 
+   * the list of unrepliedto/outstanding
+   * SNACs.
+   *
+   * After its looked up, the SN that the
+   * message should've gone to will be 
+   * in the ->data element of the snac struct.
+   *
+   */
+  snacid = aimutil_get32(command->data+6);
+  snac = aim_remsnac(sess, snacid);
+
+  if (!snac)
+    {
+      printf("faim: msgerr: got an ICBM-failed error on an unknown SNAC ID! (%08lx)\n", snacid);
+    }
+
+  /*
+   * Call client.
+   */
+  userfunc = aim_callhandler(command->conn, 0x0004, 0x0001);
+  if (userfunc)
+    ret =  userfunc(sess, command, (snac)?snac->data:"(UNKNOWN)");
+  else
+    ret = 0;
+  
+  free(snac->data);
+  free(snac);
+
+  return ret;
 }

@@ -7,7 +7,7 @@
 
  */
 
-#include "aim.h"
+#include <faim/aim.h> 
 
 /*
  * This is a modified read() to make SURE we get the number
@@ -47,18 +47,11 @@ int Read(int fd, u_char *buf, int len)
   return i;
 }
 
-/*
-  struct command_struct *
-                         get_generic(
-                                     struct connection_info struct *,
-				     struct command_struct * 
-				     )
-  
-  Grab as many command sequences as we can off the socket, and enqueue
-  each command in the incoming event queue in a seperate struct.
-
-*/
-int aim_get_command(void)
+/*  
+ * Grab as many command sequences as we can off the socket, and enqueue
+ * each command in the incoming event queue in a seperate struct.
+ */
+int aim_get_command(struct aim_session_t *sess)
 {
   int i, readgood, j, isav, err;
   int s;
@@ -76,7 +69,7 @@ int aim_get_command(void)
   /* dont wait at all (ie, never call this unless something is there) */
   tv.tv_sec = 0; 
   tv.tv_usec = 0;
-  conn = aim_select(&tv);
+  conn = aim_select(sess, &tv);
 
   if (conn==NULL)
     return 0;  /* nothing waiting */
@@ -154,19 +147,17 @@ int aim_get_command(void)
   workingStruct = (struct command_rx_struct *) malloc(sizeof(struct command_rx_struct));
   workingStruct->lock = 1;  /* lock the struct */
 
-  /* store type -- byte 2 */
+  /* store channel -- byte 2 */
   workingStruct->type = (char) generic[1];
 
   /* store seqnum -- bytes 3 and 4 */
-  workingStruct->seqnum = ( (( (u_int) generic[2]) & 0xFF) << 8);
-  workingStruct->seqnum += ( (u_int) generic[3]) & 0xFF;
+  workingStruct->seqnum = aimutil_get16(generic+2);
 
   /* store commandlen -- bytes 5 and 6 */
-  workingStruct->commandlen = ( (( (u_int) generic[4]) & 0xFF ) << 8);
-  workingStruct->commandlen += ( (u_int) generic[5]) & 0xFF;
+  workingStruct->commandlen = aimutil_get16(generic+4);
 
   /* malloc for data portion */
-  workingStruct->data = (char *) malloc(workingStruct->commandlen);
+  workingStruct->data = (u_char *) malloc(workingStruct->commandlen);
 
   /* read the data portion of the packet */
   i = Read(s, workingStruct->data, workingStruct->commandlen);
@@ -186,13 +177,13 @@ int aim_get_command(void)
   workingStruct->lock = 0; /* unlock */
 
   /* enqueue this packet */
-  if (aim_queue_incoming == NULL)
+  if (sess->queue_incoming == NULL)
     {
-      aim_queue_incoming = workingStruct;
+      sess->queue_incoming = workingStruct;
     }
   else
     {
-      workingPtr = aim_queue_incoming;
+      workingPtr = sess->queue_incoming;
       while (workingPtr->next != NULL)
 	workingPtr = workingPtr->next;
       workingPtr->next = workingStruct;
@@ -205,12 +196,12 @@ int aim_get_command(void)
 }
 
 /*
-  purge_rxqueue()
-
-  This is just what it sounds.  It purges the receive (rx) queue of
-  all handled commands.  This is normally called from inside 
-  aim_rxdispatch() after it's processed all the commands in the queue.
-  
+ *  purge_rxqueue()
+ *
+ *  This is just what it sounds.  It purges the receive (rx) queue of
+ *  all handled commands.  This is normally called from inside 
+ *  aim_rxdispatch() after it's processed all the commands in the queue.
+ *
  */
 struct command_rx_struct *aim_purge_rxqueue(struct command_rx_struct *queue)
 {

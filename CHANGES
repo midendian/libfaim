@@ -1,6 +1,23 @@
 
 No release numbers
 ------------------
+ - Sun Dec 26 22:59:10 UTC 1999
+   - Renamed login_phase1_struct to aim_login_struct
+   - Changed cookie and sn to be static arrays in aim_login_struct
+   - Integrated the Jabber-faim changes.  (temas)  [BIG CLIENT CHANGES]
+     - Added aim_session_t, removed all global variables
+     - Changed all functions to accept a session pointer
+     - Removed aim_global.c
+     - Updated faimtest to use an aim_session_t.
+     - Removed all cases where logininfo was passed as vararg to client
+   - Fixed small bug in aim_newconn's 'fixing' of host:port addresses
+   - Added an install rule to the makefile (installs headers+so only!)
+   - Enabled USE_SNAC_FOR_IMS by default, assuming it got fixed
+       by n's new aim_snac.c from ages ago
+   - Implemented a middle handler for 0004/0001 message errors, added
+       snacid lookup to get illfated destination SN and pass to client
+   - Implemented a short middle handler for offgoing buddy.
+
  - Fri Dec 24 21:30:06 UTC 1999
    - Added an error-counting Read() that has been sitting in my inbox
    - Cleaned up header files, created aim_cbtypes.h.

@@ -5,7 +5,7 @@
  *
  */
 
-#include <aim.h>
+#include <faim/aim.h>
 
 
 /*
@@ -25,9 +25,11 @@
  * stupid method of doing it.
  *
  */
-int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct client_info_s *clientinfo)
+int aim_send_login (struct aim_session_t *sess,
+		    struct aim_conn_t *conn, 
+		    char *sn, char *password, struct client_info_s *clientinfo)
 {
-  char *password_encoded = NULL;  /* to store encoded password */
+  u_char *password_encoded = NULL;  /* to store encoded password */
   int curbyte=0;
 
   struct command_tx_struct newpacket;
@@ -35,7 +37,7 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_AUTH);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_AUTH);
 
   newpacket.commandlen = 4 + 4+strlen(sn) + 4+strlen(password) + 6;
  
@@ -98,7 +100,7 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
   curbyte += aim_puttlv_16(newpacket.data+curbyte, 0x0009, 0x0015);
 
   newpacket.lock = 0;
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
   return 0;
 }
@@ -119,7 +121,7 @@ int aim_send_login (struct aim_conn_t *conn, char *sn, char *password, struct cl
  * hope it doesn't change over time!  
  *
  */
-int aim_encode_password(const char *password, char *encoded)
+int aim_encode_password(const char *password, u_char *encoded)
 {
   u_char encoding_table[] = {
     0xf3, 0xb3, 0x6c, 0x99,

@@ -6,7 +6,7 @@
 
  */
 
-#include "aim.h" 
+#include <aim.h> 
 
 /* the dreaded global variables... */
 

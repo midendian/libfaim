@@ -5,13 +5,15 @@
  *
  */
 
-#include "aim.h"
+#include <faim/aim.h> 
 
 /*
  * FIXME: Doesn't work.
  *
  */
-u_long aim_chat_join(struct aim_conn_t *conn, const char *roomname)
+u_long aim_chat_join(struct aim_session_t *sess,
+		     struct aim_conn_t *conn, 
+		     const char *roomname)
 {
   struct command_tx_struct newpacket;
   
@@ -19,14 +21,15 @@ u_long aim_chat_join(struct aim_conn_t *conn, const char *roomname)
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
+
   newpacket.type = 0x0002;
   
   newpacket.commandlen = 12+7+strlen(roomname)+6;
   newpacket.data = (char *) malloc(newpacket.commandlen);
   memset(newpacket.data, 0x00, newpacket.commandlen);
   
-  aim_putsnac(newpacket.data, 0x0001, 0x0004, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x0001, 0x0004, 0x0000, sess->snac_nextid);
 
   newpacket.data[10] = 0x00;
   newpacket.data[11] = 0x0e;
@@ -47,12 +50,12 @@ u_long aim_chat_join(struct aim_conn_t *conn, const char *roomname)
     printf("\n\n\n");
   }
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
   {
     struct aim_snac_t snac;
     
-    snac.id = aim_snac_nextid;
+    snac.id = sess->snac_nextid;
     snac.family = 0x0001;
     snac.type = 0x0004;
     snac.flags = 0x0000;
@@ -60,8 +63,8 @@ u_long aim_chat_join(struct aim_conn_t *conn, const char *roomname)
     snac.data = malloc(strlen(roomname));
     memcpy(snac.data, roomname, strlen(roomname));
 
-    aim_newsnac(&snac);
+    aim_newsnac(sess, &snac);
   }
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }

@@ -7,13 +7,13 @@
  *
  */
 
-#include <aim.h>
+#include <faim/aim.h>
 
 /*
  * Bleck functions get called when there's no non-bleck functions
  * around to cleanup the mess...
  */
-int bleck(struct command_rx_struct *workingPtr, ...)
+int bleck(struct aim_session_t *sess,struct command_rx_struct *workingPtr, ...)
 {
   u_short family;
   u_short subtype;
@@ -23,7 +23,8 @@ int bleck(struct command_rx_struct *workingPtr, ...)
   return 1;
 }
 
-int aim_conn_addhandler(struct aim_conn_t *conn,
+int aim_conn_addhandler(struct aim_session_t *sess,
+			struct aim_conn_t *conn,
 			u_short family,
 			u_short type,
 			rxcallback_t newhandler,
@@ -103,7 +104,8 @@ rxcallback_t aim_callhandler(struct aim_conn_t *conn,
   return aim_callhandler(conn, family, 0xffff);
 }
 
-int aim_callhandler_noparam(struct aim_conn_t *conn,
+int aim_callhandler_noparam(struct aim_session_t *sess,
+			    struct aim_conn_t *conn,
 			    u_short family,
 			    u_short type,
 			    struct command_rx_struct *ptr)
@@ -111,7 +113,7 @@ int aim_callhandler_noparam(struct aim_conn_t *conn,
   rxcallback_t userfunc = NULL;
   userfunc = aim_callhandler(conn, family, type);
   if (userfunc)
-    return userfunc(ptr);
+    return userfunc(sess, ptr);
   return 0;
 }
 
@@ -138,165 +140,169 @@ int aim_callhandler_noparam(struct aim_conn_t *conn,
   TODO: Allow for NULL handlers.
   
  */
-int aim_rxdispatch(void)
+int aim_rxdispatch(struct aim_session_t *sess)
 {
   int i = 0;
   struct command_rx_struct *workingPtr = NULL;
   
-  if (aim_queue_incoming == NULL)
+  if (sess->queue_incoming == NULL)
     /* this shouldn't really happen, unless the main loop's select is broke  */
     printf("parse_generic: incoming packet queue empty.\n");
   else
     {
-      workingPtr = aim_queue_incoming;
+      workingPtr = sess->queue_incoming;
       for (i = 0; workingPtr != NULL; i++)
 	{
 	  switch(workingPtr->conn->type)
 	    {
 	    case AIM_CONN_TYPE_AUTH:
-	      if ( (workingPtr->data[0] == 0x00) && 
-		   (workingPtr->data[1] == 0x00) &&
-		   (workingPtr->data[2] == 0x00) &&
-		   (workingPtr->data[3] == 0x01) )
-		{
+	      {
+		u_long head;
+
+		head = aimutil_get32(workingPtr->data);
+		if (head == 0x00000001)
+		  {
 #if debug > 0
-		  printf("got connection ack on auth line\n");
+		    printf("got connection ack on auth line\n");
 #endif
-		  workingPtr->handled = 1;
-		}
-	      else
-		{
-		  /* any user callbacks will be called from here */
-		  workingPtr->handled = aim_authparse(workingPtr);
-		}
+		    workingPtr->handled = 1;
+		  }
+		else
+		  {
+		    /* any user callbacks will be called from here */
+		    workingPtr->handled = aim_authparse(sess, workingPtr);
+		  }
+	      }
 	      break;
 	    case AIM_CONN_TYPE_BOS:
 	      {
 		u_short family;
 		u_short subtype;
-		family = (workingPtr->data[0] << 8) + workingPtr->data[1];
-		subtype = (workingPtr->data[2] << 8) + workingPtr->data[3];
+
+		family = aimutil_get16(workingPtr->data);
+		subtype = aimutil_get16(workingPtr->data+2);
+
 		switch (family)
 		  {
 		  case 0x0000: /* not really a family, but it works */
 		    if (subtype == 0x0001)
-		      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0000, 0x0001, workingPtr);
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0000, 0x0001, workingPtr);
 		    else
-		      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 		    break;
 		  case 0x0001: /* Family: General */
 		    switch (subtype)
 		      {
 		      case 0x0001:
-			workingPtr->handled = aim_parse_generalerrs(workingPtr);
+			workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
 			break;
 		      case 0x0003:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0001, 0x0003, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0003, workingPtr);
 			break;
 		      case 0x0005:
-			workingPtr->handled = aim_handleredirect_middle(workingPtr);
+			workingPtr->handled = aim_handleredirect_middle(sess, workingPtr);
 			break;
 		      case 0x0007:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0001, 0x0007, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0007, workingPtr);
 			break;
 		      case 0x000a:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0001, 0x000a, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x000a, workingPtr);
 			break;
 		      case 0x000f:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0001, 0x000f, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x000f, workingPtr);
 			break;
 		      case 0x0013:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0001, 0x0013, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0001, 0x0013, workingPtr);
 			break;
 		      default:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_DEFAULT, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_DEFAULT, workingPtr);
 		      }
 		    break;
 		  case 0x0002: /* Family: Location */
 		    switch (subtype)
 		      {
 		      case 0x0001:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0002, 0x0001, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0002, 0x0001, workingPtr);
 			break;
 		      case 0x0003:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0002, 0x0003, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0002, 0x0003, workingPtr);
 			break;
 		      case 0x0006:
-			workingPtr->handled = aim_parse_userinfo_middle(workingPtr);
+			workingPtr->handled = aim_parse_userinfo_middle(sess, workingPtr);
 			break;
 		      default:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_LOC, AIM_CB_LOC_DEFAULT, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_LOC, AIM_CB_LOC_DEFAULT, workingPtr);
 		      }
 		    break;
 		  case 0x0003: /* Family: Buddy List */
 		    switch (subtype)
 		      {
 		      case 0x0001:
-			workingPtr->handled = aim_parse_generalerrs(workingPtr);
+			workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
 			break;
 		      case 0x0003:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0003, 0x0003, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0003, 0x0003, workingPtr);
 			break;
 		      case 0x000b: /* oncoming buddy */
-			workingPtr->handled = aim_parse_oncoming_middle(workingPtr);
+			workingPtr->handled = aim_parse_oncoming_middle(sess, workingPtr);
 			break;
 		      case 0x000c: /* offgoing buddy */
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0003, 0x000c, workingPtr);
+			workingPtr->handled = aim_parse_offgoing_middle(sess, workingPtr);
 			break;
 		      default:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_DEFAULT, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_DEFAULT, workingPtr);
 		      }
 		    break;
 		  case 0x0004: /* Family: Messeging */
 		    switch (subtype)
 		      {
 		      case 0x0001:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0004, 0x0001, workingPtr);
+			workingPtr->handled = aim_parse_msgerror_middle(sess, workingPtr);
 			break;
 		      case 0x0005:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0004, 0x0005, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0004, 0x0005, workingPtr);
 			break;
 		      case 0x0007:
-			workingPtr->handled = aim_parse_incoming_im_middle(workingPtr);
+			workingPtr->handled = aim_parse_incoming_im_middle(sess, workingPtr);
 			break;
 		      case 0x000a:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0004, 0x000a, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0004, 0x000a, workingPtr);
 			break;
 		      default:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_DEFAULT, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_MSG, AIM_CB_MSG_DEFAULT, workingPtr);
 		      }
 		    break;
 		  case 0x0009:
 		    if (subtype == 0x0001)
-		      workingPtr->handled = aim_parse_generalerrs(workingPtr);
+		      workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
 		    else if (subtype == 0x0003)
-		      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x0009, 0x0003, workingPtr);
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x0009, 0x0003, workingPtr);
 		    else
-		      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_BOS, AIM_CB_BOS_DEFAULT, workingPtr);
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_BOS, AIM_CB_BOS_DEFAULT, workingPtr);
 		    break;
 		  case 0x000a:  /* Family: User lookup */
 		    switch (subtype)
 		      {
 		      case 0x0001:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x000a, 0x0001, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000a, 0x0001, workingPtr);
 			break;
 		      case 0x0003:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x000a, 0x0003, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000a, 0x0003, workingPtr);
 			break;
 		      default:
-			workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_LOK, AIM_CB_LOK_DEFAULT, workingPtr);
+			workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_LOK, AIM_CB_LOK_DEFAULT, workingPtr);
 		      }
 		    break;
 		  case 0x000b:
 		    if (subtype == 0x0001)
-		      workingPtr->handled = aim_parse_generalerrs(workingPtr);
+		      workingPtr->handled = aim_parse_generalerrs(sess, workingPtr);
 		    else if (subtype == 0x0002)
-		      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, 0x000b, 0x0002, workingPtr);
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000b, 0x0002, workingPtr);
 		    else
-		      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_STS, AIM_CB_STS_DEFAULT, workingPtr);
+		      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_STS, AIM_CB_STS_DEFAULT, workingPtr);
 		    break;
 		  default:
-		    workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
+		    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 		    break;
 		  }
 	      }
@@ -305,45 +311,45 @@ int aim_rxdispatch(void)
 	      {
 		u_short family;
 		u_short subtype;
-		family = (workingPtr->data[0] << 8) + workingPtr->data[1];
-		subtype = (workingPtr->data[2] << 8) + workingPtr->data[3];
-		if ( (workingPtr->data[0] == 0x00) &&
-		     (workingPtr->data[1] == 0x02) &&
-		     (workingPtr->data[2] == 0x00) &&
-		     (workingPtr->data[3] == 0x06) )
+		family = aimutil_get16(workingPtr->data);
+		subtype= aimutil_get16(workingPtr->data+2);
+
+		if ((family == 0x0002) && (subtype == 0x0006))
 		  {
 		    workingPtr->handled = 1;
 		    aim_conn_setstatus(workingPtr->conn, AIM_CONN_STATUS_READY);
 		  }
 		else
 		  {
-		    workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, family, subtype, workingPtr);
+		    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
 		  }
 	      }
 	      break;
 	    case AIM_CONN_TYPE_CHAT:
 	      printf("\nAHH! Dont know what to do with CHAT stuff yet!\n");
-	      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_DEFAULT, workingPtr);
+	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_DEFAULT, workingPtr);
 	      break;
 	    default:
 	      printf("\nAHHHHH! UNKNOWN CONNECTION TYPE! (0x%02x)\n\n", workingPtr->conn->type);
-	      workingPtr->handled = aim_callhandler_noparam(workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
+	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 	      break;
 	    }
-	      /* move to next command */
+	  /* move to next command */
 	  workingPtr = workingPtr->next;
 	}
     }
 
-  aim_queue_incoming = aim_purge_rxqueue(aim_queue_incoming);
+  sess->queue_incoming = aim_purge_rxqueue(sess->queue_incoming);
   
   return 0;
 }
 
 /*
  * TODO: check and cure memory leakage in this function.
+ * TODO: update to use new tlvlist routines
  */
-int aim_authparse(struct command_rx_struct *command)
+int aim_authparse(struct aim_session_t *sess, 
+		  struct command_rx_struct *command)
 {
   rxcallback_t userfunc = NULL;
   int iserror = 0;
@@ -351,19 +357,19 @@ int aim_authparse(struct command_rx_struct *command)
   char *errorurl = NULL;
   short errorcode = 0x00;
   u_int z = 0;
+  u_short family,subtype;
 
-  if ( (command->data[0] == 0x00) &&
-       (command->data[1] == 0x01) &&
-       (command->data[2] == 0x00) &&
-       (command->data[3] == 0x03) )
+  family = aimutil_get16(command->data);
+  subtype= aimutil_get16(command->data+2);
+  
+  if ( (family == 0x0001) && 
+       (subtype== 0x0003) )
     {
       /* "server ready"  -- can be ignored */
       userfunc = aim_callhandler(command->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY);
     }
-  else if ( (command->data[0] == 0x00) &&
-	    (command->data[1] == 0x07) &&
-	    (command->data[2] == 0x00) &&
-	    (command->data[3] == 0x05) )
+  else if ( (family == 0x0007) &&
+	    (subtype== 0x0005) )
     {
       /* "information change reply" */
       userfunc = aim_callhandler(command->conn, AIM_CB_FAM_ADM, AIM_CB_ADM_INFOCHANGE_REPLY);
@@ -375,27 +381,18 @@ int aim_authparse(struct command_rx_struct *command)
       /*
        * Free up the loginstruct first.
        */
-      if (aim_logininfo.screen_name)
+      sess->logininfo.screen_name[0] = '\0';
+      if (sess->logininfo.BOSIP)
 	{
-	  free(aim_logininfo.screen_name);
-	  aim_logininfo.screen_name = NULL;
+	  free(sess->logininfo.BOSIP);
+	  sess->logininfo.BOSIP = NULL;
 	}
-      if (aim_logininfo.BOSIP)
+      if (sess->logininfo.email)
 	{
-	  free(aim_logininfo.BOSIP);
-	  aim_logininfo.BOSIP = NULL;
+	  free(sess->logininfo.email);
+	  sess->logininfo.email = NULL;
 	}
-      if (aim_logininfo.cookie)
-	{
-	  free(aim_logininfo.cookie);
-	  aim_logininfo.cookie = NULL;
-	}
-      if (aim_logininfo.email)
-	{
-	  free(aim_logininfo.email);
-	  aim_logininfo.email = NULL;
-	}
-      aim_logininfo.regstatus = 0;
+      sess->logininfo.regstatus = 0;
 
       /* all this block does is figure out if it's an
 	 error or a success, nothing more */
@@ -405,7 +402,14 @@ int aim_authparse(struct command_rx_struct *command)
 	  switch(tlv->type) 
 	    {
 	    case 0x0001: /* screen name */
-	      aim_logininfo.screen_name = tlv->value;
+	      if (tlv->length >= MAXSNLEN)
+		{
+		  /* SN too large... truncate */
+		  printf("faim: login: screen name from OSCAR too long! (%d)\n", tlv->length);
+		  strncpy(sess->logininfo.screen_name, tlv->value, MAXSNLEN);
+		}
+	      else
+		strncpy(sess->logininfo.screen_name, tlv->value, tlv->length);
 	      z += 2 + 2 + tlv->length;
 	      free(tlv);
 	      tlv = NULL;
@@ -417,25 +421,25 @@ int aim_authparse(struct command_rx_struct *command)
 	      tlv = NULL;
 	      break;
 	    case 0x0005: /* BOS IP */
-	      aim_logininfo.BOSIP = tlv->value;
+	      sess->logininfo.BOSIP = tlv->value;
 	      z += 2 + 2 + tlv->length;
 	      free(tlv);
 	      tlv = NULL;
 	      break;
 	    case 0x0006: /* auth cookie */
-	      aim_logininfo.cookie = tlv->value;
+	      memcpy(sess->logininfo.cookie, tlv->value, AIM_COOKIELEN);
 	      z += 2 + 2 + tlv->length;
 	      free(tlv);
 	      tlv=NULL;
 	      break;
 	    case 0x0011: /* email addy */
-	      aim_logininfo.email = tlv->value;
+	      sess->logininfo.email = tlv->value;
 	      z += 2 + 2 + tlv->length;
 	      free(tlv);
 	      tlv = NULL;
 	      break;
 	    case 0x0013: /* registration status */
-	      aim_logininfo.regstatus = *(tlv->value);
+	      sess->logininfo.regstatus = *(tlv->value);
 	      z += 2 + 2 + tlv->length;
 	      aim_freetlv(&tlv);
 	      break;
@@ -457,15 +461,15 @@ int aim_authparse(struct command_rx_struct *command)
 	{
 	  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_GEN, AIM_CB_GEN_ERROR);
 	  if (userfunc)
-	    return userfunc(command, &aim_logininfo, errorurl, errorcode);
+	    return userfunc(sess, command, errorurl, errorcode);
 	  return 0;
 	}
-      else if (aim_logininfo.screen_name && 
-	       aim_logininfo.cookie && aim_logininfo.BOSIP)
+      else if (sess->logininfo.screen_name[0] && 
+	       sess->logininfo.cookie[0] && sess->logininfo.BOSIP)
 	{
 	  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS);
 	  if (userfunc)
-	    return userfunc(command, &aim_logininfo);
+	    return userfunc(sess, command);
 	  return 0;
 	}
       else
@@ -473,7 +477,7 @@ int aim_authparse(struct command_rx_struct *command)
     }
 
   if (userfunc)
-    return userfunc(command);
+    return userfunc(sess, command);
   printf("handler not available!\n");
   return 0;
 }
@@ -481,7 +485,8 @@ int aim_authparse(struct command_rx_struct *command)
 /*
  * TODO: check for and cure any memory leaks here.
  */
-int aim_handleredirect_middle(struct command_rx_struct *command, ...)
+int aim_handleredirect_middle(struct aim_session_t *sess,
+			      struct command_rx_struct *command, ...)
 {
   struct aim_tlv_t *tlv = NULL;
   u_int z = 10;
@@ -499,7 +504,7 @@ int aim_handleredirect_middle(struct command_rx_struct *command, ...)
 	  aim_freetlv(&tlv);
 	  /* regrab as an int */
 	  tlv = aim_grabtlv(&(command->data[z]));
-	  serviceid = (tlv->value[0] << 8) + tlv->value[1]; /* hehe */
+	  serviceid = aimutil_get16(tlv->value);
 	  z += 2 + 2 + tlv->length;
 	  aim_freetlv(&tlv);
 	  break;
@@ -523,11 +528,12 @@ int aim_handleredirect_middle(struct command_rx_struct *command, ...)
     }
   userfunc = aim_callhandler(command->conn, 0x0001, 0x0005);
   if (userfunc)
-    return userfunc(command, serviceid, ip, cookie);
+    return userfunc(sess, command, serviceid, ip, cookie);
   return 0;
 }
 
-int aim_parse_unknown(struct command_rx_struct *command, ...)
+int aim_parse_unknown(struct aim_session_t *sess,
+		      struct command_rx_struct *command, ...)
 {
   u_int i = 0;
 
@@ -553,18 +559,20 @@ int aim_parse_unknown(struct command_rx_struct *command, ...)
  * Middle handler for 0x0001 snac of each family.
  *
  */
-int aim_parse_generalerrs(struct command_rx_struct *command, ...)
+int aim_parse_generalerrs(struct aim_session_t *sess,
+			  struct command_rx_struct *command, ...)
 {
   u_short family;
   u_short subtype;
-  family = (command->data[0] << 8) + command->data[1];
-  subtype = (command->data[2] << 8) + command->data[3];
+  
+  family = aimutil_get16(command->data+0);
+  subtype= aimutil_get16(command->data+2);
   
   switch(family)
     {
     default:
       /* Unknown family */
-      return aim_callhandler_noparam(command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, command);
+      return aim_callhandler_noparam(sess, command->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, command);
     }
 
   return 1;

@@ -7,16 +7,18 @@
  */
 
 
-#include "aim.h" /* for most everything */
+#include <faim/aim.h>
 
-u_long aim_getinfo(struct aim_conn_t *conn, const char *sn)
+u_long aim_getinfo(struct aim_session_t *sess,
+		   struct aim_conn_t *conn, 
+		   const char *sn)
 {
   struct command_tx_struct newpacket;
 
   if (conn)
     newpacket.conn = conn;
   else
-    newpacket.conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+    newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
 
   newpacket.lock = 1;
   newpacket.type = 0x0002;
@@ -24,18 +26,18 @@ u_long aim_getinfo(struct aim_conn_t *conn, const char *sn)
   newpacket.commandlen = 12 + 1 + strlen(sn);
   newpacket.data = (char *) malloc(newpacket.commandlen);
 
-  aim_putsnac(newpacket.data, 0x0002, 0x0005, 0x0000, aim_snac_nextid);
+  aim_putsnac(newpacket.data, 0x0002, 0x0005, 0x0000, sess->snac_nextid);
 
   aimutil_put16(newpacket.data+10, 0x0001);
   aimutil_put8(newpacket.data+12, strlen(sn));
   aimutil_putstr(newpacket.data+13, sn, strlen(sn));
 
-  aim_tx_enqueue(&newpacket);
+  aim_tx_enqueue(sess, &newpacket);
 
   {
     struct aim_snac_t snac;
     
-    snac.id = aim_snac_nextid;
+    snac.id = sess->snac_nextid;
     snac.family = 0x0002;
     snac.type = 0x0005;
     snac.flags = 0x0000;
@@ -43,10 +45,10 @@ u_long aim_getinfo(struct aim_conn_t *conn, const char *sn)
     snac.data = malloc(strlen(sn)+1);
     memcpy(snac.data, sn, strlen(sn)+1);
 
-    aim_newsnac(&snac);
+    aim_newsnac(sess, &snac);
   }
 
-  return (aim_snac_nextid++);
+  return (sess->snac_nextid++);
 }
 
 /*
@@ -227,7 +229,8 @@ int aim_extractuserinfo(u_char *buf, struct aim_userinfo_s *outinfo)
  * through aim_extractuserinfo() however.
  *
  */
-int aim_parse_oncoming_middle(struct command_rx_struct *command)
+int aim_parse_oncoming_middle(struct aim_session_t *sess,
+			      struct command_rx_struct *command)
 {
   struct aim_userinfo_s userinfo;
   u_int i = 0;
@@ -238,18 +241,40 @@ int aim_parse_oncoming_middle(struct command_rx_struct *command)
 
   userfunc = aim_callhandler(command->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING);
   if (userfunc)
-    i = userfunc(command, &userinfo);
+    i = userfunc(sess, command, &userinfo);
 
   return 1;
 }
 
+/*
+ * Offgoing Buddy notifications contain no useful
+ * information other than the name it applies to.
+ *
+ */
+int aim_parse_offgoing_middle(struct aim_session_t *sess,
+			      struct command_rx_struct *command)
+{
+  char sn[MAXSNLEN+1];
+  u_int i = 0;
+  rxcallback_t userfunc=NULL;
+
+  /* Protect against future SN length extensions */
+  strncpy(sn, command->data+11, (strlen(sn)<=MAXSNLEN)?strlen(sn):MAXSNLEN);
+
+  userfunc = aim_callhandler(command->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING);
+  if (userfunc)
+    i = userfunc(sess, command, sn);
+
+  return 1;
+}
 
 /*
  * This parses the user info stuff out all nice and pretty then calls 
  * the higher-level callback (in the user app).
  *
  */
-int aim_parse_userinfo_middle(struct command_rx_struct *command)
+int aim_parse_userinfo_middle(struct aim_session_t *sess,
+			      struct command_rx_struct *command)
 {
   struct aim_userinfo_s userinfo;
   char *prof_encoding = NULL;
@@ -262,7 +287,7 @@ int aim_parse_userinfo_middle(struct command_rx_struct *command)
     struct aim_snac_t *snac = NULL;
 
     snacid = aimutil_get32(&command->data[6]);
-    snac = aim_remsnac(snacid);
+    snac = aim_remsnac(sess, snacid);
 
     free(snac->data);
     free(snac);
@@ -288,7 +313,7 @@ int aim_parse_userinfo_middle(struct command_rx_struct *command)
         }
       else
         {
-          printf("faim: userinfo: **warning: unexpected TLV after TLVblock t(%02x%02x) l(%02x%02x)\n", command->data[i], command->data[i+1], command->data[i+2], command->data[i+3]);
+          printf("faim: userinfo: **warning: unexpected TLV after TLVblock t(%04x) l(%04x)\n", aimutil_get16(command->data+i), aimutil_get16(command->data+i+2));
           i += 2 + 2 + command->data[i+3];
         }
     }
@@ -311,7 +336,8 @@ int aim_parse_userinfo_middle(struct command_rx_struct *command)
   userfunc = aim_callhandler(command->conn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO);
   if (userfunc)
     {
-      i = userfunc(command, 
+      i = userfunc(sess,
+		   command, 
 		   &userinfo, 
 		   prof_encoding, 
 		   prof); 

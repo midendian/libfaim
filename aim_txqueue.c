@@ -5,7 +5,7 @@
  *
  */
 
-#include <aim.h>
+#include <faim/aim.h>
 
 /*
  * aim_tx_enqeue()
@@ -21,7 +21,8 @@
  *
  */
 
-int aim_tx_enqueue(struct command_tx_struct *newpacket)
+int aim_tx_enqueue(struct aim_session_t *sess,
+		   struct command_tx_struct *newpacket)
 {
   struct command_tx_struct *workingPtr = NULL;
   struct command_tx_struct *newpacket_copy = NULL;
@@ -29,7 +30,7 @@ int aim_tx_enqueue(struct command_tx_struct *newpacket)
   if (newpacket->conn == NULL)
     {
       printf("aim_tx_enqueue: WARNING: enqueueing packet with no connecetion,  defaulting to BOS\n");
-      newpacket->conn = aim_getconn_type(AIM_CONN_TYPE_BOS);
+      newpacket->conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
     }
  
   newpacket_copy = (struct command_tx_struct *) malloc (sizeof(struct command_tx_struct));
@@ -42,13 +43,13 @@ int aim_tx_enqueue(struct command_tx_struct *newpacket)
   newpacket_copy->sent = 0; /* not sent yet */
   newpacket_copy->next = NULL; /* always last */
 
-  if (aim_queue_outgoing == NULL)
+  if (sess->queue_outgoing == NULL)
     {
-      aim_queue_outgoing = newpacket_copy;
+      sess->queue_outgoing = newpacket_copy;
     }
   else
     {
-      workingPtr = aim_queue_outgoing;
+      workingPtr = sess->queue_outgoing;
       while (workingPtr->next != NULL)
 	workingPtr = workingPtr->next;
       workingPtr->next = newpacket_copy;
@@ -66,7 +67,7 @@ int aim_tx_enqueue(struct command_tx_struct *newpacket)
 #if debug > 1
   printf("calling aim_tx_flushqueue()\n");
 #endif
-  aim_tx_flushqueue();
+  aim_tx_flushqueue(sess);
 #if debug > 1
   printf("back from aim_tx_flushqueue()\n");
 #endif
@@ -75,13 +76,13 @@ int aim_tx_enqueue(struct command_tx_struct *newpacket)
 }
 
 /* 
-   aim_get_next_txseqnum()
-
-   This increments the tx command count, and returns the seqnum
-   that should be stamped on the next FLAP packet sent.  This is
-   normally called during the final step of packet preparation
-   before enqueuement (in aim_tx_enqueue()).
-
+ *  aim_get_next_txseqnum()
+ *
+ *   This increments the tx command count, and returns the seqnum
+ *   that should be stamped on the next FLAP packet sent.  This is
+ *   normally called during the final step of packet preparation
+ *   before enqueuement (in aim_tx_enqueue()).
+ *
  */
 u_int aim_get_next_txseqnum(struct aim_conn_t *conn)
 {
@@ -89,19 +90,19 @@ u_int aim_get_next_txseqnum(struct aim_conn_t *conn)
 }
 
 /*
-  aim_tx_printqueue()
-
-  This is basically for debuging purposes only.  It dumps all the
-  records in the tx queue and their current status.  Very helpful
-  if the queue isn't working quite right.
-
+ *  aim_tx_printqueue()
+ *
+ *  This is basically for debuging purposes only.  It dumps all the
+ *  records in the tx queue and their current status.  Very helpful
+ *  if the queue isn't working quite right.
+ *
  */
 #if debug > 2
 int aim_tx_printqueue(void)
 {
   struct command_tx_struct *workingPtr = NULL;
 
-  workingPtr = aim_queue_outgoing;
+  workingPtr = sess->queue_outgoing;
 #if debug > 2
   printf("\ncurrent aim_queue_outgoing...\n");
   printf("\ttype seqnum  len  lock sent\n");  
@@ -125,30 +126,30 @@ int aim_tx_printqueue(void)
 #endif
 
 /*
-  aim_tx_flushqueue()
-
-  This the function is responsable for putting the queued commands
-  onto the wire.  This function is critical to the operation of 
-  the queue and therefore is the most prone to brokenness.  It
-  seems to be working quite well at this point.
-
-  Procedure:
-    1) Traverse the list, only operate on commands that are unlocked
-       and haven't been sent yet.
-    2) Lock the struct
-    3) Allocate a temporary buffer to store the finished, fully
-       processed packet in.
-    4) Build the packet from the command_tx_struct data.
-    5) Write the packet to the socket.
-    6) If success, mark the packet sent, if fail report failure, do NOT
-       mark the packet sent (so it will not get purged and therefore
-       be attempted again on next call).
-    7) Unlock the struct.
-    8) Free the temp buffer
-    9) Step to next struct in list and go back to 1.
-
+ *  aim_tx_flushqueue()
+ *
+ *  This the function is responsable for putting the queued commands
+ *  onto the wire.  This function is critical to the operation of 
+ *  the queue and therefore is the most prone to brokenness.  It
+ *  seems to be working quite well at this point.
+ *
+ *  Procedure:
+ *    1) Traverse the list, only operate on commands that are unlocked
+ *       and haven't been sent yet.
+ *    2) Lock the struct
+ *    3) Allocate a temporary buffer to store the finished, fully
+ *       processed packet in.
+ *    4) Build the packet from the command_tx_struct data.
+ *    5) Write the packet to the socket.
+ *    6) If success, mark the packet sent, if fail report failure, do NOT
+ *       mark the packet sent (so it will not get purged and therefore
+ *       be attempted again on next call).
+ *    7) Unlock the struct.
+ *    8) Free the temp buffer
+ *    9) Step to next struct in list and go back to 1.
+ *
  */
-int aim_tx_flushqueue(void)
+int aim_tx_flushqueue(struct aim_session_t *sess)
 {
   struct command_tx_struct *workingPtr = NULL;
   u_char *curPacket = NULL;
@@ -156,7 +157,7 @@ int aim_tx_flushqueue(void)
   int i = 0;
 #endif
 
-  workingPtr = aim_queue_outgoing;
+  workingPtr = sess->queue_outgoing;
 #if debug > 1
   printf("beginning txflush...\n");
 #endif
@@ -185,19 +186,20 @@ int aim_tx_flushqueue(void)
 	  
 	  /* command byte */
 	  curPacket[0] = 0x2a;
+
 	  /* type/family byte */
 	  curPacket[1] = workingPtr->type;
+
 	  /* bytes 3+4: word: FLAP sequence number */
-	  curPacket[2] = (char) ( (workingPtr->seqnum) >> 8);
-	  curPacket[3] = (char) ( (workingPtr->seqnum) & 0xFF);
+	  aimutil_put16(curPacket+2, workingPtr->seqnum);
+
 	  /* bytes 5+6: word: SNAC len */
-	  curPacket[4] = (char) ( (workingPtr->commandlen) >> 8);
-	  curPacket[5] = (char) ( (workingPtr->commandlen) & 0xFF);
+	  aimutil_put16(curPacket+4, workingPtr->commandlen);
+
 	  /* bytes 7 and on: raw: SNAC data */
 	  memcpy(&(curPacket[6]), workingPtr->data, workingPtr->commandlen);
 	  
 	  /* full image of raw packet data now in curPacket */
-
 	  if ( (u_int)write(workingPtr->conn->fd, curPacket, (workingPtr->commandlen + 6)) != (workingPtr->commandlen + 6))
 	    {
 	      printf("\nWARNING: Error in sending packet 0x%4x -- will try again next time\n\n", workingPtr->seqnum);
@@ -236,7 +238,7 @@ int aim_tx_flushqueue(void)
 #if debug > 1
   printf("calling aim_tx_purgequeue()\n");
 #endif
-  aim_tx_purgequeue();
+  aim_tx_purgequeue(sess);
 #if debug > 1
   printf("back from aim_tx_purgequeu() [you must be a lucky one]\n");
 #endif
@@ -245,14 +247,14 @@ int aim_tx_flushqueue(void)
 }
 
 /*
-  aim_tx_purgequeue()
-  
-  This is responsable for removing sent commands from the transmit 
-  queue. This is not a required operation, but it of course helps
-  reduce memory footprint at run time!  
-
+ *  aim_tx_purgequeue()
+ *  
+ *  This is responsable for removing sent commands from the transmit 
+ *  queue. This is not a required operation, but it of course helps
+ *  reduce memory footprint at run time!  
+ *
  */
-int aim_tx_purgequeue(void)
+int aim_tx_purgequeue(struct aim_session_t *sess)
 {
   struct command_tx_struct *workingPtr = NULL;
   struct command_tx_struct *workingPtr2 = NULL;
@@ -260,7 +262,7 @@ int aim_tx_purgequeue(void)
   printf("purgequeue(): starting purge\n");
 #endif
   /* Empty queue: nothing to do */
-  if (aim_queue_outgoing == NULL)
+  if (sess->queue_outgoing == NULL)
     {
 #if debug > 1
       printf("purgequeue(): purge done (len=0)\n");
@@ -268,20 +270,20 @@ int aim_tx_purgequeue(void)
       return 0;
     }
   /* One Node queue: free node and return */
-  else if (aim_queue_outgoing->next == NULL)
+  else if (sess->queue_outgoing->next == NULL)
     {
 #if debug > 1
       printf("purgequeue(): entered case len=1\n");
 #endif
       /* only free if sent AND unlocked -- dont assume sent structs are done */
-      if ( (aim_queue_outgoing->lock == 0) &&
-	   (aim_queue_outgoing->sent == 1) )
+      if ( (sess->queue_outgoing->lock == 0) &&
+	   (sess->queue_outgoing->sent == 1) )
 	{
 #if debug > 1
 	  printf("purgequeue(): purging seqnum 0x%04x\n", aim_queue_outgoing->seqnum);
 #endif
-	  workingPtr2 = aim_queue_outgoing;
-	  aim_queue_outgoing = NULL;
+	  workingPtr2 = sess->queue_outgoing;
+	  sess->queue_outgoing = NULL;
 	  free(workingPtr2->data);
 	  free(workingPtr2);
 	}

@@ -14,7 +14,6 @@ LIBFAIM_OBJECTS = \
 	aim_login.o \
 	aim_logoff.o \
 	aim_misc.o \
-	aim_global.o \
 	aim_buddylist.o \
 	aim_search.o \
 	aim_snac.o \
@@ -37,6 +36,11 @@ allutils: libfaim
 	cd utils; \
 	make
 
+install: libfaim
+	cp -r faim /usr/include
+	cp libfaim.so /usr/lib/$(SOFILENAME)
+	/sbin/ldconfig
+
 cleanutils:
 	@echo "LIBFAIM_INC = $$PWD" > utils/Makefile.dynamicrules; \
 	echo "LIBFAIM_LIB = $$PWD" >> utils/Makefile.dynamicrules; \
@@ -44,4 +48,4 @@ cleanutils:
 	make clean
 
 clean: cleanutils
-	rm -f $(LIBFAIM_OBJECTS) $(SONAME) libfaim.a
+	rm -f $(LIBFAIM_OBJECTS) $(SONAME) libfaim.a *~ core
