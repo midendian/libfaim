@@ -815,7 +815,7 @@ static int memrequest(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 	return 0;
 }
 
-#if 0
+#if 0 
 static void dumpbox(aim_session_t *sess, unsigned char *buf, int len)
 {
 	int i;

@@ -206,6 +206,10 @@ static const struct {
 	 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 
+	{AIM_CAPS_TRILLIANCRYPT,
+	 {0xf2, 0xe7, 0xc7, 0xf4, 0xfe, 0xad, 0x4d, 0xfb,
+	  0xb2, 0x35, 0x36, 0x79, 0x8b, 0xdf, 0x00, 0x00}},
+
 	{AIM_CAPS_LAST}
 };
 
@@ -235,8 +239,15 @@ faim_internal fu32_t aim_getcap(aim_session_t *sess, aim_bstream_t *bs, int len)
 			}
 		}
 
-		if (!identified)
-			faimdprintf(sess, 0, "unknown capability!\n");
+		if (!identified) {
+			faimdprintf(sess, 0, "unknown capability: {%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x}\n",
+					cap[0], cap[1], cap[2], cap[3],
+					cap[4], cap[5],
+					cap[6], cap[7],
+					cap[8], cap[9],
+					cap[10], cap[11], cap[12], cap[13],
+					cap[14], cap[15]);
+		}
 
 		free(cap);
 	}

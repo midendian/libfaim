@@ -12,6 +12,7 @@ static int cmd_goodday(char *arg);
 static int cmd_warn(char *arg);
 static int cmd_anonwarn(char *arg);
 static int cmd_sendmsg(char *arg);
+static int cmd_reqservice(char *arg);
 
 struct {
 	char *name;
@@ -27,6 +28,7 @@ struct {
 	{ "warn", cmd_warn, "Warn arg"},
 	{ "anonwarn", cmd_anonwarn, "Anonymously warn arg"},
 	{ "sendmsg", cmd_sendmsg, "Send arg[0] bytes to arg[1]"},
+	{ "reqservice", cmd_reqservice, "Request service arg[0]"},
 	{ (char *)NULL, (Function *)NULL, (char *)NULL }
 };
 
@@ -269,6 +271,20 @@ static int cmd_sendmsg(char *arg)
 	aim_send_im(&aimsess, sn, 0, newbuf);
 
 	free(newbuf);
+
+	return 0;
+}
+
+static int cmd_reqservice(char *arg)
+{
+	int serv = 0x0002;
+
+	if (arg && strlen(arg))
+		serv = atoi(arg);
+
+	printf("requesting service 0x%04x\n", serv);
+
+	aim_reqservice(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), serv);
 
 	return 0;
 }

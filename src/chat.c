@@ -15,6 +15,27 @@ struct chatconnpriv {
 	fu16_t instance;
 };
 
+static void dumpbox(aim_session_t *sess, unsigned char *buf, int len)
+{
+	int i;
+
+	if (!sess || !buf || !len)
+		return;
+
+	faimdprintf(sess, 1, "\nDump of %d bytes at %p:", len, buf);
+
+	for (i = 0; i < len; i++) {
+		if ((i % 8) == 0)
+			faimdprintf(sess, 1, "\n\t");
+
+		faimdprintf(sess, 1, "0x%2x ", buf[i]);
+	}
+
+	faimdprintf(sess, 1, "\n\n");
+
+	return;
+}
+
 faim_internal void aim_conn_kill_chat(aim_session_t *sess, aim_conn_t *conn)
 {
 	struct chatconnpriv *ccp = (struct chatconnpriv *)conn->priv;
@@ -400,6 +421,8 @@ static int infoupdate(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 	fu32_t creationtime = 0;
 	fu16_t maxmsglen = 0, maxvisiblemsglen = 0;
 	fu16_t unknown_d2 = 0, unknown_d5 = 0;
+
+	dumpbox(sess, bs->data + bs->offset, aim_bstream_empty(bs));
 
 	aim_chat_readroominfo(bs, &roominfo);
 

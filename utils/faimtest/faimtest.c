@@ -370,7 +370,7 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	aim_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_ICQ | AIM_CAPS_ICQUNKNOWN | AIM_CAPS_ICQRTF | AIM_CAPS_ICQSERVERRELAY);
+	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_ICQ | AIM_CAPS_ICQUNKNOWN | AIM_CAPS_ICQRTF | AIM_CAPS_ICQSERVERRELAY | AIM_CAPS_TRILLIANCRYPT);
 	aim_bos_reqbuddyrights(sess, fr->conn);
 
 	/* send the buddy list and profile (required, even if empty) */
