@@ -343,16 +343,17 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	workingPtr->handled = 1;
 	break;
       case AIM_CONN_TYPE_AUTH: {
-	u_long head;
+	unsigned long head;
 	
 	head = aimutil_get32(workingPtr->data);
-	if (head == 0x00000001) {
+	if ((head == 0x00000001) && (workingPtr->commandlen == 4)) {
 	  faimdprintf(1, "got connection ack on auth line\n");
 	  workingPtr->handled = 1;
-	} else if (workingPtr->hdr.oscar.type == 0x0004) {
+	} else if (workingPtr->hdr.oscar.type == 0x04) {
+	  /* Used only by the older login protocol */
 	  workingPtr->handled = aim_authparse(sess, workingPtr);
         } else {
-	  u_short family,subtype;
+	  unsigned short family,subtype;
 	  
 	  family = aimutil_get16(workingPtr->data);
 	  subtype = aimutil_get16(workingPtr->data+2);

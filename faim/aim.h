@@ -350,6 +350,8 @@ struct aim_session_t {
     char password[128];
   } socksproxy;
 
+  int snaclogin;
+
   struct aim_msgcookie_t *msgcookies;
 };
 

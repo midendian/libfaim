@@ -1,6 +1,13 @@
 
 No release numbers
 ------------------
+ - Wed Nov  8 13:11:18 UTC 2000
+  - Reenable/reimplement older login, but only use for ICQ UINs
+    - This is a fairly ugly hack.  But...eh.  It works.
+    - You'll need to remove the aim_sendconnack() before the
+      call to aim_request_login.  It will now do it automatically
+      if its needed.  (hint: ***CLIENT CHANGE***)
+
  - Wed Nov  8 02:23:25 UTC 2000
   - I'm trying out using a modified version of the kernel-doc scripts
      to help document the libfaim code a bit.  See aim_conn.c and 

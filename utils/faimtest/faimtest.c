@@ -224,7 +224,7 @@ int main(void)
   aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
   aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);
     
-  aim_sendconnack(&aimsess, authconn);
+  /* do NOT send a connack/flapversion, request_login will send it if needed */
   aim_request_login(&aimsess, authconn, screenname);
 
   aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);

@@ -685,6 +685,7 @@ faim_export void aim_session_init(struct aim_session_t *sess)
   sess->pendingjoin = NULL;
   aim_initsnachash(sess);
   sess->snac_nextid = 0x00000001;
+  sess->snaclogin = 1; /* default to yes, oh gods yes. */
 
   /*
    * This must always be set.  Default to the queue-based
