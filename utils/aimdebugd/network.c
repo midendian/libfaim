@@ -5,6 +5,8 @@
 
 #include <faim/aim.h>
 
+#include <network.h>
+
 int Read(int fd, unsigned char *buf, int len)
 {
   int i = 0;

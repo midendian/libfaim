@@ -1,5 +1,8 @@
 #include <faim/aim.h>
 
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <sys/utsname.h> /* for aim_directim_initiate */
 #include <arpa/inet.h> /* for inet_ntoa */
 
@@ -12,11 +15,11 @@
    aim_filetransfer_accept aim_im.c
    aim_getlisting aim_misc.c (?!) -- prototype function. can be ignored.
    establish aim_misc.c
-   aim_get_command_rendezvous aim_rxqueue.c
+   aim_get_command_rendezvous aim_r
    oft_getfh aim_rxqueue.c
 */
 
-int aim_handlerendconnect(struct aim_session_t *sess, struct aim_conn_t *cur)
+faim_export int aim_handlerendconnect(struct aim_session_t *sess, struct aim_conn_t *cur)
 {
   int acceptfd = 0;
   rxcallback_t userfunc;
@@ -84,9 +87,9 @@ int aim_handlerendconnect(struct aim_session_t *sess, struct aim_conn_t *cur)
  * msg  - null-terminated string to send
  */
 
-int aim_send_im_direct(struct aim_session_t *sess, 
-		       struct aim_conn_t *conn,
-		       char *msg)
+faim_export int aim_send_im_direct(struct aim_session_t *sess, 
+				   struct aim_conn_t *conn,
+				   char *msg)
 {
   struct command_tx_struct *newpacket , *newpacket2; 
 
@@ -130,7 +133,7 @@ int aim_send_im_direct(struct aim_session_t *sess,
   i += aimutil_put16(newpacket2->hdr.oft.hdr2+i, 0x0006);
   i += aimutil_put16(newpacket2->hdr.oft.hdr2+i, 0x0000);
 
-  i += aimutil_putstr(newpacket2->hdr.oft.hdr2+i, priv->cookie, 8);
+  i += aimutil_putstr(newpacket2->hdr.oft.hdr2+i, (char *)priv->cookie, 8);
 
   i += aimutil_put16(newpacket2->hdr.oft.hdr2+i, 0x0000);
   i += aimutil_put16(newpacket2->hdr.oft.hdr2+i, 0x0000);
@@ -186,7 +189,7 @@ int aim_send_im_direct(struct aim_session_t *sess,
   i += aimutil_put16(newpacket->hdr.oft.hdr2+i, 0x0006);
   i += aimutil_put16(newpacket->hdr.oft.hdr2+i, 0x0000);
 
-  i += aimutil_putstr(newpacket->hdr.oft.hdr2+i, priv->cookie, 8);
+  i += aimutil_putstr(newpacket->hdr.oft.hdr2+i, (char *)priv->cookie, 8);
 
   i += aimutil_put16(newpacket->hdr.oft.hdr2+i, 0x0000);
   i += aimutil_put16(newpacket->hdr.oft.hdr2+i, 0x0000);
@@ -244,10 +247,10 @@ int aim_send_im_direct(struct aim_session_t *sess,
  */
 
 
-struct aim_conn_t *aim_directim_initiate(struct aim_session_t *sess,
-			  struct aim_conn_t *conn,
-			  struct aim_directim_priv *priv,
-			  char *destsn)
+faim_export struct aim_conn_t *aim_directim_initiate(struct aim_session_t *sess,
+						     struct aim_conn_t *conn,
+						     struct aim_directim_priv *priv,
+						     char *destsn)
 {
   struct command_tx_struct *newpacket;
   struct aim_conn_t *newconn;
@@ -260,7 +263,7 @@ struct aim_conn_t *aim_directim_initiate(struct aim_session_t *sess,
   struct hostent *hptr;
   struct utsname myname;
 
-  char cap[16];
+  unsigned char cap[16];
   char d[4]; /* XXX: IPv6. *cough* */
 
   /*
@@ -445,9 +448,9 @@ struct aim_conn_t *aim_directim_initiate(struct aim_session_t *sess,
 } 
 
 
-struct aim_conn_t *aim_directim_connect(struct aim_session_t *sess,
-					struct aim_conn_t *conn,
-					struct aim_directim_priv *priv )
+faim_export struct aim_conn_t *aim_directim_connect(struct aim_session_t *sess,
+						    struct aim_conn_t *conn,
+						    struct aim_directim_priv *priv )
 {
   struct aim_conn_t *newconn = NULL;;
 
@@ -466,12 +469,12 @@ struct aim_conn_t *aim_directim_connect(struct aim_session_t *sess,
   return newconn;
 }
 
-u_long aim_accepttransfer(struct aim_session_t *sess,
-			  struct aim_conn_t *conn, 
-			  struct aim_conn_t *oftconn,
-			  char *sn,
-			  char *cookie,
-			  unsigned short rendid)
+faim_export unsigned long aim_accepttransfer(struct aim_session_t *sess,
+					     struct aim_conn_t *conn, 
+					     struct aim_conn_t *oftconn,
+					     char *sn,
+					     char *cookie,
+					     unsigned short rendid)
 {
   struct command_tx_struct *newpacket, *newoft;
   struct aim_fileheader_t *listingfh;
@@ -583,7 +586,7 @@ u_long aim_accepttransfer(struct aim_session_t *sess,
  *  
  */
 
-struct aim_fileheader_t *aim_getlisting(struct aim_session_t *sess) 
+faim_internal struct aim_fileheader_t *aim_getlisting(struct aim_session_t *sess) 
 {
   struct aim_fileheader_t *fh;
 
@@ -639,7 +642,7 @@ struct aim_fileheader_t *aim_getlisting(struct aim_session_t *sess)
  * returns your fd
  */
 
-int aim_listenestablish(u_short portnum)
+faim_internal int aim_listenestablish(u_short portnum)
 {
   int listenfd;
   const int on = 1;
@@ -674,7 +677,7 @@ int aim_listenestablish(u_short portnum)
   return listenfd;
 }
 
-int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *conn)
+faim_internal int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *conn)
 {
 
   /* XXX: NOT THREAD SAFE RIGHT NOW. the locks are acting up. deal. -- jbm */
@@ -727,7 +730,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
     payloadlength = aimutil_get32(hdr+22);
     flags = aimutil_get16(hdr+32);
-    snptr = hdr+38;
+    snptr = (char *)hdr+38;
 
     strncpy(priv->sn, snptr, MAXSNLEN);
 
@@ -792,7 +795,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
     memcpy(&(ft->fh), fh, sizeof(struct aim_fileheader_t));
     
-    cook = aim_checkcookie(sess, ft->fh.bcookie, AIM_COOKIETYPE_OFTGET);
+    cook = aim_checkcookie(sess, (unsigned char *)ft->fh.bcookie, AIM_COOKIETYPE_OFTGET);
 
     if(cook->data)
       free(cook->data); /* XXX */
@@ -836,7 +839,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
     memcpy(&(ft->fh), fh, sizeof(struct aim_fileheader_t));
     
-    cook = aim_checkcookie(sess, ft->fh.bcookie, AIM_COOKIETYPE_OFTGET);
+    cook = aim_checkcookie(sess, (unsigned char *)ft->fh.bcookie, AIM_COOKIETYPE_OFTGET);
   
     if(cook->data)
       free(cook->data); /* XXX: integrate cookie caching */
@@ -867,11 +870,11 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     if(hdrlen != 0x100)
       printf("faim: fileget_command(120c): um. hdrlen != 0x100..\n");
 
-    listingfh = aim_oft_getfh((char *)hdr);
+    listingfh = aim_oft_getfh(hdr);
 
     memcpy(&(ft->fh), listingfh, sizeof(struct aim_fileheader_t));
     
-    cook = aim_checkcookie(sess, ft->fh.bcookie, AIM_COOKIETYPE_OFTGET);
+    cook = aim_checkcookie(sess, (unsigned char *)ft->fh.bcookie, AIM_COOKIETYPE_OFTGET);
   
     if(cook->data)
       free(cook->data); /* XXX */
@@ -942,7 +945,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     curbyte += aimutil_put32(newoft->hdr.oft.hdr2+curbyte, 0 /*listingfh->nrecvd*/);
     curbyte += aimutil_put32(newoft->hdr.oft.hdr2+curbyte, 0/*listingfh->recvcsum*/);
 
-    strncpy(newoft->hdr.oft.hdr2+curbyte, listingfh->idstring, 32);
+    strncpy((char *)newoft->hdr.oft.hdr2+curbyte, listingfh->idstring, 32);
     curbyte += 32;
 
     curbyte += aimutil_put8(newoft->hdr.oft.hdr2+curbyte, 0x20 /*listingfh->flags */);
@@ -958,7 +961,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     curbyte += aimutil_put16(newoft->hdr.oft.hdr2+curbyte, listingfh->nencode);
     curbyte += aimutil_put16(newoft->hdr.oft.hdr2+curbyte, listingfh->nlanguage);
 
-    strncpy(newoft->hdr.oft.hdr2+curbyte, listingfh->name, 64);
+    strncpy((char *)newoft->hdr.oft.hdr2+curbyte, listingfh->name, 64);
     curbyte += 64;
 
     free(listingfh);
@@ -974,7 +977,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     int i;
 
     struct aim_fileheader_t *fh;    
-    fh = aim_oft_getfh((char *)hdr);
+    fh = aim_oft_getfh(hdr);
 
     c = (char *)calloc(1, fh->size);
 
@@ -1016,7 +1019,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
  * this currently feeds totally bogus data
  */
 
-struct aim_fileheader_t *aim_oft_getfh(char *hdr) 
+faim_internal struct aim_fileheader_t *aim_oft_getfh(unsigned char *hdr) 
 {
   struct aim_fileheader_t *fh;
   int i, j;

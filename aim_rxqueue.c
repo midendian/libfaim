@@ -7,14 +7,20 @@
  */
 
 #include <faim/aim.h> 
+#include <sys/socket.h>
 
 /*
  * Since not all implementations support MSG_WAITALL, define
  * an alternate guarenteed read function...
+ *
+ * We keep recv() for systems that can do it because it means
+ * a single system call for the entire packet, where read may
+ * take more for a badly fragmented packet.
+ *
  */
 static int aim_recv(int fd, void *buf, size_t count)
 {
-#ifdef FAIM_HAS_MSG_WAITALL
+#ifdef MSG_WAITALL
   return recv(fd, buf, count, MSG_WAITALL);
 #else
   int left, ret, cur = 0; 
@@ -22,7 +28,7 @@ static int aim_recv(int fd, void *buf, size_t count)
   left = count;
 
   while (left) {
-    ret = read(fd, buf+cur, left);
+    ret = read(fd, ((unsigned char *)buf)+cur, left);
     if (ret == -1)
       return -1;
     if (ret == 0)
@@ -40,7 +46,7 @@ static int aim_recv(int fd, void *buf, size_t count)
  * Grab a single command sequence off the socket, and enqueue
  * it in the incoming event queue in a seperate struct.
  */
-int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
+faim_export int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
 {
   unsigned char generic[6]; 
   struct command_rx_struct *newrx = NULL;
@@ -164,7 +170,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
  * does not keep a pointer, it's lost forever.
  *
  */
-void aim_purge_rxqueue(struct aim_session_t *sess)
+faim_export void aim_purge_rxqueue(struct aim_session_t *sess)
 {
   struct command_rx_struct *cur = NULL;
   struct command_rx_struct *tmp;
@@ -222,7 +228,7 @@ void aim_purge_rxqueue(struct aim_session_t *sess)
  * XXX: this is something that was handled better in the old connection
  * handling method, but eh.
  */
-void aim_rxqueue_cleanbyconn(struct aim_session_t *sess, struct aim_conn_t *conn)
+faim_internal void aim_rxqueue_cleanbyconn(struct aim_session_t *sess, struct aim_conn_t *conn)
 {
   struct command_rx_struct *currx;
 

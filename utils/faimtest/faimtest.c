@@ -346,12 +346,12 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   va_list ap;
   int serviceid;
   char *ip;
-  char *cookie;
+  unsigned char *cookie;
 
   va_start(ap, command);
   serviceid = va_arg(ap, int);
   ip = va_arg(ap, char *);
-  cookie = va_arg(ap, char *);
+  cookie = va_arg(ap, unsigned char *);
  
   switch(serviceid)
     {
@@ -1039,7 +1039,7 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
 int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   struct client_info_s info = {"faimtest (with SNAC login)", 4, 1, 2010, "us", "en", 0x0004, 0x0000, 0x0000004b}; /* 4.1.2010 */
-  unsigned char *key;
+  char *key;
   va_list ap;
   
   va_start(ap, command);
@@ -1268,7 +1268,7 @@ int faimtest_parse_ratechange(struct aim_session_t *sess, struct command_rx_stru
   printf("faimtest: ratechange: %lu\n", newrate);
 
   return (1);
-};
+}
 
 int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
@@ -1282,4 +1282,4 @@ int faimtest_parse_evilnotify(struct aim_session_t *sess, struct command_rx_stru
   printf("faimtest: warning from: %s\n", sn);
 
   return 1;
-};
+}
