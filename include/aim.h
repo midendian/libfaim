@@ -679,7 +679,7 @@ faim_export int aim_handlerendconnect(struct aim_session_t *sess, struct aim_con
 faim_export unsigned long aim_denytransfer(struct aim_session_t *sess, struct aim_conn_t *conn, char *sender, char *cookie, unsigned short code);
 faim_export struct aim_conn_t *aim_accepttransfer(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn, char *cookie, char *ip, unsigned short listingfiles, unsigned short listingtotsize, unsigned short listingsize, unsigned int listingchecksum, unsigned short rendid);
 
-faim_export unsigned long aim_getinfo(struct aim_session_t *, struct aim_conn_t *, const char *, unsigned short);
+faim_export int aim_getinfo(struct aim_session_t *, struct aim_conn_t *, const char *, unsigned short);
 faim_export int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_userinfo_s *info);
 faim_export int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
 
@@ -772,7 +772,7 @@ faim_export char *aim_strsep(char **pp, const char *delim);
 /* aim_meta.c */
 faim_export char *aim_getbuilddate(void);
 faim_export char *aim_getbuildtime(void);
-faim_export char *aim_getbuildstring(void);
+faim_export int aim_getbuildstring(char *buf, int buflen);
 
 #include <aim_internal.h>
 

@@ -367,7 +367,7 @@ int main(int argc, char **argv)
 #endif /* _WIN32 */
 
   /* Pass zero as flags if you want blocking connects */
-  aim_session_init(&aimsess, AIM_SESS_FLAGS_NONBLOCKCONNECT, 0);
+  aim_session_init(&aimsess, AIM_SESS_FLAGS_NONBLOCKCONNECT, 1);
   aim_setdebuggingcb(&aimsess, faimtest_debugcb); /* still needed even if debuglevel = 0 ! */
 
   if(listingpath) {
@@ -493,6 +493,26 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
     dvprintf("faimtest: got rate response for unhandled connection type %04x\n", command->conn->type);
     break;
   }
+
+  return 1;
+}
+
+static int faimtest_icbmparaminfo(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  unsigned long defflags, minmsginterval;
+  unsigned short maxicbmlen, maxsenderwarn, maxrecverwarn, maxchannel;
+  va_list ap;
+
+  va_start(ap, command);
+  maxchannel = va_arg(ap, unsigned short);
+  defflags = va_arg(ap, unsigned long);
+  maxicbmlen = va_arg(ap, unsigned short);
+  maxsenderwarn = va_arg(ap, unsigned short);
+  maxrecverwarn = va_arg(ap, unsigned short);
+  minmsginterval = va_arg(ap, unsigned long);
+  va_end(ap);
+
+  dvprintf("ICBM Parameters: maxchannel = %d, default flags = 0x%08lx, max msg len = %d, max sender evil = %f, max reciever evil = %f, min msg interval = %ld\n", maxchannel, defflags, maxicbmlen, ((float)maxsenderwarn)/10.0, ((float)maxrecverwarn)/10.0, minmsginterval);
 
   return 1;
 }
@@ -726,10 +746,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	  if (tstconn) aim_conn_kill(sess, &tstconn);
 	  return 1;
 	}
-#if 0
-	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_CTN, AIM_CB_SPECIAL_DEFAULT, faimtest_parse_unknown, 0);
-	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, AIM_CB_SPECIAL_DEFAULT, faimtest_parse_unknown, 0);
-#endif
+
 	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_auth_sendcookie(sess, tstconn, cookie);
@@ -863,10 +880,9 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
 
-  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, faimtest_parse_unknown, 0);
-  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, faimtest_parse_unknown, 0);
   aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
-    
+
+  aim_conn_addhandler(sess, bosconn, 0x0004, 0x0005, faimtest_icbmparaminfo, 0);
   aim_conn_addhandler(sess, bosconn, 0x0001, 0x0001, faimtest_parse_genericerr, 0);
   aim_conn_addhandler(sess, bosconn, 0x0003, 0x0001, faimtest_parse_genericerr, 0);
   aim_conn_addhandler(sess, bosconn, 0x0009, 0x0001, faimtest_parse_genericerr, 0);
@@ -1008,6 +1024,8 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
     aim_getinfo(sess, command->conn, "75784102", AIM_GETINFO_GENERALINFO);
     aim_getinfo(sess, command->conn, "15853637", AIM_GETINFO_AWAYMESSAGE);
+    aim_getinfo(sess, command->conn, "midendian", AIM_GETINFO_GENERALINFO);
+    aim_getinfo(sess, command->conn, "midendian", AIM_GETINFO_AWAYMESSAGE);
 
   } else if (!strncmp(tmpstr, "open directim", 13)) {
     struct aim_conn_t *newconn;
@@ -1522,8 +1540,8 @@ int faimtest_parse_msgerr(struct aim_session_t *sess, struct command_rx_struct *
   unsigned short reason;
 
   va_start(ap, command);
-  destsn = va_arg(ap, char *);
   reason = va_arg(ap, int);
+  destsn = va_arg(ap, char *);
   va_end(ap);
 
   dvprintf("faimtest: message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
@@ -1538,8 +1556,8 @@ int faimtest_parse_locerr(struct aim_session_t *sess, struct command_rx_struct *
   unsigned short reason;
 
   va_start(ap, command);
-  destsn = va_arg(ap, char *);
   reason = va_arg(ap, int);
+  destsn = va_arg(ap, char *);
   va_end(ap);
 
   dvprintf("faimtest: user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");

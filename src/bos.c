@@ -56,14 +56,7 @@ static int rights(struct aim_session_t *sess, aim_module_t *mod, struct command_
 static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
 
-  faimdprintf(sess, 0, "%s: snachandler: got %x/%x\n", mod->name, snac->family, snac->subtype);
-
-  if (snac->family != mod->family)
-    return 0;
-
-  if (snac->subtype == 0x0001)
-    ;
-  else if (snac->subtype == 0x0003)
+  if (snac->subtype == 0x0003)
     return rights(sess, mod, rx, snac, data, datalen);
 
   return 0;

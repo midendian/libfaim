@@ -34,7 +34,7 @@ faim_export unsigned long aim_usersearch_address(struct aim_session_t *sess,
   return sess->snac_nextid;
 }
 
-
+/* XXX can this be integrated with the rest of the error handling? */
 static int error(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
   int ret = 0;
@@ -110,11 +110,6 @@ static int reply(struct aim_session_t *sess, aim_module_t *mod, struct command_r
 
 static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
-
-  faimdprintf(sess, 0, "%s: snachandler: got %x/%x\n", mod->name, snac->family, snac->subtype);
-
-  if (snac->family != mod->family)
-    return 0;
 
   if (snac->subtype == 0x0001)
     return error(sess, mod, rx, snac, data, datalen);

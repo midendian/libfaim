@@ -818,3 +818,56 @@ faim_export unsigned long aim_icq_setstatus(struct aim_session_t *sess,
 
   return(sess->snac_nextid);
 }
+
+/*
+ * Should be generic enough to handle the errors for all families...
+ *
+ */
+static int generror(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  int ret = 0;
+  int error = 0;
+  rxcallback_t userfunc;
+  struct aim_snac_t *snac2;
+
+  snac2 = aim_remsnac(sess, snac->id);
+
+  if (datalen)
+    error = aimutil_get16(data);
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    ret = userfunc(sess, rx, error, snac2?snac2->data:NULL);
+
+  if (snac2)
+    free(snac2->data);
+  free(snac2);
+
+  return ret;
+}
+
+static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+
+  if (snac->subtype == 0x0001)
+    return generror(sess, mod, rx, snac, data, datalen);
+  else if ((snac->family == 0xffff) && (snac->subtype == 0xffff)) {
+    rxcallback_t userfunc;
+
+    if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+      return userfunc(sess, rx);
+  }
+
+  return 0;
+}
+
+faim_internal int misc_modfirst(struct aim_session_t *sess, aim_module_t *mod)
+{
+
+  mod->family = 0xffff;
+  mod->version = 0x0000;
+  mod->flags = AIM_MODFLAG_MULTIFAMILY;
+  strncpy(mod->name, "misc", sizeof(mod->name));
+  mod->snachandler = snachandler;
+
+  return 0;
+}

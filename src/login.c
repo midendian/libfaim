@@ -405,3 +405,285 @@ faim_export unsigned long aim_sendredirect(struct aim_session_t *sess,
   tx->lock = 0;
   return aim_tx_enqueue(sess, tx);
 }
+
+
+static int hostonline(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc;
+  int ret = 0;
+  unsigned short *families;
+  int famcount, i;
+
+  famcount = datalen/2;
+
+  if (!(families = malloc(datalen)))
+    return 0;
+
+  for (i = 0; i < famcount; i++)
+    families[i] = aimutil_get16(data+(i*2));
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    ret = userfunc(sess, rx, famcount, families);
+
+  free(families);
+
+  return ret;  
+}
+
+static int redirect(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  int serviceid;
+  unsigned char *cookie;
+  char *ip;
+  rxcallback_t userfunc;
+  struct aim_tlvlist_t *tlvlist;
+  char *chathack = NULL;
+  int chathackex = 0;
+  int ret = 0;
+  
+  tlvlist = aim_readtlvchain(data, datalen);
+
+  if (!aim_gettlv(tlvlist, 0x000d, 1) ||
+      !aim_gettlv(tlvlist, 0x0005, 1) ||
+      !aim_gettlv(tlvlist, 0x0006, 1)) {
+    aim_freetlvchain(&tlvlist);
+    return 0;
+  }
+
+  serviceid = aim_gettlv16(tlvlist, 0x000d, 1);
+  ip = aim_gettlv_str(tlvlist, 0x0005, 1);
+  cookie = aim_gettlv_str(tlvlist, 0x0006, 1);
+
+  /*
+   * Chat hack.
+   *
+   */
+  if ((serviceid == AIM_CONN_TYPE_CHAT) && sess->pendingjoin) {
+    chathack = sess->pendingjoin;
+    chathackex = sess->pendingjoinexchange;
+    sess->pendingjoin = NULL;
+    sess->pendingjoinexchange = 0;
+  }
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    ret = userfunc(sess, rx, serviceid, ip, cookie, chathack, chathackex);
+
+  free(ip);
+  free(cookie);
+  free(chathack);
+
+  aim_freetlvchain(&tlvlist);
+
+  return ret;
+}
+
+/*
+ * The Rate Limiting System, An Abridged Guide to Nonsense.
+ *
+ * OSCAR defines several 'rate classes'.  Each class has seperate
+ * rate limiting properties (limit level, alert level, disconnect
+ * level, etc), and a set of SNAC family/type pairs associated with
+ * it.  The rate classes, their limiting properties, and the definitions
+ * of which SNACs are belong to which class, are defined in the
+ * Rate Response packet at login to each host.  
+ *
+ * Logically, all rate offenses within one class count against further
+ * offenses for other SNACs in the same class (ie, sending messages
+ * too fast will limit the number of user info requests you can send,
+ * since those two SNACs are in the same rate class).
+ *
+ * Since the rate classes are defined dynamically at login, the values
+ * below may change. But they seem to be fairly constant.
+ *
+ * Currently, BOS defines five rate classes, with the commonly used
+ * members as follows...
+ *
+ *  Rate class 0x0001:
+ *  	- Everything thats not in any of the other classes
+ *
+ *  Rate class 0x0002:
+ * 	- Buddy list add/remove
+ *	- Permit list add/remove
+ *	- Deny list add/remove
+ *
+ *  Rate class 0x0003:
+ *	- User information requests
+ *	- Outgoing ICBMs
+ *
+ *  Rate class 0x0004:
+ *	- A few unknowns: 2/9, 2/b, and f/2
+ *
+ *  Rate class 0x0005:
+ *	- Chat room create
+ *	- Outgoing chat ICBMs
+ *
+ * The only other thing of note is that class 5 (chat) has slightly looser
+ * limiting properties than class 3 (normal messages).  But thats just a 
+ * small bit of trivia for you.
+ *
+ * The last thing that needs to be learned about the rate limiting
+ * system is how the actual numbers relate to the passing of time.  This
+ * seems to be a big mystery.
+ * 
+ */
+
+/* XXX parse this */
+static int rateresp(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc;
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    return userfunc(sess, rx);
+
+  return 0;
+}
+
+static int ratechange(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc;
+  int i = 0, code;
+  unsigned long currentavg, maxavg;
+  unsigned long rateclass, windowsize, clear, alert, limit, disconnect;
+
+  code = aimutil_get16(data+i);
+  i += 2;
+
+  rateclass = aimutil_get16(data+i);
+  i += 2;
+
+  windowsize = aimutil_get32(data+i);
+  i += 4;
+  clear = aimutil_get32(data+i);
+  i += 4;
+  alert = aimutil_get32(data+i);
+  i += 4;
+  limit = aimutil_get32(data+i);
+  i += 4;
+  disconnect = aimutil_get32(data+i);
+  i += 4;
+  currentavg = aimutil_get32(data+i);
+  i += 4;
+  maxavg = aimutil_get32(data+i);
+  i += 4;
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    return userfunc(sess, rx, code, rateclass, windowsize, clear, alert, limit, disconnect, currentavg, maxavg);
+
+  return 0;
+}
+
+/* XXX parse this */
+static int selfinfo(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc;
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    return userfunc(sess, rx);
+
+  return 0;
+}
+
+static int evilnotify(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc = NULL;
+  int i = 0;
+  unsigned short newevil;
+  struct aim_userinfo_s userinfo;
+
+  newevil = aimutil_get16(data);
+  i += 2;
+
+  memset(&userinfo, 0, sizeof(struct aim_userinfo_s));
+
+  if (datalen-i)
+    i += aim_extractuserinfo(sess, data+i, &userinfo);
+
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    return userfunc(sess, rx, newevil, &userinfo);
+  
+  return 0;
+}
+
+static int motd(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc;
+  char *msg = NULL;
+  int ret = 0;
+  struct aim_tlvlist_t *tlvlist;
+  unsigned short id;
+
+  /*
+   * Code.
+   *
+   * Valid values:
+   *   1 Mandatory upgrade
+   *   2 Advisory upgrade
+   *   3 System bulletin
+   *   4 Nothing's wrong ("top o the world" -- normal)
+   *
+   */
+  id = aimutil_get16(data);
+
+  /* 
+   * TLVs follow 
+   */
+  if ((tlvlist = aim_readtlvchain(data+2, datalen-2)))
+    msg = aim_gettlv_str(tlvlist, 0x000b, 1);
+  
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    ret =  userfunc(sess, rx, id, msg);
+
+  free(msg);
+
+  aim_freetlvchain(&tlvlist);
+
+  return ret;
+}
+
+static int hostversions(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+  rxcallback_t userfunc;
+  int vercount;
+
+  vercount = datalen/4;
+  
+  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+    return userfunc(sess, rx, vercount, data);
+
+  return 0;
+}
+
+static int snachandler(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
+{
+
+  if (snac->subtype == 0x0003)
+    return hostonline(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x0005)
+    return redirect(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x0007)
+    return rateresp(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x000a)
+    return ratechange(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x000f)
+    return selfinfo(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x0010)
+    return evilnotify(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x0013)
+    return motd(sess, mod, rx, snac, data, datalen);
+  else if (snac->subtype == 0x0018)
+    return hostversions(sess, mod, rx, snac, data, datalen);
+
+  return 0;
+}
+
+faim_internal int general_modfirst(struct aim_session_t *sess, aim_module_t *mod)
+{
+
+  mod->family = 0x0001;
+  mod->version = 0x0000;
+  mod->flags = 0;
+  strncpy(mod->name, "general", sizeof(mod->name));
+  mod->snachandler = snachandler;
+
+  return 0;
+}

@@ -1,6 +1,23 @@
 
 No release numbers
 ------------------
+ - Sat Mar 24 03:16:32 UTC 2001
+  - vaargs to msgerror and locateerror swapped
+     - ** CLIENT CHANGE: Reason code comes before SN now.  This is so that
+          the backend code for all three error handlers is identical.
+  - aim_getinfo() returns -1 on failure (hah! I don't think anyone checks 
+      return codes from libfaim anyway...they're known for their
+      inconsistency and lack of sensicality)
+  - Remove _DEFAULT handlers in faimtest...
+     - They were not consistent.
+     - They did not make sense.
+     - They did not work anyway.
+     - Most of them were #if 0'd.
+  - Add ICBM Parameter Info callback... you can catch this if you want.
+  - aim_getbuildstring() now takes a buffer instead of returning static (ew!)
+  - Clean up, "factorize", etc
+  - More stuff... (Only one "middle handler" left in rxhandlers.c!)
+
  - Fri Mar 23 05:42:11 UTC 2001
   - Export aim_encode_password_md5()
   - Add middle handler for 000b/0002 (min report interval)

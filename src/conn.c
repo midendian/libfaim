@@ -774,12 +774,18 @@ faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flag
   /*
    * Register all the modules for this session...
    */
+  aim__registermodule(sess, misc_modfirst); /* load the catch-all first */
   aim__registermodule(sess, buddylist_modfirst);
   aim__registermodule(sess, admin_modfirst);
   aim__registermodule(sess, bos_modfirst);
   aim__registermodule(sess, search_modfirst);
   aim__registermodule(sess, stats_modfirst);
   aim__registermodule(sess, auth_modfirst);
+  aim__registermodule(sess, msg_modfirst);
+  aim__registermodule(sess, chatnav_modfirst);
+  aim__registermodule(sess, chat_modfirst);
+  aim__registermodule(sess, locate_modfirst);
+  aim__registermodule(sess, general_modfirst);
 
   return;
 }
