@@ -276,27 +276,26 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
     }
 
   /*
-   * Source screen name.
+   * Extract the standard user info block.
+   *
+   * Note that although this contains TLVs that appear contiguous
+   * with the TLVs read below, they are two different pieces.  The
+   * userinfo block contains the number of TLVs that contain user
+   * information, the rest are not even though there is no seperation.
+   * aim_extractuserinfo() returns the number of bytes used by the
+   * userinfo tlvs, so you can start reading the rest of them right
+   * afterward.  
+   *
+   * That also means that TLV types can be duplicated between the
+   * userinfo block and the rest of the message, however there should
+   * never be two TLVs of the same type in one block.
+   * 
    */
-  memcpy(userinfo.sn, command->data+i+1, (int)command->data[i]);
-  userinfo.sn[(int)command->data[i]] = '\0';
-  i += 1 + (int)command->data[i];
-
-  /*
-   * Warning Level
-   */
-  userinfo.warnlevel = aimutil_get16(command->data+i); /* guess */
-  i += 2;
-
-  /*
-   * Number of TLVs that follow.  Not needed.
-   */
-  wastebits = aimutil_get16(command->data+i);
-  i += 2;
+  i += aim_extractuserinfo(command->data+i, &userinfo);
   
   /*
-   * Read block of TLVs.  All further data is derived
-   * from what is parsed here.
+   * Read block of TLVs (not including the userinfo data).  All 
+   * further data is derived from what is parsed here.
    */
   tlvlist = aim_readtlvchain(command->data+i, command->commandlen-i);
 
@@ -314,55 +313,26 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
            
       /*
        * Check Autoresponse status.  If it is an autoresponse,
-       * it will contain a second type 0x0004 TLV, with zero length.
+       * it will contain a type 0x0004 TLV, with zero length.
        */
-      if (aim_gettlv(tlvlist, 0x0004, 2))
+      if (aim_gettlv(tlvlist, 0x0004, 1))
 	icbmflags |= AIM_IMFLAGS_AWAY;
       
       /*
        * Check Ack Request status.
        */
-      if (aim_gettlv(tlvlist, 0x0003, 2))
+      if (aim_gettlv(tlvlist, 0x0003, 1))
 	icbmflags |= AIM_IMFLAGS_ACK;
       
       /*
-       * Extract the various pieces of the userinfo struct.
-       */
-      /* Class. */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
-	userinfo.class = aimutil_get16(tmptlv->value);
-      /* Member-since date. */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0002, 1)))
-	{
-	  /* If this is larger than 4, its probably the message block, skip */
-	  if (tmptlv->length <= 4)
-	    userinfo.membersince = aimutil_get32(tmptlv->value);
-	}
-      /* On-since date */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0003, 1)))
-	userinfo.onlinesince = aimutil_get32(tmptlv->value);
-      /* Idle-time */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0004, 1)))
-	userinfo.idletime = aimutil_get16(tmptlv->value);
-      /* Session Length (AIM) */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x000f, 1)))
-	userinfo.sessionlen = aimutil_get16(tmptlv->value);
-      /* Session Length (AOL) */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0010, 1)))
-	userinfo.sessionlen = aimutil_get16(tmptlv->value);
-      
-      /*
        * Message block.
-       *
-       * XXX: Will the msgblock always be the second 0x0002? 
        */
       msgblocktlv = aim_gettlv(tlvlist, 0x0002, 1);
-      if (!msgblocktlv || !msgblocktlv->value)
-	{
-	  printf("faim: icbm: major error! no message block TLV found!\n");
-	  aim_freetlvchain(&tlvlist);
-	  return 1;
-	}
+      if (!msgblocktlv || !msgblocktlv->value) {
+	printf("faim: icbm: major error! no message block TLV found!\n");
+	aim_freetlvchain(&tlvlist);
+	return 1;
+      }
       
       /*
        * Extracting the message from the unknown cruft.
@@ -438,22 +408,6 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       unsigned short reqclass = 0;
       unsigned short status = 0;
       
-      /* Class. */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
-	userinfo.class = aimutil_get16(tmptlv->value);
-      /* On-since date */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0003, 1)))
-	userinfo.onlinesince = aimutil_get32(tmptlv->value);
-      /* Idle-time */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0004, 1)))
-	userinfo.idletime = aimutil_get16(tmptlv->value);
-      /* Session Length (AIM) */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x000f, 1)))
-	userinfo.sessionlen = aimutil_get16(tmptlv->value);
-      /* Session Length (AOL) */
-      if ((tmptlv = aim_gettlv(tlvlist, 0x0010, 1)))
-	userinfo.sessionlen = aimutil_get16(tmptlv->value);
-
       /*
        * There's another block of TLVs embedded in the type 5 here. 
        */

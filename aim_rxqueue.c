@@ -40,7 +40,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
    */
   faim_mutex_lock(&conn->active);
   if (read(conn->fd, generic, 6) < 6){
-    aim_conn_close(conn);
+    aim_conn_kill(sess, &conn);
     faim_mutex_unlock(&conn->active);
     return -1;
   }
@@ -89,7 +89,7 @@ int aim_get_command(struct aim_session_t *sess, struct aim_conn_t *conn)
   if (read(conn->fd, newrx->data, newrx->commandlen) < newrx->commandlen){
     free(newrx->data);
     free(newrx);
-    aim_conn_close(conn);
+    aim_conn_kill(sess, &conn);
     faim_mutex_unlock(&conn->active);
     return -1;
   }
@@ -257,5 +257,23 @@ void aim_purge_rxqueue(struct aim_session_t *sess)
       break;
   }
 
+  return;
+}
+
+/*
+ * Since aim_get_command will aim_conn_kill dead connections, we need
+ * to clean up the rxqueue of unprocessed connections on that socket.
+ *
+ * XXX: this is something that was handled better in the old connection
+ * handling method, but eh.
+ */
+void aim_rxqueue_cleanbyconn(struct aim_session_t *sess, struct aim_conn_t *conn)
+{
+  struct command_rx_struct *currx;
+
+  for (currx = sess->queue_incoming; currx; currx = currx->next) {
+    if ((!currx->handled) && (currx->conn == conn))
+      currx->handled = 1;
+  }	
   return;
 }

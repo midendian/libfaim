@@ -138,7 +138,7 @@ int aim_tx_enqueue__immediate(struct aim_session_t *sess, struct command_tx_stru
   newpacket->lock = 1; /* lock */
   newpacket->sent = 0; /* not sent yet */
 
-  aim_tx_sendframe(newpacket);
+  aim_tx_sendframe(sess, newpacket);
 
   if (newpacket->data)
     free(newpacket->data);
@@ -225,7 +225,7 @@ int aim_tx_printqueue(struct aim_session_t *sess)
  *    9) Step to next struct in list and go back to 1.
  *
  */
-int aim_tx_sendframe(struct command_tx_struct *cur)
+int aim_tx_sendframe(struct aim_session_t *sess, struct command_tx_struct *cur)
 {
   int buflen = 0;
   unsigned char *curPacket;
@@ -288,9 +288,9 @@ int aim_tx_sendframe(struct command_tx_struct *cur)
   faim_mutex_lock(&cur->conn->active);
   if ( (u_int)write(cur->conn->fd, curPacket, buflen) != buflen) {
     faim_mutex_unlock(&cur->conn->active);
-    printf("\nWARNING: Error in sending packet -- will try again next time\n\n");
-    cur->sent = 0; /* mark it unsent */
-    return 0; /* bail out -- continuable error */
+    cur->sent = 1;
+    aim_conn_kill(sess, &cur->conn);
+    return 0; /* bail out */
   }
 
   if ((cur->hdrtype == AIM_FRAMETYPE_OFT) && cur->commandlen) {
@@ -352,7 +352,7 @@ int aim_tx_flushqueue(struct aim_session_t *sess)
 	sleep((cur->conn->lastactivity + cur->conn->forcedlatency) - time(NULL));
       }
 
-      if (aim_tx_sendframe(cur) == -1)
+      if (aim_tx_sendframe(sess, cur) == -1)
 	break;
     }
   }

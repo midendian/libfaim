@@ -58,8 +58,11 @@
 
 /* 
  * Current Maximum Length for Screen Names (not including NULL) 
+ *
+ * Currently only names up to 16 characters can be registered
+ * however it is aparently legal for them to be larger.
  */
-#define MAXSNLEN 16
+#define MAXSNLEN 32
 
 /*
  * Current Maximum Length for Instant Messages
@@ -370,7 +373,7 @@ unsigned long aim_sendredirect(struct aim_session_t *sess,
 			       char *ip,
 			       char *cookie);
 void aim_purge_rxqueue(struct aim_session_t *);
-
+void aim_rxqueue_cleanbyconn(struct aim_session_t *sess, struct aim_conn_t *conn);
 
 int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *command, ...);
 int aim_parse_missed_im(struct aim_session_t *, struct command_rx_struct *, ...);
@@ -381,7 +384,7 @@ struct command_tx_struct *aim_tx_new(unsigned short framing, int chan, struct ai
 int aim_tx_enqueue__queuebased(struct aim_session_t *, struct command_tx_struct *);
 int aim_tx_enqueue__immediate(struct aim_session_t *, struct command_tx_struct *);
 #define aim_tx_enqueue(x, y) ((*(x->tx_enqueue))(x, y))
-int aim_tx_sendframe(struct command_tx_struct *cur);
+int aim_tx_sendframe(struct aim_session_t *sess, struct command_tx_struct *cur);
 u_int aim_get_next_txseqnum(struct aim_conn_t *);
 int aim_tx_flushqueue(struct aim_session_t *);
 int aim_tx_printqueue(struct aim_session_t *);

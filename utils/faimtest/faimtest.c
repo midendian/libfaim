@@ -81,9 +81,9 @@ int main(void)
 {
   struct aim_session_t aimsess;
   struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
-  int keepgoing = 1, stayconnected = 1;
+  int keepgoing = 1;
 
-#if 1
+#if 0
   /* Use something like this for AIM */
   struct client_info_s info = {"Boo", 2, 1, 0, "us", "en"};
 #else
@@ -91,8 +91,6 @@ int main(void)
   struct client_info_s info = {"Random String (libfaim)", 4, 30, 3141, "us", "en"};
 #endif
   int selstat = 0;
-
-  aim_session_init(&aimsess);
 
   if ( !(screenname = getenv("SCREENNAME")) ||
        !(password = getenv("PASSWORD")))
@@ -103,11 +101,8 @@ int main(void)
 
   server = getenv("AUTHSERVER");
 
-  /*
-   * (I used a goto-based loop here because n wanted quick proof
-   *  that reconnecting without restarting was actually possible...)
-   */
- enter:
+  aim_session_init(&aimsess);
+
   authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER);
 
   if (authconn == NULL) {
@@ -120,27 +115,27 @@ int main(void)
       fprintf(stderr, "faimtest: could not connect to authorizer\n");
     aim_conn_kill(&aimsess, &authconn);
     return -1;
-  } else {
-#ifdef SNACLOGIN
-    /* new login code -- not default -- pending new password encryption algo */
-    aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
-    aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);
-    
-    aim_sendconnack(&aimsess, authconn);
-    aim_request_login(&aimsess, authconn, FAIMTEST_SCREENNAME);
-#else
-    aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_parse_authresp, 0);
-    aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
-    aim_send_login(&aimsess, authconn, screenname, password, &info);
-#endif
   }
+#ifdef SNACLOGIN
+  /* new login code -- not default -- pending new password encryption algo */
+  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
+  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);
+    
+  aim_sendconnack(&aimsess, authconn);
+  aim_request_login(&aimsess, authconn, FAIMTEST_SCREENNAME);
+#else
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_parse_authresp, 0);
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
+  aim_send_login(&aimsess, authconn, screenname, password, &info);
+#endif
+  printf("faimtest: login sent\n");
 
   while (keepgoing) {
     waitingconn = aim_select(&aimsess, NULL, &selstat);
 
     switch(selstat) {
     case -1: /* error */
-      keepgoing = 0;
+      keepgoing = 0; /* fall through and hit the aim_logoff() */
       break;
 
     case 0: /* no events pending */
@@ -153,6 +148,7 @@ int main(void)
     case 2: /* incoming data pending */
       if (aim_get_command(&aimsess, waitingconn) < 0) {
 	  printf("\afaimtest: connection error!\n");
+	  keepgoing = 0; /* fall through and hit the aim_logoff() */
       } else
 	aim_rxdispatch(&aimsess);
       break;
@@ -167,12 +163,6 @@ int main(void)
   
   /* close up all connections, dead or no */
   aim_logoff(&aimsess); 
-
-  if (stayconnected) {
-      printf("\nTrying to reconnect in 2 seconds...\n");
-      sleep(2);
-      goto enter;
-   }
 
   /* Get out */
   exit(0);
@@ -979,6 +969,7 @@ int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct 
   va_end(ap);
 
   printf("faimtest: connerr: Code 0x%04x: %s\n", code, msg);
+  aim_conn_kill(sess, &command->conn); /* this will break the main loop */
 
   return 1;
 }
