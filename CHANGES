@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Tue Mar 13 20:23:04 UTC 2001
+  - Fiddle with faimtest a bit.
+
  - Sun Mar 11 06:02:19 UTC 2001
   - Banish socklen_t.
 

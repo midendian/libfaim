@@ -28,8 +28,6 @@ if test "$enable_debug" = yes ; then
         CFLAGS="$CFLAGS -Wall -g"
 fi
 
-AC_SUBST(CFLAGS)
-
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
@@ -49,6 +47,14 @@ AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS(gethostname gettimeofday select socket strdup strstr strtol uname)
+
+AC_CHECK_LIB(readline, rl_callback_handler_install,
+	READLINELIB="-lreadline",
+	AC_MSG_ERROR(unable to find GNU readline);
+)
+
+AC_SUBST(CFLAGS)
+AC_SUBST(READLINELIB)
 
 AC_OUTPUT([
 	Makefile

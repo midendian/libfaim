@@ -38,12 +38,7 @@
  *
  */
 
-/*
-  Current status:
-
- */
-
-#include <aim.h> 
+#include "faimtest.h"
 
 static char *dprintf_ctime(void)
 {
@@ -154,11 +149,15 @@ static char *msgerrreasons[] = {
 static int msgerrreasonslen = 25;
 
 static char *screenname,*password,*server=NULL;
+static char *proxy = NULL, *proxyusername = NULL, *proxypass = NULL;
 static char *ohcaptainmycaptain = NULL;
 static int connected = 0;
 
-FILE *listingfile;
-char *listingpath;
+struct aim_session_t aimsess;
+int keepgoing = 1;
+
+static FILE *listingfile;
+static char *listingpath;
 
 static void faimtest_debugcb(struct aim_session_t *sess, int level, const char *format, va_list va)
 {
@@ -237,12 +236,77 @@ int initwsa(void)
 }
 #endif /* _WIN32 */
 
+int faimtest_init(void)
+{
+  struct aim_conn_t *stdinconn = NULL;
+
+  if (!(stdinconn = aim_newconn(&aimsess, 0, NULL))) {
+    dprintf("unable to create connection for stdin!\n");
+    return -1;
+  }
+
+  stdinconn->fd = STDIN_FILENO;
+
+  return 0;
+}
+
+int logout(void)
+{
+  aim_logoff(&aimsess);
+
+  if (faimtest_init() == -1)
+    dprintf("faimtest_init failed\n");
+
+  return 0;
+}
+
+int login(const char *sn, const char *passwd)
+{
+  struct aim_conn_t *authconn;
+
+  if (sn)
+    screenname = strdup(sn);
+  if (passwd)
+    password = strdup(passwd);
+
+  if (proxy)
+    aim_setupproxy(&aimsess, proxy, proxyusername, proxypass);
+
+  if (!screenname || !password) {
+    dprintf("need SN and password\n");
+    return -1;
+  }
+
+  if (!(authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER))) {
+    dprintf("faimtest: internal connection error while in aim_login.  bailing out.\n");
+    return -1;
+  } else if (authconn->fd == -1) {
+    if (authconn->status & AIM_CONN_STATUS_RESOLVERR) {
+      dprintf("faimtest: could not resolve authorizer name\n");
+    } else if (authconn->status & AIM_CONN_STATUS_CONNERR) {
+      dprintf("faimtest: could not connect to authorizer\n");
+    }
+    aim_conn_kill(&aimsess, &authconn);
+    return -1;
+  }
+
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
+  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);    
+
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
+
+  /* If the connection is in progress, this will just be queued */
+  aim_request_login(&aimsess, authconn, screenname);
+  dprintf("faimtest: login request sent\n");
+
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
-  struct aim_session_t aimsess;
-  struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
-  int keepgoing = 1;
-  char *proxy, *proxyusername, *proxypass;
+  struct aim_conn_t *waitingconn = NULL;
   int i;
   int selstat = 0;
 
@@ -267,7 +331,6 @@ int main(int argc, char **argv)
     case 'c': ohcaptainmycaptain = optarg; break;
     case 'h':
     default:
-    usage:
       printf("faimtest\n");
       printf(" Options: \n");
       printf("    -u name       Screen name ($SCREENNAME)\n");
@@ -281,9 +344,6 @@ int main(int argc, char **argv)
       exit(0);
     }
   }
-
-  if (!screenname || !password)
-    goto usage;
 
 #ifdef _WIN32
   if (initwsa() != 0) {
@@ -311,87 +371,53 @@ int main(int argc, char **argv)
     free(listingname);
   }
 
-  if (proxy)
-    aim_setupproxy(&aimsess, proxy, proxyusername, proxypass);
+  faimtest_init();
 
-  authconn = aim_newconn(&aimsess, AIM_CONN_TYPE_AUTH, server?server:FAIM_LOGIN_SERVER);
-
-  if (authconn == NULL) {
-    dprintf("faimtest: internal connection error while in aim_login.  bailing out.\n");
-    return -1;
-  } else if (authconn->fd == -1) {
-    if (authconn->status & AIM_CONN_STATUS_RESOLVERR) {
-      dprintf("faimtest: could not resolve authorizer name\n");
-    } else if (authconn->status & AIM_CONN_STATUS_CONNERR) {
-      dprintf("faimtest: could not connect to authorizer\n");
-    }
-    aim_conn_kill(&aimsess, &authconn);
-    return -1;
-  }
-
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
-  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);    
-
-  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
-
-  /* If the connection is in progress, this will just be queued */
-  aim_request_login(&aimsess, authconn, screenname);
-  dprintf("faimtest: login request sent\n");
+  cmd_init();
 
   while (keepgoing) {
     waitingconn = aim_select(&aimsess, NULL, &selstat);
 
-    switch(selstat) {
-    case -1: /* error */
+    if (selstat == -1) { /* error */
       keepgoing = 0; /* fall through and hit the aim_logoff() */
-      break;
-
-    case 0: /* no events pending */
-      break;
-
-    case 1: /* outgoing data pending */
+    } else if (selstat == 0) { /* no events pending */
+      keepgoing = 0;
+    } else if (selstat == 1) { /* outgoing data pending */
       aim_tx_flushqueue(&aimsess);
-      break;
-
-    case 2: /* incoming data pending */
-      if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
-	if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
-	  dprintf("connection error (rend out)\n");
-	  aim_conn_kill(&aimsess, &waitingconn);
-	}
-	break;
-      }
-            
-      if (aim_get_command(&aimsess, waitingconn) >= 0) {
-	aim_rxdispatch(&aimsess);
+    } else if (selstat == 2) { /* incoming data pending */
+      if (waitingconn->fd == STDIN_FILENO) {
+	cmd_gotkey();
       } else {
-	dvprintf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
-	/* we should have callbacks for all these, else the library will do the conn_kill for us. */
-	if(waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
-	  dprintf("connection error: rendezvous connection. you forgot register a disconnect callback, right?\n");	  
-	  aim_conn_kill(&aimsess, &waitingconn);
-	} else
-	  aim_conn_kill(&aimsess, &waitingconn);
-	if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
-	  dprintf("major connection error\n");
-	  keepgoing = 0;
+	if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
+	  if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
+	    dprintf("connection error (rend out)\n");
+	    aim_conn_kill(&aimsess, &waitingconn);
+	  }
+	} else {
+	  if (aim_get_command(&aimsess, waitingconn) >= 0) {
+	    aim_rxdispatch(&aimsess);
+	  } else {
+	    dvprintf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
+	    /* we should have callbacks for all these, else the library will do the conn_kill for us. */
+	    if(waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
+	      dprintf("connection error: rendezvous connection. you forgot register a disconnect callback, right?\n");	  
+	      aim_conn_kill(&aimsess, &waitingconn);
+	    } else
+	      aim_conn_kill(&aimsess, &waitingconn);
+	    if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
+	      dprintf("major connection error\n");
+	    }
+	  }
 	}
       }
-      
-      break;
-    
-    default:
-      break; /* invalid */
     }
   }
 
-  /* Close up */
-  dprintf("AIM just decided we didn't need to be here anymore, closing up...\n");
-  
   /* close up all connections, dead or no */
   aim_logoff(&aimsess); 
+
+  printf("\n");
+  cmd_uninit();
 
   /* Get out */
   exit(0);
