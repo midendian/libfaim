@@ -547,7 +547,10 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 	    }
 	  else if (!strncmp(tmpstr, "leave", 5))
 	    aim_chat_leaveroom(sess, "worlddomination");
-	  else 
+	  else if (!strncmp(tmpstr, "getinfo", 7)) {
+	    aim_getinfo(sess, command->conn, "midendian", AIM_GETINFO_GENERALINFO);
+	    aim_getinfo(sess, command->conn, "midendian", AIM_GETINFO_AWAYMESSAGE);
+	  } else 
 	    {
 #if 0
 	      printf("faimtest: icbm:  starting chat...\n");
