@@ -358,12 +358,12 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
   u_int newlen;
   int maxfamily = 0;
   int maxsubtype = 0;
-    
+  
   if ( (!hdr) || (!pkt) )
     return;
 
   if (hdr->caplen != hdr->len)
-    fprintf(stderr, "aimdump: caplen/len mismatch\n");
+    return; //fprintf(stderr, "aimdump: caplen/len mismatch\n");
 
   newlen = hdr->caplen;
 
@@ -394,7 +394,7 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
   if (flap->start != 0x2a)
     return; /* ditch non-FLAP packets */
 
-#if 0
+#if 0 
   /* TODO: notify user of new connections (SYN) and closed connections (FIN) */
   printf("\nTCP options: %s %s %s %s %s %s\n\n",
 	 tcp->fin?"fin":"",
@@ -408,12 +408,6 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
   flap->seqnum = ntohs(flap->seqnum);
   flap->len = ntohs(flap->len);
 
-  snac = (struct snachdr *)(pkt+6);
-
-  snac->family = ntohs(snac->family);
-  snac->subtype= ntohs(snac->subtype);
-  snac->id = (htons(snac->id & 0x0000ffff)) + (htons(snac->id >>16)<<16);
-  
   printf("\n--------------------\n");
   {
     struct in_addr tmpaddr;
@@ -432,12 +426,18 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
   pkt += 6;
   newlen -= 6;
   
-  if (snac->family == 0x0000)
+  if (flap->channel != 0x02)
     {
       printf("\t\tNo SNAC.\n");
     }
   else
     {
+	snac = (struct snachdr *)pkt;
+
+  	snac->family = ntohs(snac->family);
+  	snac->subtype= ntohs(snac->subtype);
+  	snac->id = (htons(snac->id & 0x0000ffff)) + (htons(snac->id >>16)<<16);
+	
       printf("SNAC:\n");
       
       /* for overrun checking... */
@@ -460,23 +460,25 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
       printf("\tFlags:\t\t0x%02x,0x%02x\tID:\t0x%08lx\n", snac->flags[0], snac->flags[1], snac->id);
       
       /* jump around snac */
-      pkt += 16;
-      newlen -= 16;
-
+      pkt += 10;
+      newlen -= 10;
+#if 0
       if (snactypes[snac->family].subtypes[snac->subtype].parser)
 	(*(snactypes[snac->family].subtypes[snac->subtype].parser))((u_char *)pkt, newlen);
+#endif
     }
   
   printf("\nRAW:\n");
-  
+
+#if 1 
   for (i=0;i<newlen;i+=2)
-    {
+   {
       if (!((i)%16))
 	printf("\n\t");
       printf("%02x%02x ", pkt[i] &0xff, pkt[i+1] & 0xff);
     }
   printf("\n\n");
-
+#endif
   fflush(stdout);
   pkt = orig;
 }
