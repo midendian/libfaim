@@ -547,24 +547,22 @@ faim_export int aim_0002_000b(struct aim_session_t *sess, struct aim_conn_t *con
  */
 static int rights(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
 {
-  struct aim_tlvlist_t *tlvlist;
-  aim_rxcallback_t userfunc;
-  int ret = 0;
-  unsigned short maxsiglen = 0;
+	struct aim_tlvlist_t *tlvlist;
+	aim_rxcallback_t userfunc;
+	int ret = 0;
+	unsigned short maxsiglen = 0;
 
-  aim_parse_unknown(sess, rx);
+	tlvlist = aim_readtlvchain(data, datalen);
 
-  tlvlist = aim_readtlvchain(data, datalen);
+	if (aim_gettlv(tlvlist, 0x0001, 1))
+		maxsiglen = aim_gettlv16(tlvlist, 0x0001, 1);
 
-  if (aim_gettlv(tlvlist, 0x0001, 1))
-    maxsiglen = aim_gettlv16(tlvlist, 0x0001, 1);
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, maxsiglen);
 
-  if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-    ret = userfunc(sess, rx, maxsiglen);
+	aim_freetlvchain(&tlvlist);
 
-  aim_freetlvchain(&tlvlist);
-
-  return ret;
+	return ret;
 }
 
 static int userinfo(struct aim_session_t *sess, aim_module_t *mod, struct command_rx_struct *rx, aim_modsnac_t *snac, unsigned char *data, int datalen)
