@@ -828,7 +828,7 @@ static int getaimdata(unsigned char **bufret, int *buflenret, unsigned long offs
   unsigned char *buf;
   int invalid = 0;
 
-  if (!bufret || !*bufret || !buflenret)
+  if (!bufret || !buflenret)
     return -1;
 
   if (modname) {
@@ -857,7 +857,7 @@ static int getaimdata(unsigned char **bufret, int *buflenret, unsigned long offs
     return -1;
   }
 
-  if ((offset > st.st_size) || (offset > st.st_size))
+  if ((offset > st.st_size) || (len > st.st_size))
     invalid = 1;
   else if ((st.st_size - offset) < len)
     len = st.st_size - offset;
