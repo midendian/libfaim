@@ -256,7 +256,12 @@ int main(void)
 	  aim_rxdispatch(&aimsess);
 	} else {
 	  printf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
-	  aim_conn_kill(&aimsess, &waitingconn);
+	  if(waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
+	    /* we should have callbacks for all these, else the library will do the conn_kill for us. */
+	    printf("connection error: rendezvous connection. you forgot register a disconnect callback, right?\n");
+	  }
+	  else
+	    aim_conn_kill(&aimsess, &waitingconn);
 	  if (!aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS)) {
 	    printf("major connection error\n");
 	    keepgoing = 0;
@@ -721,7 +726,6 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       } else if (!strncmp(tmpstr, "open directim", 13)) {
 	struct aim_conn_t *newconn;
 	newconn = aim_directim_initiate(sess, command->conn, NULL, userinfo->sn);
-	//aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINITIATE, faimtest_directim_initiate, 0);
       } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 	aim_send_im(sess, command->conn, "vaxherder", 0, "sendmsg 7900");
       } else if (!strncmp(tmpstr, "sendmsg", 7)) {
@@ -858,9 +862,9 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
       aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, faimtest_directim_typing, 0);
 
-      aim_send_im_direct(sess, newconn, "goodday");
-
       printf("faimtest: OFT: DirectIM: connected to %s\n", userinfo->sn);
+
+      aim_send_im_direct(sess, newconn, "goodday");
 
       break;
     }
@@ -963,9 +967,9 @@ int faimtest_directim_disconnect(struct aim_session_t *sess, struct command_rx_s
   sn = va_arg(ap, char *);
   va_end(ap);
 
-  aim_conn_kill(sess, &conn);
-
   printf("faimtest: directim: disconnected from %s\n", sn);
+
+  aim_conn_kill(sess, &conn);
   return 1;
 }
 

@@ -406,6 +406,20 @@ static int aim_countconn(struct aim_session_t *sess)
   return cnt;
 }
 
+faim_export int aim_conn_in_sess(struct aim_session_t *sess, struct aim_conn_t *conn)
+{
+  struct aim_conn_t *cur;
+
+  faim_mutex_lock(&sess->connlistlock);
+  for(cur = sess->connlist; cur; cur = cur->next)
+    if(cur == conn) {
+      faim_mutex_unlock(&sess->connlistlock);
+      return 1;
+    }
+  faim_mutex_unlock(&sess->connlistlock);
+  return 0;
+}
+
 /*
  * aim_select(timeout)
  *

@@ -320,9 +320,28 @@ faim_internal int aim_extractuserinfo(u_char *buf, struct aim_userinfo_s *outinf
        * Some decoding of values done by Scott <darkagl@pcnet.com>
        */
     case 0x0006:
-      if (aimutil_get16(buf+i+2) != 0x04)
-	break;
       outinfo->icqinfo.status = aimutil_get16(buf+i+2+2+2);
+      break;
+
+
+      /*
+       * Type = 0x000a
+       *
+       * ICQ User IP Address.
+       * Ahh, the joy of ICQ security.
+       */
+    case 0x000a:
+      outinfo->icqinfo.ipaddr = aimutil_get32(&buf[i+4]);
+      break;
+
+      /* Type = 0x000c
+       *
+       * random crap containing the IP address,
+       * apparently a port number, and some Other Stuff.
+       *
+       */
+    case 0x000c:
+      memcpy(outinfo->icqinfo.crap, &buf[i+4], 0x25);
       break;
 
       /*
@@ -562,7 +581,7 @@ faim_internal int aim_parse_userinfo_middle(struct aim_session_t *sess,
  */
 faim_internal int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s *info)
 {
-  int i = 0;
+  int i = 0, numberpos;
   struct aim_tlvlist_t *tlvlist = NULL;
 
   if (!buf || !info)
@@ -573,17 +592,30 @@ faim_internal int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s
 
   i += aimutil_put16(buf+i, info->warnlevel);
 
-  /* XXX: we only put down five */
-  i += aimutil_put16(buf+i, 5);
+  numberpos = i;
+  i += aimutil_put16(buf+i, 0); /* fill in for real later */
   aim_addtlvtochain16(&tlvlist, 0x0001, info->flags);
   aim_addtlvtochain32(&tlvlist, 0x0002, info->membersince);
   aim_addtlvtochain32(&tlvlist, 0x0003, info->onlinesince);
   aim_addtlvtochain16(&tlvlist, 0x0004, info->idletime);
-  /* XXX: should put caps here */
+
+#if ICQ_OSCAR_SUPPORT
+  if(atoi(info->sn) != 0) {
+    aim_addtlvtochain16(&tlvlist, 0x0006, info->icqinfo.status);
+    aim_addtlvtochain32(&tlvlist, 0x000a, info->icqinfo.ipaddr);
+  }
+#endif
+
+  aim_addtlvtochain_caps(&tlvlist, 0x000d, info->capabilities);
+
+  aim_addtlvtochain32(&tlvlist, 0x000f, info->sessionlen);
+
   aim_addtlvtochain32(&tlvlist, (unsigned short)((info->flags)&AIM_FLAG_AOL?0x0010:0x000f), info->sessionlen);
-  
+
   i += aim_writetlvchain(buf+i, buflen-i, &tlvlist);
   aim_freetlvchain(&tlvlist);
+
+  aimutil_put16(buf+numberpos, aim_counttlvchain(&tlvlist));
   
   return i;
 }
