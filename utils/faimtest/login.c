@@ -69,62 +69,39 @@ static int faimtest_debugconn_connect(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
+	struct aim_authresp_info *info;
 	aim_conn_t *bosconn;
-	char *sn, *bosip, *errurl, *email;
-	fu8_t *cookie;
-	int errorcode, regstatus;
-	int latestbuild, latestbetabuild;
-	char *latestrelease, *latestbeta;
-	char *latestreleaseurl, *latestbetaurl;
-	char *latestreleaseinfo, *latestbetainfo;
 
 	va_start(ap, fr);
-	sn = va_arg(ap, char *);
-	errorcode = va_arg(ap, int);
-	errurl = va_arg(ap, char *);
-	regstatus = va_arg(ap, int);
-	email = va_arg(ap, char *);
-	bosip = va_arg(ap, char *);
-	cookie = va_arg(ap, fu8_t *);
-
-	latestrelease = va_arg(ap, char *);
-	latestbuild = va_arg(ap, int);
-	latestreleaseurl = va_arg(ap, char *);
-	latestreleaseinfo = va_arg(ap, char *);
-
-	latestbeta = va_arg(ap, char *);
-	latestbetabuild = va_arg(ap, int);
-	latestbetaurl = va_arg(ap, char *);
-	latestbetainfo = va_arg(ap, char *);
-
+	info = va_arg(ap, struct aim_authresp_info *);
 	va_end(ap);
 
-	dvprintf("Screen name: %s\n", sn);
+	dvprintf("Screen name: %s\n", info->sn);
 
 	/*
 	 * Check for error.
 	 */
-	if (errorcode || !bosip || !cookie) {
-		dvprintf("Login Error Code 0x%04x\n", errorcode);
-		dvprintf("Error URL: %s\n", errurl);
+	if (info->errorcode || !info->bosip || !info->cookie) {
+		dvprintf("Login Error Code 0x%04x\n", info->errorcode);
+		dvprintf("Error URL: %s\n", info->errorurl);
 		aim_conn_kill(sess, &fr->conn);
 		return 1;
 	}
 
-	dvprintf("Reg status: %2d\n", regstatus);
-	dvprintf("Email: %s\n", email);
-	dvprintf("BOS IP: %s\n", bosip);
+	dvprintf("Reg status: %d\n", info->regstatus);
+	dvprintf("Email: %s\n", info->email);
+	dvprintf("BOS IP: %s\n", info->bosip);
 
-	if (latestbeta)
-		dvprintf("Latest beta version: %s, build %d, at %s (more info at %s)\n", latestbeta, latestbetabuild, latestbetaurl, latestbetainfo);
+	if (info->latestbeta.name)
+		dvprintf("Latest beta version: %s, build %ld, at %s (more info at %s)\n", info->latestbeta.name, info->latestbeta.build, info->latestbeta.url, info->latestbeta.info);
 
-	if (latestrelease)
-		dvprintf("Latest released version: %s, build %d, at %s (more info at %s)\n", latestrelease, latestbuild, latestreleaseurl, latestreleaseinfo);
+	if (info->latestrelease.name)
+		dvprintf("Latest released version: %s, build %ld, at %s (more info at %s)\n", info->latestrelease.name, info->latestrelease.build, info->latestrelease.url, info->latestrelease.info);
 
 	dprintf("Closing auth connection...\n");
 	aim_conn_kill(sess, &fr->conn);
 
-	if (!(bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, bosip))) {
+	if (!(bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, info->bosip))) {
 		dprintf("could not connect to BOS: internal error\n");
 		return 1;
 	} else if (bosconn->status & AIM_CONN_STATUS_CONNERR) {	
@@ -135,7 +112,7 @@ static int faimtest_parse_authresp(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	addcb_bos(sess, bosconn);
 
-	aim_sendcookie(sess, bosconn, cookie);
+	aim_sendcookie(sess, bosconn, info->cookie);
 
 	return 1;
 }
