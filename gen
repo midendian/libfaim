@@ -1,4 +1,4 @@
 #!/bin/sh
-aclocal ; autoheader ; automake --foreign -a -c ; autoconf
+libtoolize -f -c ; aclocal ; autoheader ; automake --foreign -a -c ; autoconf
 
 

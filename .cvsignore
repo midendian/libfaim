@@ -6,3 +6,9 @@ config.cache
 libtool
 config.status
 Makefile
+config.guess
+config.sub
+install-sh
+ltmain.sh
+missing
+mkinstalldirs
