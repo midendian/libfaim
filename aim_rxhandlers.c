@@ -304,10 +304,13 @@ int aim_rxdispatch(struct aim_session_t *sess)
     return 0;
   } else {
     workingPtr = sess->queue_incoming;
-    for (i = 0; workingPtr != NULL; i++) {
+    for (i = 0; workingPtr != NULL; workingPtr = workingPtr->next, i++) {
       /*
        * XXX: This is still fairly ugly.
        */
+      if (workingPtr->handled)
+	continue;
+
       switch(workingPtr->conn->type) {
       case -1:
 	/*
@@ -547,8 +550,6 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 	break;
       }	
-      /* move to next command */
-      workingPtr = workingPtr->next;
     }
   }
 

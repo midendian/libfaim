@@ -94,7 +94,7 @@ int aim_get_command(struct aim_session_t *sess)
       if ((err = aim_failsaferead(s, &(generic[i]), 1)) < 0)
 	{
 	  /* error is probably not recoverable...(must be a pessimistic day) */
-	  aim_conn_close(conn);
+	  /* aim_conn_close(conn); */
 	  return err;
    	}
 

@@ -185,7 +185,8 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
    * features of AIM2/3/3.5. 
    *
    * Channel 0x0002 is the Rendevous channel, which
-   * is where Chat Invitiations come from.
+   * is where Chat Invitiations and various client-client
+   * connection negotiations come from.
    * 
    */
   channel = aimutil_get16(command->data+i);

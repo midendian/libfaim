@@ -1,6 +1,16 @@
 
 No release numbers
 ------------------
+ - Thu Mar 23 08:45:40 UTC 2000
+   - Removed aim_countconn() > 0 check in aim_select(), its logically redundent
+   - Added aim_putuserinfo() (inverse of aim_extractuserinfo())
+   - Added aim_sendbuddyoncoming/offgoing() 
+   - Rearranged loop in rxdispatch()
+   - Remove aim_conn_close() if connections dead in aim_get_command()
+
+ - Thu Mar 23 00:44:32 UTC 2000
+   - Added a check to purge_rxqueue to skip handled commands
+
  - Mon Mar 20 05:30:59 UTC 2000
    - Added some server-only functions for login
    - Added aim_counttlvchain()

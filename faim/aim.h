@@ -396,6 +396,9 @@ int aim_extractuserinfo(u_char *, struct aim_userinfo_s *);
 int aim_parse_userinfo_middle(struct aim_session_t *, struct command_rx_struct *);
 int aim_parse_oncoming_middle(struct aim_session_t *, struct command_rx_struct *);
 int aim_parse_offgoing_middle(struct aim_session_t *, struct command_rx_struct *);
+int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s *info);
+int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_userinfo_s *info);
+int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn);
 
 /* aim_auth.c */
 int aim_auth_sendcookie(struct aim_session_t *, struct aim_conn_t *, u_char *);

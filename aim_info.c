@@ -364,3 +364,98 @@ int aim_parse_userinfo_middle(struct aim_session_t *sess,
 
   return 1;
 }
+
+/*
+ * Inverse of aim_extractuserinfo()
+ */
+int aim_putuserinfo(u_char *buf, int buflen, struct aim_userinfo_s *info)
+{
+  int i = 0;
+  struct aim_tlvlist_t *tlvlist = NULL;
+
+  if (!buf || !info)
+    return 0;
+
+  i += aimutil_put8(buf+i, strlen(info->sn));
+  i += aimutil_putstr(buf+i, info->sn, strlen(info->sn));
+
+  i += aimutil_put16(buf+i, info->warnlevel);
+
+  /* XXX: we only put down five */
+  i += aimutil_put16(buf+i, 5);
+  aim_addtlvtochain16(&tlvlist, 0x0001, info->class);
+  aim_addtlvtochain32(&tlvlist, 0x0002, info->membersince);
+  aim_addtlvtochain32(&tlvlist, 0x0003, info->onlinesince);
+  aim_addtlvtochain16(&tlvlist, 0x0004, info->idletime);
+  /* XXX: should put caps here */
+  aim_addtlvtochain32(&tlvlist, (info->class)&AIM_CLASS_AOL?0x0010:0x000f, info->sessionlen);
+  
+  i += aim_writetlvchain(buf+i, buflen-i, &tlvlist);
+  aim_freetlvchain(&tlvlist);
+  
+  return i;
+}
+
+int aim_sendbuddyoncoming(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_userinfo_s *info)
+{
+  struct command_tx_struct tx;
+  int i = 0;
+
+  if (!sess || !conn || !info)
+    return 0;
+
+  tx.conn = conn;
+
+  tx.commandlen = 1152; /* too big */
+  tx.data = malloc(tx.commandlen);
+  memset(tx.data, 0x00, tx.commandlen);
+  
+  tx.lock = 1;
+  tx.type = 0x02;
+
+  i += aimutil_put16(tx.data+i, 0x0003);
+  i += aimutil_put16(tx.data+i, 0x000b);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+
+  i += aim_putuserinfo(tx.data+i, tx.commandlen-i, info);
+
+  tx.commandlen = i;
+  tx.lock = 0;
+  aim_tx_enqueue(sess, &tx);
+
+  return 0;
+}
+
+int aim_sendbuddyoffgoing(struct aim_session_t *sess, struct aim_conn_t *conn, char *sn)
+{
+  struct command_tx_struct tx;
+  int i = 0;
+
+  if (!sess || !conn || !sn)
+    return 0;
+
+  tx.conn = conn;
+
+  tx.commandlen = 10 + 1 + strlen(sn);
+  tx.data = malloc(tx.commandlen);
+  memset(tx.data, 0x00, tx.commandlen);
+  
+  tx.lock = 1;
+  tx.type = 0x02;
+
+  i += aimutil_put16(tx.data+i, 0x0003);
+  i += aimutil_put16(tx.data+i, 0x000c);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+  i += aimutil_put16(tx.data+i, 0x0000);
+
+  i += aimutil_put8(tx.data+i, strlen(sn));
+  i += aimutil_putstr(tx.data+i, sn, strlen(sn));
+  
+  tx.lock = 0;
+  aim_tx_enqueue(sess, &tx);
+
+  return 0;
+}
