@@ -688,14 +688,15 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
   memset(hdrbuf1, 0, sizeof(hdrbuf1));
 
+  faim_mutex_lock(&conn->active); /* gets locked down for the entirety */
+
   if ( (hdrlen = read(conn->fd, hdrbuf1, 6)) < 6) {    
     if(hdrlen < 0)
       perror("read");
     printf("faim: rend: read error (fd: %i) %02x%02x%02x%02x%02x%02x (%i)\n", conn->fd, hdrbuf1[0],hdrbuf1[1],hdrbuf1[0],hdrbuf1[0],hdrbuf1[0],hdrbuf1[0],hdrlen);
+    faim_mutex_unlock(&conn->active);
     aim_conn_kill(sess, &conn);
-    return -1; /* return -1 prematurely signal'd a bad read(). it's *
-	       * direct, so we don't really care if the connection *
-	       * falls apart.  -- jbm                              */
+    return -1;
   }
 
   hdrlen = aimutil_get16(hdrbuf1+4);
@@ -704,17 +705,14 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
   if (!(hdr = malloc(hdrlen)))
     return -1;
 
-  //    faim_mutex_lock(&conn->active);
   if (read(conn->fd, hdr, hdrlen) < hdrlen) {
     perror("read");
     printf("faim: rend: read2 error\n");
     free(hdr);
-    //    faim_mutex_unlock(&conn->active);
+    faim_mutex_unlock(&conn->active);
     aim_conn_kill(sess, &conn);
     return 0; /* see comment on previous read check */
   }
-
-  //  faim_mutex_unlock(&conn->active);
 
   hdrtype = aimutil_get16(hdr);  
 
@@ -733,34 +731,35 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
     strncpy(priv->sn, snptr, MAXSNLEN);
 
-    /*    printf("faim: OFT frame: %04x / %04x / %04x / %s\n", hdrtype, payloadlength, flags, snptr); */
+#if 0
+    printf("faim: OFT frame: %04x / %04x / %04x / %s\n", hdrtype, payloadlength, flags, snptr); 
+#endif
 
     if (flags == 0x000e) {
-      //      printf("faim: directim: %s has started typing. yippee.\n", snptr);
+      faim_mutex_unlock(&conn->active);
       if ( (userfunc = aim_callhandler(conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING)) )
 	return userfunc(sess, NULL, snptr);
     } else if ((flags == 0x0000) && payloadlength) {
       unsigned char *msg;
-      if(! (msg = calloc(1, payloadlength+1)) )
-	return 0;
-      
-      /* XXX: theres got to be a better way */
-      /* XXX: that's a moot point, as the locks never seem to be free. */
-      /*
-	faim_mutex_lock(&conn->active);
-      */
 
+      if(! (msg = calloc(1, payloadlength+1)) ) {
+	faim_mutex_unlock(&conn->active);
+	return 0;
+      }
+      
       if (recv(conn->fd, msg, payloadlength, MSG_WAITALL) < payloadlength) {
 	perror("read");
 	printf("faim: rend: read3 error\n");
 	free(msg);
-	// faim_mutex_unlock(&conn->active);
+	faim_mutex_unlock(&conn->active);
 	aim_conn_kill(sess, &conn);
 	return 0;
       }
-      //      faim_mutex_unlock(&conn->active);
+      faim_mutex_unlock(&conn->active);
       msg[payloadlength] = '\0';
-      //   printf("faim: directim: %s/%04x/%04x/%s\n", snptr, payloadlength, flags, msg);
+#if 0     
+      printf("faim: directim: %s/%04x/%04x/%s\n", snptr, payloadlength, flags, msg);
+#endif
 
       if ( (userfunc = aim_callhandler(conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING)) )
 	i = userfunc(sess, NULL, conn, snptr, msg);
@@ -775,7 +774,6 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     struct aim_fileheader_t *fh;
     struct aim_msgcookie_t *cook;
 
-
     int commandlen;
     char *data;
 
@@ -786,6 +784,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     
     if(!(ft = (struct aim_filetransfer_priv *)calloc(1, sizeof(struct aim_filetransfer_priv)))) {
       printf("faim: couldn't malloc ft. um. bad. bad bad. file transfer will likely fail, sorry.\n");
+      faim_mutex_unlock(&conn->active);
       return 0;
     }
 
@@ -810,6 +809,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     if (write(conn->fd, data, commandlen) != commandlen) {
       perror("listing write error");
     }
+    faim_mutex_unlock(&conn->active);
 
     printf("jbm: hit end of 1209\n");
 
@@ -825,6 +825,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
     if(!(ft = (struct aim_filetransfer_priv *)calloc(1, sizeof(struct aim_filetransfer_priv)))) {
       printf("faim: couldn't malloc ft. um. bad. bad bad. file transfer will likely fail, sorry.\n");
+      faim_mutex_unlock(&conn->active);
       return 0;
     }
 
@@ -843,6 +844,8 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     cook->data = ft;
     
     aim_cachecookie(sess, cook);
+
+    faim_mutex_unlock(&conn->active);
     
     break;
   }
@@ -857,6 +860,7 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
 
     if(!(ft = (struct aim_filetransfer_priv *)calloc(1, sizeof(struct aim_filetransfer_priv)))) {
       printf("faim: couldn't malloc ft. um. bad. bad bad. file transfer will likely fail, sorry.\n");
+      faim_mutex_unlock(&conn->active);
       return 0;
     }
 
@@ -875,6 +879,8 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
     cook->data = ft;
     
     aim_cachecookie(sess, cook);
+
+    faim_mutex_unlock(&conn->active);
 
     printf("faim: fileget: %s seems to want %s\n", ft->sn, ft->fh.name);
  
@@ -983,16 +989,20 @@ int aim_get_command_rendezvous(struct aim_session_t *sess, struct aim_conn_t *co
       printf("whoopsy, didn't write it all...\n");
     }
 
+    faim_mutex_unlock(&conn->active);
+
     break;
   }
   case 0x0204: { /* get file: finished. close it up */
     printf("looks like we're done with a transfer (oft 0x0204)\n");
+    faim_mutex_unlock(&conn->active);
     aim_conn_kill(sess, &conn);
     break;
   }
   default: {
     printf("OFT frame: type %04x\n", hdrtype);  
     /* data connection may be unreliable here */
+    faim_mutex_unlock(&conn->active);
     break;
   }
   } /* switch */

@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Sun Jul 16 22:59:39 GMT 2000
+   - Fixed the locking in the rendezvous code.  Hopefully is safe now.
+
  - Sun Jul 16 11:03:28 GMT 2000
    - Fixed 0001/000a chat printf.  (Actually a one liner a few days ago.)
    - Started integrating josh's 3k rendezvous patch.  Currently only
