@@ -244,13 +244,12 @@ static int parseinfo_perms(aim_session_t *sess, aim_module_t *mod, aim_frame_t *
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
 		ret = userfunc(sess, rx, snac2->type, maxrooms, curexchange, exchanges);
 
-	for (curexchange--; curexchange >= 0; curexchange++) {
+	for (curexchange--; curexchange >= 0; curexchange--) {
 		free(exchanges[curexchange].name);
 		free(exchanges[curexchange].charset1);
 		free(exchanges[curexchange].lang1);
 		free(exchanges[curexchange].charset2);
 		free(exchanges[curexchange].lang2);
-		curexchange--;
 	}
 	free(exchanges);
 	aim_freetlvchain(&tlvlist);

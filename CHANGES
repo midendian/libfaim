@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Sat Sep  8 00:55:46 PDT 2001
+  - Chatnav loop fix. (Err. I shouldn't code when I'm that tired.)
+  - Remove some things from BUGS
+  - Remove USE_MACROS from faimconfig.h.  Not used, and frivelous when it was.
+
  - Fri Sep  7 21:18:51 PDT 2001
   - Make icon field names uniform
   - Add AIM_IMFLAGS_CUSTOMFEATURES.  This allows the client to send/recieve
