@@ -370,7 +370,7 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	aim_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, NULL /*awaymsg*/, /*AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | */ AIM_CAPS_ICQ | AIM_CAPS_ICQUNKNOWN | AIM_CAPS_ICQRTF | AIM_CAPS_ICQSERVERRELAY);
+	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_ICQ | AIM_CAPS_ICQUNKNOWN | AIM_CAPS_ICQRTF | AIM_CAPS_ICQSERVERRELAY);
 	aim_bos_reqbuddyrights(sess, fr->conn);
 
 	/* send the buddy list and profile (required, even if empty) */
@@ -1320,18 +1320,20 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, struct aim_incomingim_ch2_args *args)
 {
 
-	if (args->reqclass == AIM_CAPS_VOICE) {
+	dvprintf("rendezvous: source sn = %s\n", userinfo->sn);
+	dvprintf("rendezvous: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
+	dvprintf("rendezvous: \tclass = 0x%04x = ", userinfo->flags);
+	printuserflags(userinfo->flags);
+	dinlineprintf("\n");
 
-		dvprintf("voice invitation: source sn = %s\n", userinfo->sn);
-		dvprintf("voice invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
-		dvprintf("voice invitation: \tclass = 0x%04x = ", userinfo->flags);
-		printuserflags(userinfo->flags);
-		dinlineprintf("\n");
+	dvprintf("rendezvous: \tonlinesince = %lu\n", userinfo->onlinesince);
+	dvprintf("rendezvous: \tidletime = 0x%04x\n", userinfo->idletime);
 
-		dvprintf("voice invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
-		dvprintf("voice invitation: \tidletime = 0x%04x\n", userinfo->idletime);
+	dvprintf("rendezvous: message/description = %s\n", args->msg);
+	dvprintf("rendezvous: encoding = %s\n", args->encoding);
+	dvprintf("rendezvous: language = %s\n", args->language);
 
-	} else if (args->reqclass == AIM_CAPS_GETFILE) {
+	if (args->reqclass == AIM_CAPS_GETFILE) {
 		
 		getfile_requested(sess, conn, userinfo, args);
 		
@@ -1341,30 +1343,15 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 
 	} else if (args->reqclass == AIM_CAPS_CHAT) {
 
-		dvprintf("chat invitation: source sn = %s\n", userinfo->sn);
-		dvprintf("chat invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
-		dvprintf("chat invitation: \tclass = 0x%04x = ", userinfo->flags);
-		printuserflags(userinfo->flags);
-		dinlineprintf("\n");
-
-		/* we dont get membersince on chat invites! */
-		dvprintf("chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
-		dvprintf("chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
-
-		dvprintf("chat invitation: message = %s\n", args->info.chat.msg);
 		dvprintf("chat invitation: room name = %s\n", args->info.chat.roominfo.name);
-		dvprintf("chat invitation: encoding = %s\n", args->info.chat.encoding);
-		dvprintf("chat invitation: language = %s\n", args->info.chat.lang);
 		dvprintf("chat invitation: exchange = 0x%04x\n", args->info.chat.roominfo.exchange);
 		dvprintf("chat invitation: instance = 0x%04x\n", args->info.chat.roominfo.instance);
-		dvprintf("chat invitiation: autojoining %s...\n", args->info.chat.roominfo.name);
 
 		/* Automatically join room... */
+		dvprintf("chat invitiation: autojoining %s...\n", args->info.chat.roominfo.name);
 		aim_chat_join(sess, conn, args->info.chat.roominfo.exchange, args->info.chat.roominfo.name, args->info.chat.roominfo.instance);
 
 	} else if (args->reqclass == AIM_CAPS_IMIMAGE) {
-
-		dprintf("icbm: rendezvous imimage\n");
 
 		directim_requested(sess, conn, userinfo, args);
 

@@ -396,11 +396,11 @@ void getfile_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *us
 	aim_conn_t *newconn;
 	struct aim_fileheader_t *fh;
 
-	dvprintf("get file request from %s (at %s) %x\n", userinfo->sn, args->info.getfile.ip, args->reqclass);
+	dvprintf("get file request from %s (at %s/%s/%s) %x\n", userinfo->sn, args->clientip, args->clientip2, args->verifiedip, args->reqclass);
 
 	fh = aim_getlisting(sess, priv->listingfile);
 
-	newconn = aim_accepttransfer(sess, conn, userinfo->sn, args->info.getfile.cookie, args->info.getfile.ip, fh->totfiles, fh->totsize, fh->size, fh->checksum, args->reqclass);
+	newconn = aim_accepttransfer(sess, conn, userinfo->sn, args->cookie, args->clientip, fh->totfiles, fh->totsize, fh->size, fh->checksum, args->reqclass);
 
 	free(fh);
 
@@ -452,9 +452,9 @@ void directim_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *u
 {
 	aim_conn_t *newconn;
 
-	dvprintf("OFT: DirectIM: request from %s (%s)\n", userinfo->sn, args->info.imimage.ip);
+	dvprintf("OFT: DirectIM: request from %s (%s/%s/%s)\n", userinfo->sn, args->clientip, args->clientip2, args->verifiedip);
 
-	newconn = aim_directim_connect(sess, userinfo->sn, args->info.imimage.ip, args->cookie);
+	newconn = aim_directim_connect(sess, userinfo->sn, args->clientip, args->cookie);
 
 	if (!newconn || (newconn->fd == -1)) {
 
