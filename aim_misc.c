@@ -319,7 +319,10 @@ faim_export unsigned long aim_bos_clientready(struct aim_session_t *sess,
      0x00, 0x01,   
      0x00, 0x03, 
      0x00, 0x04, 
-     0x07, 0xda,  
+     0x06, 0x86, /* the good ones */
+#if 0
+     0x07, 0xda, /* DUPLE OF DEATH! */
+#endif
 
      0x00, 0x02, 
      0x00, 0x01,  
@@ -408,7 +411,10 @@ faim_export unsigned long aim_bos_ackrateresp(struct aim_session_t *sess,
   i += aimutil_put16(newpacket->data+i, 0x0003);
   i += aimutil_put16(newpacket->data+i, 0x0004);
   i += aimutil_put16(newpacket->data+i, 0x0005);
-  
+
+  newpacket->commandlen = i;
+  newpacket->lock = 0;
+
   aim_tx_enqueue(sess, newpacket);
 
   return (sess->snac_nextid);
@@ -498,6 +504,8 @@ faim_export unsigned long aim_setversions(struct aim_session_t *sess,
     i += aimutil_put16(newpacket->data+i, 0x0003); /* version */
   }
 #endif
+
+  newpacket->commandlen = i;
   newpacket->lock = 0;
   aim_tx_enqueue(sess, newpacket);
 

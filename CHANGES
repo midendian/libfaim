@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Tue Sep 12 05:06:53 UTC 2000
+   - Revert the two-byte change in aim_misc, clientready
+
  - Tue Sep  5 04:41:45 GMT 2000
    - Few more minor things
    - Added the changes needed for faimtest.
