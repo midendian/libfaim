@@ -547,6 +547,7 @@ faim_export unsigned long aim_addicbmparam(struct aim_session_t *sess,struct aim
 faim_export unsigned long aim_setversions(struct aim_session_t *sess, struct aim_conn_t *conn);
 faim_export unsigned long aim_setdirectoryinfo(struct aim_session_t *sess, struct aim_conn_t *conn, char *first, char *middle, char *last, char *maiden, char *nickname, char *street, char *city, char *state, char *zip, int country, unsigned short privacy);
 faim_export unsigned long aim_setuserinterests(struct aim_session_t *sess, struct aim_conn_t *conn, char *interest1, char *interest2, char *interest3, char *interest4, char *interest5, unsigned short privacy);
+faim_export unsigned long aim_icq_setstatus(struct aim_session_t *sess, struct aim_conn_t *conn, unsigned long status);
 
 faim_internal struct aim_fileheader_t *aim_getlisting(FILE *);
 faim_internal int aim_oft_buildheader(char *,struct aim_fileheader_t *);

@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Fri Sep 22 22:47:49 UTC 2000
+  - Add aim_icq_setstatus() (jbm)
+
  - Fri Sep 22 22:35:51 UTC 2000
   - Apply jbm's patch below
   - Minor cleanup in cb handler stuff
