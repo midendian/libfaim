@@ -841,7 +841,7 @@ faim_export int aim_oft_getfile_end(aim_session_t *sess, aim_conn_t *conn);
 #define AIM_CAPS_SENDBUDDYLIST  0x00000100
 #define AIM_CAPS_GAMES2         0x00000200
 #define AIM_CAPS_ICQ            0x00000400
-#define AIM_CAPS_ABINTERNAL     0x00000800
+#define AIM_CAPS_APINFO         0x00000800
 #define AIM_CAPS_ICQRTF		0x00001000
 #define AIM_CAPS_EMPTY		0x00002000
 #define AIM_CAPS_ICQSERVERRELAY 0x00004000
