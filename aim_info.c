@@ -152,6 +152,31 @@ int aim_extractuserinfo(u_char *buf, struct aim_userinfo_s *outinfo)
 	case 0x0004:
 	  outinfo->idletime = aimutil_get16(&buf[i+4]);
 	  break;
+
+	  /*
+	   * Type = 0x000d
+	   *
+	   * Capability information.  Not real sure of
+	   * actual decoding.  See comment on aim_bos_setprofile()
+	   * in aim_misc.c about the capability block, its the same.
+	   *
+	   * Ignore.
+	   *
+	   */
+	case 0x000d:
+	  break;
+
+	  /*
+	   * Type = 0x000e
+	   *
+	   * Unknown.  Always of zero length, and always only
+	   * on AOL users.
+	   *
+	   * Ignore.
+	   *
+	   */
+	case 0x000e:
+	  break;
 	  
 	  /*
 	   * Type = 0x000f: Session Length. (AIM)

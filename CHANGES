@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Wed Dec 29 10:06:35 UTC 1999
+   - Fixed small bug in IM parser
+   - Added stubs for the capability TLVs in userinfo.
+
  - Wed Dec 29 09:14:45 UTC 1999
    - Added a capability block to aim_bos_setprofile.  Can now get chat invites again.
    - Extended ICBM parser to support channel 2 messages (chat invites)
