@@ -456,7 +456,6 @@ faim_export int aim_sendredirect(aim_session_t *sess, aim_conn_t *conn, fu16_t s
  */
 static int hostonline(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
-	aim_rxcallback_t userfunc;
 	fu16_t *families;
 	int famcount;
 
@@ -535,7 +534,7 @@ static int redirect(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim
  *  Request Rate Information.
  * 
  */
-faim_export int aim_reqrates(aim_session_t *sess, aim_conn_t *conn)
+faim_internal int aim_reqrates(aim_session_t *sess, aim_conn_t *conn)
 {
 	return aim_genericreq_n(sess, conn, 0x0001, 0x0006);
 }
@@ -544,7 +543,7 @@ faim_export int aim_reqrates(aim_session_t *sess, aim_conn_t *conn)
  *  Rate Information Response Acknowledge.
  *
  */
-faim_export int aim_ratesack(aim_session_t *sess, aim_conn_t *conn)
+faim_internal int aim_ratesack(aim_session_t *sess, aim_conn_t *conn)
 {
 	aim_conn_inside_t *ins = (aim_conn_inside_t *)conn->inside;
 	aim_frame_t *fr;	
@@ -956,7 +955,7 @@ static int motd(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_mod
 	return ret;
 }
 
-faim_export int aim_setversions(aim_session_t *sess, aim_conn_t *conn)
+faim_internal int aim_setversions(aim_session_t *sess, aim_conn_t *conn)
 {
 	aim_conn_inside_t *ins = (aim_conn_inside_t *)conn->inside;
 	struct snacgroup *sg;
