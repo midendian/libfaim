@@ -48,7 +48,7 @@ static char *stripwhite (char *string)
   return s;
 }
 
-static char *cmdgenerator(char *text, int state)
+static char *cmdgenerator(const char *text, int state)
 {
   static int list_index, len;
   char *name;
@@ -68,7 +68,7 @@ static char *cmdgenerator(char *text, int state)
   return (char *)NULL;
 }
 
-static char **cmdcomplete(char *text, int start, int end)
+static char **cmdcomplete(const char *text, int start, int end)
 {
   char **matches;
 
@@ -128,7 +128,7 @@ static int cmdexec(char *line)
   return cmd(word);
 }
 
-static void fullline(void) 
+static void fullline(char *x) 
 {
   char *stripped;
 
@@ -219,7 +219,7 @@ static int cmd_connlist(char *arg)
 static int cmd_goodday(char *arg)
 {
   if (arg && strlen(arg) && (strlen(arg) < MAXSNLEN))
-    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), arg, AIM_IMFLAGS_ACK, "Good day to you too.",  strlen("Good day to you too."));
+    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), arg, AIM_IMFLAGS_ACK, "Good day to you too.");
   else
     printf("no one to say hello to!\n");
 
@@ -266,7 +266,7 @@ static int cmd_sendmsg(char *arg)
     newbuf[z] = (z % 10)+0x30;
   newbuf[len] = '\0';
 
-  aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), sn, AIM_IMFLAGS_ACK, newbuf, strlen(newbuf));
+  aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), sn, AIM_IMFLAGS_ACK, newbuf);
 
   free(newbuf);
 

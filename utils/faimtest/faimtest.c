@@ -161,6 +161,10 @@ int keepgoing = 1;
 static FILE *listingfile;
 static char *listingpath;
 
+static unsigned char *buddyicon = NULL;
+static int buddyiconlen = 0;
+static time_t buddyiconstamp = 0;
+
 static void faimtest_debugcb(struct aim_session_t *sess, int level, const char *format, va_list va)
 {
 
@@ -261,7 +265,7 @@ int logout(void)
 {
 
   if (ohcaptainmycaptain)
-    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...", strlen("ta ta..."));
+    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...");
 
   aim_session_kill(&aimsess);
 
@@ -323,6 +327,7 @@ int main(int argc, char **argv)
   static int faimtest_mode = 0;
   struct timeval tv;
   time_t lastnop = 0;
+  const char *buddyiconpath = NULL;
 
   screenname = getenv("SCREENNAME");
   password = getenv("PASSWORD");
@@ -333,7 +338,7 @@ int main(int argc, char **argv)
 
   listingpath = getenv("LISTINGPATH");
 
-  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoOb:")) != EOF) {
+  while ((i = getopt(argc, argv, "u:p:a:U:P:A:l:c:hoOb:i:")) != EOF) {
     switch (i) {
     case 'u': screenname = optarg; break;
     case 'p': password = optarg; break;
@@ -346,6 +351,7 @@ int main(int argc, char **argv)
     case 'o': faimtest_mode = 1; break; /* half old interface */
     case 'O': faimtest_mode = 2; break; /* full old interface */
     case 'b': aimbinarypath = optarg; break;
+    case 'i': buddyiconpath = optarg; break;
     case 'h':
     default:
       printf("faimtest\n");
@@ -361,6 +367,7 @@ int main(int argc, char **argv)
       printf("    -o            Login at startup, then prompt\n");
       printf("    -O            Login, never give prompt\n");
       printf("    -b path       Path to AIM 3.5.1670 binaries\n");
+      printf("    -i file       Buddy Icon to send\n");
       exit(0);
     }
   }
@@ -388,6 +395,26 @@ int main(int argc, char **argv)
     }
 
     free(listingname);
+  }
+
+  if (buddyiconpath) {
+    struct stat st;
+    FILE *f;
+
+    if ((stat(buddyiconpath, &st) != -1) && (st.st_size <= MAXICONLEN) && (f = fopen(buddyiconpath, "r"))) {
+
+      buddyiconlen = st.st_size;
+      buddyiconstamp = st.st_mtime;
+      buddyicon = malloc(buddyiconlen);
+      fread(buddyicon, 1, st.st_size, f);
+
+      dvprintf("read %d bytes of %s for buddy icon\n", buddyiconlen, buddyiconpath);
+
+      fclose(f);
+
+    } else
+      dvprintf("could not open buddy icon %s\n", buddyiconpath);
+
   }
 
   faimtest_init();
@@ -460,6 +487,8 @@ int main(int argc, char **argv)
     cmd_uninit();
   }
 
+  free(buddyicon);
+
   /* Get out */
   exit(0);
 }
@@ -481,7 +510,7 @@ int faimtest_rateresp(struct aim_session_t *sess, struct command_rx_struct *comm
     aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response */
     aim_bos_reqpersonalinfo(sess, command->conn);
     aim_bos_reqlocaterights(sess, command->conn);
-    aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_VOICE | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
+    aim_bos_setprofile(sess, command->conn, profile, NULL, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE /*| AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS*/);
     aim_bos_reqbuddyrights(sess, command->conn);
 
     /* send the buddy list and profile (required, even if empty) */
@@ -1173,7 +1202,24 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
   } else if (strstr(tmpstr, "goodday")) {
 
-      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.", strlen("Good day to you too."));
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
+
+  } else if (strstr(tmpstr, "haveicon") && buddyicon) {
+    struct aim_sendimext_args args;
+    static const char iconmsg[] = {"I have an icon"};
+
+    args.destsn = userinfo->sn;
+    args.flags = AIM_IMFLAGS_HASICON;
+    args.msg = iconmsg;
+    args.msglen = strlen(iconmsg);
+    args.iconlen = buddyiconlen;
+    args.iconstamp = buddyiconstamp;
+
+    aim_send_im_ext(sess, command->conn, &args);
+
+  } else if (strstr(tmpstr, "sendicon") && buddyicon) {
+
+    aim_send_icon(sess, command->conn, userinfo->sn, buddyicon, buddyiconlen, buddyiconstamp);
 
   } else if (strstr(tmpstr, "warnme")) {
 
@@ -1199,7 +1245,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
     if (!ohcaptainmycaptain) {
 
-      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!", strlen("I have no owner!"));
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!");
 
     } else {
       struct aim_conn_t *newconn;
@@ -1253,7 +1299,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
   } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 
-    aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900", strlen("sendmsg 7900"));
+    aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900");
 
   } else if (!strncmp(tmpstr, "reqauth", 7)) {
 
@@ -1287,7 +1333,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 	newbuf[z] = (z % 10)+0x30;
       }
       newbuf[i] = '\0';
-      aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf, strlen(newbuf));
+      aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf);
       free(newbuf);
     }
 
@@ -1308,34 +1354,25 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   int channel;
+  struct aim_userinfo_s *userinfo;
   va_list ap;
 
   va_start(ap, command);
   channel = va_arg(ap, int);
+  userinfo = va_arg(ap, struct aim_userinfo_s *);
 
   /*
    * Channel 1: Standard Message
    */
   if (channel == 1) {
-    struct aim_userinfo_s *userinfo;
-    char *msg = NULL;
-    u_int icbmflags = 0;
-    char *tmpstr = NULL;
-    unsigned short flag1, flag2;
-    int finlen = 0;
-    unsigned char *fingerprint = NULL;
+    char *tmpstr;
+    struct aim_incomingim_ch1_args *args;
     int clienttype = AIM_CLIENTTYPE_UNKNOWN;
-    
-    userinfo = va_arg(ap, struct aim_userinfo_s *);
-    msg = va_arg(ap, char *);
-    icbmflags = va_arg(ap, u_int);
-    flag1 = va_arg(ap, int);
-    flag2 = va_arg(ap, int);
-    finlen = va_arg(ap, int);
-    fingerprint = va_arg(ap, unsigned char *);
+
+    args = va_arg(ap, struct aim_incomingim_ch1_args *);
     va_end(ap);
     
-    clienttype = aim_fingerprintclient(fingerprint, finlen);
+    clienttype = aim_fingerprintclient(args->fingerprint, args->finlen);
 
     dvprintf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
     dvprintf("faimtest: icbm: probable client type: %d\n", clienttype);
@@ -1350,27 +1387,34 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
     dvprintf("faimtest: icbm: capabilities = 0x%04x\n", userinfo->capabilities);
     
     dprintf("faimtest: icbm: icbmflags = ");
-    if (icbmflags & AIM_IMFLAGS_AWAY)
+    if (args->icbmflags & AIM_IMFLAGS_AWAY)
       dinlineprintf("away ");
-    if (icbmflags & AIM_IMFLAGS_ACK)
+    if (args->icbmflags & AIM_IMFLAGS_ACK)
       dinlineprintf("ackrequest ");
+    if (args->icbmflags & AIM_IMFLAGS_BUDDYREQ)
+      dinlineprintf("buddyreq ");
+    if (args->icbmflags & AIM_IMFLAGS_HASICON)
+      dinlineprintf("hasicon ");
     dinlineprintf("\n");
     
-    dvprintf("faimtest: icbm: encoding flags = {%04x, %04x}\n", flag1, flag2);
-    
-    dvprintf("faimtest: icbm: message: %s\n", msg);
-    
-    if (msg) {
+    dvprintf("faimtest: icbm: encoding flags = {%04x, %04x}\n", args->flag1, args->flag2);
+
+    dvprintf("faimtest: icbm: message: %s\n", args->msg);
+
+    if (args->icbmflags & AIM_IMFLAGS_HASICON)
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");
+
+    if (args->msg) {
       int i = 0;
 
-      while (msg[i] == '<') {
-	if (msg[i] == '<') {
-	  while (msg[i] != '>')
+      while (args->msg[i] == '<') {
+	if (args->msg[i] == '<') {
+	  while (args->msg[i] != '>')
 	    i++;
 	  i++;
 	}
       }
-      tmpstr = msg+i;
+      tmpstr = args->msg+i;
 
       faimtest_handlecmd(sess, command, userinfo, tmpstr);
 
@@ -1380,14 +1424,13 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
    * Channel 2: Rendevous Request
    */
   else if (channel == 2) {
-    struct aim_userinfo_s *userinfo;
-    unsigned short reqclass;
+    struct aim_incomingim_ch2_args *args;
     
-    reqclass = va_arg(ap, int);
-    switch (reqclass) {
+    args = va_arg(ap, struct aim_incomingim_ch2_args *);
+    va_end(ap);
+
+    switch (args->reqclass) {
     case AIM_CAPS_VOICE: {
-      userinfo = va_arg(ap, struct aim_userinfo_s *);
-      va_end(ap);
       
       dvprintf("faimtest: voice invitation: source sn = %s\n", userinfo->sn);
       dvprintf("faimtest: voice invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
@@ -1402,22 +1445,16 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       break;
     }
     case AIM_CAPS_GETFILE: {
-      char *ip, *cookie;
       struct aim_conn_t *newconn;
       struct aim_fileheader_t *fh;
 
-      userinfo = va_arg(ap, struct aim_userinfo_s *);
-      ip = va_arg(ap, char *);
-      cookie = va_arg(ap, char *);
-      va_end(ap);
-      
-      dvprintf("faimtest: get file request from %s (at %s) %x\n", userinfo->sn, ip, reqclass);
+      dvprintf("faimtest: get file request from %s (at %s) %x\n", userinfo->sn, args->info.getfile.ip, args->reqclass);
 
-      fh = aim_getlisting(sess, listingfile);      
+      fh = aim_getlisting(sess, listingfile);
 
-      newconn = aim_accepttransfer(sess, command->conn, userinfo->sn, cookie, ip, fh->totfiles, fh->totsize, fh->size, fh->checksum, reqclass);
+      newconn = aim_accepttransfer(sess, command->conn, userinfo->sn, args->info.getfile.cookie, args->info.getfile.ip, fh->totfiles, fh->totsize, fh->size, fh->checksum, args->reqclass);
 
-      if( (!newconn) || (newconn->fd == -1) ) {
+      if ( (!newconn) || (newconn->fd == -1) ) {
 	dprintf("faimtest: getfile: requestconn: apparent error in accepttransfer\n");
 	if(newconn)
 	  aim_conn_kill(sess, &newconn);
@@ -1442,15 +1479,6 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       break;
     }
     case AIM_CAPS_CHAT: {
-      char *msg,*encoding,*lang;
-      struct aim_chat_roominfo *roominfo;
-      
-      userinfo = va_arg(ap, struct aim_userinfo_s *);
-      roominfo = va_arg(ap, struct aim_chat_roominfo *);
-      msg = va_arg(ap, char *);
-      encoding = va_arg(ap, char *);
-      lang = va_arg(ap, char *);
-      va_end(ap);
       
       dvprintf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
       dvprintf("faimtest: chat invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
@@ -1462,32 +1490,28 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
       dvprintf("faimtest: chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
       dvprintf("faimtest: chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
       
-      dvprintf("faimtest: chat invitation: message = %s\n", msg);
-      dvprintf("faimtest: chat invitation: room name = %s\n", roominfo->name);
-      dvprintf("faimtest: chat invitation: encoding = %s\n", encoding);
-      dvprintf("faimtest: chat invitation: language = %s\n", lang);
-      dvprintf("faimtest: chat invitation: exchange = 0x%04x\n", roominfo->exchange);
-      dvprintf("faimtest: chat invitation: instance = 0x%04x\n", roominfo->instance);
-      dvprintf("faimtest: chat invitiation: autojoining %s...\n", roominfo->name);
+      dvprintf("faimtest: chat invitation: message = %s\n", args->info.chat.msg);
+      dvprintf("faimtest: chat invitation: room name = %s\n", args->info.chat.roominfo.name);
+      dvprintf("faimtest: chat invitation: encoding = %s\n", args->info.chat.encoding);
+      dvprintf("faimtest: chat invitation: language = %s\n", args->info.chat.lang);
+      dvprintf("faimtest: chat invitation: exchange = 0x%04x\n", args->info.chat.roominfo.exchange);
+      dvprintf("faimtest: chat invitation: instance = 0x%04x\n", args->info.chat.roominfo.instance);
+      dvprintf("faimtest: chat invitiation: autojoining %s...\n", args->info.chat.roominfo.name);
+
       /*
        * Automatically join room...
        */ 
-      aim_chat_join(sess, command->conn, 0x0004, roominfo->name);
+      aim_chat_join(sess, command->conn, args->info.chat.roominfo.exchange, args->info.chat.roominfo.name);
       break;
     }	
     case AIM_CAPS_IMIMAGE: {
-      struct aim_directim_priv *priv;
       struct aim_conn_t *newconn;
 
       dprintf("faimtest: icbm: rendezvous imimage\n");
-     
-      userinfo = va_arg(ap, struct aim_userinfo_s *);
-      priv = va_arg(ap, struct aim_directim_priv *);
-      va_end(ap);
 
-      dvprintf("faimtest: OFT: DirectIM: request from %s (%s)\n", userinfo->sn, priv->ip);
+      dvprintf("faimtest: OFT: DirectIM: request from %s (%s)\n", userinfo->sn, args->info.directim->ip);
       
-      newconn = aim_directim_connect(sess, command->conn, priv);
+      newconn = aim_directim_connect(sess, command->conn, args->info.directim);
 
       if ( (!newconn) || (newconn->fd == -1) ) {
 	dprintf("faimtest: icbm: imimage: could not connect\n");
@@ -1508,11 +1532,17 @@ int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_str
 
       break;
     }
+    case AIM_CAPS_BUDDYICON: {
+
+      dvprintf("faimtest: Buddy Icon from %s, length = %u\n", userinfo->sn, args->info.icon.length);
+      break;
+    }
     default:
-      dvprintf("faimtest: icbm: unknown reqclass (%d)\n", reqclass);
+      dvprintf("faimtest: icbm: unknown reqclass (%d)\n", args->reqclass);
     } /* switch */
   } else
     dvprintf("faimtest does not support channels > 2 (chan = %02x)\n", channel);
+
   dprintf("faimtest: icbm: done with ICBM handling\n");
 
   return 1;

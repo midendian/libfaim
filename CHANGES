@@ -1,6 +1,22 @@
 
 No release numbers
 ------------------
+ - Sat May 26 01:37:39 PDT 2001
+  - So this is my big merge with the ActiveBuddy version...
+    - Remove use of tlvchains from IM parsing for better performance
+    - Add in buddy icon support
+    - Add support for sending UNICODE messages.
+  - Split up the more complicated options to aim_send_im into a structure
+      that is passed to aim_send_im_ext().  This makes it easier to send
+      simple messages, and only slightly harder to send complex ones.
+     - aim_send_im_ext() must be used if you're using buddy icons and/or you
+         are sending UNICODE messages.
+  - UNICODE is fully explained in commentary above aim_send_im_ext() in im.c.
+  - The ISO-8859-1 option is also added.  Use when necessary, to avoid making
+      WinAIM barf.
+  - This removes the msglen parameter to aim_send_im because that was only
+      needed to do UNICODE, which can now only be done by aim_send_im_ext.
+
  - Wed May 23 18:05:46 PDT 2001
   - I upgraded libtool.  Which broke the faimtest makefile.
   - Parse locate rights
