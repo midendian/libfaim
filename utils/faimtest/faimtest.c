@@ -797,11 +797,26 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
-static int getaimdata(unsigned char *buf, int buflen, unsigned long offset)
+static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, char *modname)
 {
   FILE *f;
 
-  if (!(f = fopen(aimbinarypath, "r"))) {
+  char *filename;
+  int len;
+
+  len = strlen(aimbinarypath)+1+strlen(modname)+1;
+
+  if(!(filename = malloc(len))) {
+    dperror("memrequest: malloc");
+    return -1;
+  }
+
+  memset(filename,0, len);
+  memcpy(filename, aimbinarypath, strlen(aimbinarypath));
+  filename[strlen(filename)] = '/';
+  strncat(filename, modname, len - strlen(filename));
+
+  if (!(f = fopen(filename, "r"))) {
     dperror("memrequest: fopen");
     return -1;
   }
@@ -835,10 +850,12 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
   va_list ap;
   unsigned long offset, len;
   unsigned char *buf;
+  char *modname;
   
   va_start(ap, command);
   offset = va_arg(ap, unsigned long);
   len = va_arg(ap, unsigned long);
+  modname = va_arg(ap, char *);
   va_end(ap);
 
   if (!(buf = malloc(len))) {
@@ -846,15 +863,15 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
     return 0;
   }
 
-  if (aimbinarypath && (getaimdata(buf, len, offset) == len)) {
+  if (aimbinarypath && (getaimdata(buf, len, offset, modname) == len)) {
 
-    dvprintf("memrequest: sending %ld bytes from 0x%08lx in %s...\n", len, offset, aimbinarypath);
+    dvprintf("memrequest: sending %ld bytes from 0x%08lx in \"%s/%s\"...\n", len, offset, aimbinarypath, modname);
 
     aim_sendmemblock(sess, command->conn, offset, len, buf);
 
   } else {
 
-    dprintf("memrequest: unable to use AIM binary, sending defaults...\n");
+    dvprintf("memrequest: unable to use AIM binary (\"%s/%s\"), sending defaults...\n", aimbinarypath, modname);
 
     aim_sendmemblock(sess, command->conn, offset, len, NULL);
 

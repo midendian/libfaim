@@ -1,6 +1,9 @@
 
 No release numbers
 ------------------
+ - Thu Mar 29 14:45:22 CST 2001 (jbm)
+  - Add module capability to the 0001/001f stuff (jbm)
+
  - Wed Mar 28 21:20:08 PST 2001
   - Add flags arg to aim_chat_send_im()
   - Add msglen arg to aim_send_im and aim_chat_send_im
