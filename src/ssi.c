@@ -73,12 +73,12 @@ static int parsedata(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, ai
 	int ret = 0;
 	aim_rxcallback_t userfunc;
 	struct aim_ssi_item *list = NULL;
-	fu8_t fmtver;
-	fu16_t rev;
+	fu8_t fmtver; /* guess */
+	fu16_t itemcount;
 	fu32_t stamp;
 
 	fmtver = aimbs_get8(bs);
-	rev = aimbs_get16(bs);
+	itemcount = aimbs_get16(bs);
 
 	while (aim_bstream_empty(bs) > 4) { /* last four bytes are stamp */
 		fu16_t namelen, tbslen;
@@ -113,7 +113,7 @@ static int parsedata(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, ai
 	stamp = aimbs_get32(bs);
 
 	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		ret = userfunc(sess, rx, fmtver, rev, stamp, list);
+		ret = userfunc(sess, rx, fmtver, itemcount, stamp, list);
 
 	while (list) {
 		struct aim_ssi_item *tmp;

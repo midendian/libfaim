@@ -1806,18 +1806,18 @@ static int ssidata(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
 	fu8_t fmtver;
-	fu16_t rev;
+	fu16_t itemcount;
 	fu32_t stamp;
 	struct aim_ssi_item *list, *l;
 
 	va_start(ap, fr);
 	fmtver = va_arg(ap, unsigned int);
-	rev = va_arg(ap, unsigned int);
+	itemcount = va_arg(ap, unsigned int);
 	stamp = va_arg(ap, fu32_t);
 	list = va_arg(ap, struct aim_ssi_item *);
 	va_end(ap);
 
-	dvprintf("got SSI data: (0x%02x, 0x%04x, %ld)\n", fmtver, rev, stamp);
+	dvprintf("got SSI data: (0x%02x, %d items, %ld)\n", fmtver, itemcount, stamp);
 	for (l = list; l; l = l->next) {
 		dvprintf("\t0x%04x (%s) - 0x%04x/0x%04x\n",
 				l->type,
