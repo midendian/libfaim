@@ -43,6 +43,7 @@ u_long aim_getinfo(struct aim_session_t *sess,
     struct aim_snac_t snac;
     
     snac.id = sess->snac_nextid;
+    printf("faim: getuserinfo: caching snac %08lx\n", snac.id);
     snac.family = 0x0002;
     snac.type = 0x0005;
     snac.flags = 0x0000;
@@ -289,8 +290,8 @@ int aim_parse_offgoing_middle(struct aim_session_t *sess,
   u_int i = 0;
   rxcallback_t userfunc=NULL;
 
-  /* Protect against future SN length extensions */
-  strncpy(sn, command->data+11, (((int)(command->data+10))<=MAXSNLEN)?(int)command->data+10:MAXSNLEN);
+  strncpy(sn, command->data+11, (int)command->data[10]);
+  sn[(int)command->data[10]] = '\0';
 
   userfunc = aim_callhandler(command->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING);
   if (userfunc)
