@@ -11,7 +11,7 @@
 
 #define FAIM_VERSION_MAJOR 0
 #define FAIM_VERSION_MINOR 99
-#define FAIM_VERSION_MINORMINOR 1
+#define FAIM_VERSION_MINORMINOR 4
 
 #include <faimconfig.h>
 #include <aim_cbtypes.h>

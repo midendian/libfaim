@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/service.c)
-AM_INIT_AUTOMAKE(libfaim, 0.99.3)
+AM_INIT_AUTOMAKE(libfaim, 0.99.4)
 
 AM_CONFIG_HEADER(include/config.h)
 
