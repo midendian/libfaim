@@ -1177,39 +1177,57 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
   ap = va_start(ap, command);
   type = va_arg(ap, u_short);
 
-  switch(type)
-    {
-    case 0x0002:
-      {
-	int maxrooms;
-	struct aim_chat_exchangeinfo *exchanges;
-	int exchangecount,i = 0;
-	
-	maxrooms = va_arg(ap, u_char);
-	exchangecount = va_arg(ap, int);
-	exchanges = va_arg(ap, struct aim_chat_exchangeinfo *);
-	va_end(ap);
-
-	printf("faimtest: chat info: Chat Rights:\n");
-	printf("faimtest: chat info: \tMax Concurrent Rooms: %d\n", maxrooms);
-	
-	printf("faimtest: chat info: \tExchange List: (%d total)\n", exchangecount);
-	while (i < exchangecount)
-	  {
-	    printf("faimtest: chat info: \t\t%x: %s (%s/%s)\n", 
-		   exchanges[i].number,	
-		   exchanges[i].name,
-		   exchanges[i].charset1,
-		   exchanges[i].lang1);
-	    i++;
-	  }
-	
-      }
-      break;
-    default:
-      va_end(ap);
-      printf("faimtest: chatnav info: unknown type (%04x)\n", type);
+  switch(type) {
+  case 0x0002: {
+    int maxrooms;
+    struct aim_chat_exchangeinfo *exchanges;
+    int exchangecount,i = 0;
+    
+    maxrooms = va_arg(ap, u_char);
+    exchangecount = va_arg(ap, int);
+    exchanges = va_arg(ap, struct aim_chat_exchangeinfo *);
+    va_end(ap);
+    
+    printf("faimtest: chat info: Chat Rights:\n");
+    printf("faimtest: chat info: \tMax Concurrent Rooms: %d\n", maxrooms);
+    
+    printf("faimtest: chat info: \tExchange List: (%d total)\n", exchangecount);
+    while (i < exchangecount) {
+      printf("faimtest: chat info: \t\t%x: %s (%s/%s)\n", 
+	     exchanges[i].number,	
+	     exchanges[i].name,
+	     exchanges[i].charset1,
+	     exchanges[i].lang1);
+      i++;
     }
+    
+  }
+  break;
+  case 0x0008: {
+    char *fqcn, *name, *ck;
+    unsigned short instance, flags, maxmsglen, maxoccupancy, unknown;
+    unsigned char createperms;
+    unsigned long createtime;
+
+    fqcn = va_arg(ap, char *);
+    instance = va_arg(ap, unsigned short);
+    flags = va_arg(ap, unsigned short);
+    createtime = va_arg(ap, unsigned long);
+    maxmsglen = va_arg(ap, unsigned short);
+    maxoccupancy = va_arg(ap, unsigned short);
+    createperms = va_arg(ap, unsigned char);
+    unknown = va_arg(ap, unsigned short);
+    name = va_arg(ap, char *);
+    ck = va_arg(ap, char *);
+    va_end(ap);
+
+    printf("faimtest: recieved room create reply for %s\n", fqcn);
+  }
+  break;
+  default:
+    va_end(ap);
+    printf("faimtest: chatnav info: unknown type (%04x)\n", type);
+  }
   return 1;
 }
 
