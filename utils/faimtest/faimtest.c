@@ -124,7 +124,7 @@ int faimtest_conncomplete(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_end(ap);
 
 	if (conn)
-		dvprintf("faimtest: connection on %d completed\n", conn->fd);
+		dvprintf("connection on %d completed\n", conn->fd);
 
 	return 1;
 }
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
 
 #ifdef _WIN32
 	if (initwsa() != 0) {
-		dprintf("faimtest: could not initialize windows sockets\n");
+		dprintf("could not initialize windows sockets\n");
 		return -1;
 	}
 #endif /* _WIN32 */
@@ -500,7 +500,7 @@ static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 		
 		tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
 		if (!tstconn || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
-			dprintf("faimtest: unable to reconnect with authorizer\n");
+			dprintf("unable to reconnect with authorizer\n");
 		} else {
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
@@ -893,24 +893,24 @@ static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	inforeq = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
-	dvprintf("faimtest: userinfo: sn: %s\n", userinfo->sn);
-	dvprintf("faimtest: userinfo: warnlevel: %f\n", aim_userinfo_warnlevel(userinfo));
-	dvprintf("faimtest: userinfo: flags: 0x%04x = ", userinfo->flags);
+	dvprintf("userinfo: sn: %s\n", userinfo->sn);
+	dvprintf("userinfo: warnlevel: %f\n", aim_userinfo_warnlevel(userinfo));
+	dvprintf("userinfo: flags: 0x%04x = ", userinfo->flags);
 	printuserflags(userinfo->flags);
 	dinlineprintf("\n");
 
-	dvprintf("faimtest: userinfo: membersince: %lu\n", userinfo->membersince);
-	dvprintf("faimtest: userinfo: onlinesince: %lu\n", userinfo->onlinesince);
-	dvprintf("faimtest: userinfo: idletime: 0x%04x\n", userinfo->idletime);
+	dvprintf("userinfo: membersince: %lu\n", userinfo->membersince);
+	dvprintf("userinfo: onlinesince: %lu\n", userinfo->onlinesince);
+	dvprintf("userinfo: idletime: 0x%04x\n", userinfo->idletime);
 
 	if (inforeq == AIM_GETINFO_GENERALINFO) {
-		dvprintf("faimtest: userinfo: profile_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
-		dvprintf("faimtest: userinfo: prof: %s\n", prof ? prof : "[none]");
+		dvprintf("userinfo: profile_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
+		dvprintf("userinfo: prof: %s\n", prof ? prof : "[none]");
 	} else if (inforeq == AIM_GETINFO_AWAYMESSAGE) {
-		dvprintf("faimtest: userinfo: awaymsg_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
-		dvprintf("faimtest: userinfo: awaymsg: %s\n", prof ? prof : "[none]");
+		dvprintf("userinfo: awaymsg_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
+		dvprintf("userinfo: awaymsg: %s\n", prof ? prof : "[none]");
 	} else 
-		dprintf("faimtest: userinfo: unknown info request\n");
+		dprintf("userinfo: unknown info request\n");
 
 	return 1;
 }
@@ -1062,22 +1062,22 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (strstr(tmpstr, "warnme")) {
 
-		dprintf("faimtest: icbm: sending non-anon warning\n");
+		dprintf("icbm: sending non-anon warning\n");
 		aim_send_warning(sess, conn, userinfo->sn, 0);
 
 	} else if (strstr(tmpstr, "anonwarn")) {
 
-		dprintf("faimtest: icbm: sending anon warning\n");
+		dprintf("icbm: sending anon warning\n");
 		aim_send_warning(sess, conn, userinfo->sn, AIM_WARN_ANON);
 
 	} else if (strstr(tmpstr, "setdirectoryinfo")) {
 
-		dprintf("faimtest: icbm: sending backwards profile data\n");
+		dprintf("icbm: sending backwards profile data\n");
 		aim_setdirectoryinfo(sess, conn, "tsrif", "elddim", "tsal", "nediam", "emankcin", "teerts", "ytic", "etats", "piz", 0, 1);
 
 	} else if (strstr(tmpstr, "setinterests")) {
 
-		dprintf("faimtest: icbm: setting fun interests\n");
+		dprintf("icbm: setting fun interests\n");
 		aim_setuserinterests(sess, conn, "interest1", "interest2", "interest3", "interest4", "interest5", 1);
 
 	} else if (!strncmp(tmpstr, "getfile", 7)) {
@@ -1191,19 +1191,19 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	char realmsg[8192+1] = {""};
 	clienttype = aim_fingerprintclient(args->features, args->featureslen);
 
-	dvprintf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
-	dvprintf("faimtest: icbm: probable client type: %d\n", clienttype);
-	dvprintf("faimtest: icbm: warnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
-	dvprintf("faimtest: icbm: flags = 0x%04x = ", userinfo->flags);
+	dvprintf("icbm: sn = \"%s\"\n", userinfo->sn);
+	dvprintf("icbm: probable client type: %d\n", clienttype);
+	dvprintf("icbm: warnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
+	dvprintf("icbm: flags = 0x%04x = ", userinfo->flags);
 	printuserflags(userinfo->flags);
 	dinlineprintf("\n");
 
-	dvprintf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
-	dvprintf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
-	dvprintf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
-	dvprintf("faimtest: icbm: capabilities = %s = 0x%04x\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
+	dvprintf("icbm: membersince = %lu\n", userinfo->membersince);
+	dvprintf("icbm: onlinesince = %lu\n", userinfo->onlinesince);
+	dvprintf("icbm: idletime = 0x%04x\n", userinfo->idletime);
+	dvprintf("icbm: capabilities = %s = 0x%04x\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
 
-	dprintf("faimtest: icbm: icbmflags = ");
+	dprintf("icbm: icbmflags = ");
 	if (args->icbmflags & AIM_IMFLAGS_AWAY)
 		dinlineprintf("away ");
 	if (args->icbmflags & AIM_IMFLAGS_ACK)
@@ -1217,7 +1217,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	dinlineprintf("\n");
 
 	if (args->icbmflags & AIM_IMFLAGS_CUSTOMCHARSET)
-		dvprintf("faimtest: icbm: encoding flags = {%04x, %04x}\n", args->charset, args->charsubset);
+		dvprintf("icbm: encoding flags = {%04x, %04x}\n", args->charset, args->charsubset);
 
 	/*
 	 * Quickly convert it to eight bit format, replacing non-ASCII UNICODE 
@@ -1267,26 +1267,26 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 		strncpy(realmsg, args->msg, sizeof(realmsg));
 	}
 
-	dvprintf("faimtest: icbm: message: %s\n", realmsg);
+	dvprintf("icbm: message: %s\n", realmsg);
 
 	if (args->icbmflags & AIM_IMFLAGS_MULTIPART) {
 		aim_mpmsg_section_t *sec;
 		int z;
 
-		dvprintf("faimtest: icbm: multipart: this message has %d parts\n", args->mpmsg.numparts);
+		dvprintf("icbm: multipart: this message has %d parts\n", args->mpmsg.numparts);
 
 		for (sec = args->mpmsg.parts, z = 0; sec; sec = sec->next, z++) {
 			if ((sec->charset == 0x0000) || (sec->charset == 0x0003) || (sec->charset == 0xffff)) {
-				dvprintf("faimtest: icbm: multipart:   part %d: charset 0x%04x, subset 0x%04x, msg = %s\n", z, sec->charset, sec->charsubset, sec->data);
+				dvprintf("icbm: multipart:   part %d: charset 0x%04x, subset 0x%04x, msg = %s\n", z, sec->charset, sec->charsubset, sec->data);
 			} else {
-				dvprintf("faimtest: icbm: multipart:   part %d: charset 0x%04x, subset 0x%04x, binary or UNICODE data\n", z, sec->charset, sec->charsubset);
+				dvprintf("icbm: multipart:   part %d: charset 0x%04x, subset 0x%04x, binary or UNICODE data\n", z, sec->charset, sec->charsubset);
 			}
 		}
 	}
 
 	if (args->icbmflags & AIM_IMFLAGS_HASICON) {
 		aim_send_im(sess, userinfo->sn, AIM_IMFLAGS_BUDDYREQ, "You have an icon");
-		dvprintf("faimtest: icbm: their icon: iconstamp = %ld, iconlen = 0x%08lx, iconsum = 0x%04x\n", args->iconstamp, args->iconlen, args->iconsum);
+		dvprintf("icbm: their icon: iconstamp = %ld, iconlen = 0x%08lx, iconsum = 0x%04x\n", args->iconstamp, args->iconlen, args->iconsum);
 	}
 
 	if (realmsg) {
@@ -1319,14 +1319,14 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 
 	if (args->reqclass == AIM_CAPS_VOICE) {
 
-		dvprintf("faimtest: voice invitation: source sn = %s\n", userinfo->sn);
-		dvprintf("faimtest: voice invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
-		dvprintf("faimtest: voice invitation: \tclass = 0x%04x = ", userinfo->flags);
+		dvprintf("voice invitation: source sn = %s\n", userinfo->sn);
+		dvprintf("voice invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
+		dvprintf("voice invitation: \tclass = 0x%04x = ", userinfo->flags);
 		printuserflags(userinfo->flags);
 		dinlineprintf("\n");
 
-		dvprintf("faimtest: voice invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
-		dvprintf("faimtest: voice invitation: \tidletime = 0x%04x\n", userinfo->idletime);
+		dvprintf("voice invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
+		dvprintf("voice invitation: \tidletime = 0x%04x\n", userinfo->idletime);
 
 	} else if (args->reqclass == AIM_CAPS_GETFILE) {
 		
@@ -1334,44 +1334,44 @@ static int faimtest_parse_incoming_im_chan2(aim_session_t *sess, aim_conn_t *con
 		
 	} else if (args->reqclass == AIM_CAPS_SENDFILE) {
 
-		dprintf("faimtest: send file!\n");
+		dprintf("send file!\n");
 
 	} else if (args->reqclass == AIM_CAPS_CHAT) {
 
-		dvprintf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
-		dvprintf("faimtest: chat invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
-		dvprintf("faimtest: chat invitation: \tclass = 0x%04x = ", userinfo->flags);
+		dvprintf("chat invitation: source sn = %s\n", userinfo->sn);
+		dvprintf("chat invitation: \twarnlevel = %f\n", aim_userinfo_warnlevel(userinfo));
+		dvprintf("chat invitation: \tclass = 0x%04x = ", userinfo->flags);
 		printuserflags(userinfo->flags);
 		dinlineprintf("\n");
 
 		/* we dont get membersince on chat invites! */
-		dvprintf("faimtest: chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
-		dvprintf("faimtest: chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
+		dvprintf("chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
+		dvprintf("chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
 
-		dvprintf("faimtest: chat invitation: message = %s\n", args->info.chat.msg);
-		dvprintf("faimtest: chat invitation: room name = %s\n", args->info.chat.roominfo.name);
-		dvprintf("faimtest: chat invitation: encoding = %s\n", args->info.chat.encoding);
-		dvprintf("faimtest: chat invitation: language = %s\n", args->info.chat.lang);
-		dvprintf("faimtest: chat invitation: exchange = 0x%04x\n", args->info.chat.roominfo.exchange);
-		dvprintf("faimtest: chat invitation: instance = 0x%04x\n", args->info.chat.roominfo.instance);
-		dvprintf("faimtest: chat invitiation: autojoining %s...\n", args->info.chat.roominfo.name);
+		dvprintf("chat invitation: message = %s\n", args->info.chat.msg);
+		dvprintf("chat invitation: room name = %s\n", args->info.chat.roominfo.name);
+		dvprintf("chat invitation: encoding = %s\n", args->info.chat.encoding);
+		dvprintf("chat invitation: language = %s\n", args->info.chat.lang);
+		dvprintf("chat invitation: exchange = 0x%04x\n", args->info.chat.roominfo.exchange);
+		dvprintf("chat invitation: instance = 0x%04x\n", args->info.chat.roominfo.instance);
+		dvprintf("chat invitiation: autojoining %s...\n", args->info.chat.roominfo.name);
 
 		/* Automatically join room... */
 		aim_chat_join(sess, conn, args->info.chat.roominfo.exchange, args->info.chat.roominfo.name, args->info.chat.roominfo.instance);
 
 	} else if (args->reqclass == AIM_CAPS_IMIMAGE) {
 
-		dprintf("faimtest: icbm: rendezvous imimage\n");
+		dprintf("icbm: rendezvous imimage\n");
 
 		directim_requested(sess, conn, userinfo, args);
 
 	} else if (args->reqclass == AIM_CAPS_BUDDYICON) {
 
-		dvprintf("faimtest: Buddy Icon from %s, length = %lu\n", userinfo->sn, args->info.icon.length);
+		dvprintf("Buddy Icon from %s, length = %lu\n", userinfo->sn, args->info.icon.length);
 
 	} else {
 
-		dvprintf("faimtest: icbm: unknown reqclass (%d)\n", args->reqclass);
+		dvprintf("icbm: unknown reqclass (%d)\n", args->reqclass);
 	}
 
 	return 1;
@@ -1406,7 +1406,7 @@ static int faimtest_parse_incoming_im(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	va_end(ap);
 
-	dvprintf("faimtest: icbm: done with ICBM handling (ret = %d)\n", ret);
+	dvprintf("icbm: done with ICBM handling (ret = %d)\n", ret);
 
 	return 1;
 }
@@ -1471,7 +1471,7 @@ static int faimtest_parse_genericerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	reason = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
-	dvprintf("faimtest: snac threw error (reason 0x%04x: %s)\n", reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+	dvprintf("snac threw error (reason 0x%04x: %s)\n", reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
 
 	return 1;
 }
@@ -1487,7 +1487,7 @@ static int faimtest_parse_msgerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	destsn = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+	dvprintf("message to %s bounced (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
 
 	return 1;
 }
@@ -1503,7 +1503,7 @@ static int faimtest_parse_locerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	destsn = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
+	dvprintf("user information for %s unavailable (reason 0x%04x: %s)\n", destsn, reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
 
 	return 1;
 }
@@ -1530,7 +1530,7 @@ static int faimtest_parse_misses(aim_session_t *sess, aim_frame_t *fr, ...)
 	reason = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
-	dvprintf("faimtest: missed %d messages from %s on channel %d (reason %d: %s)\n", nummissed, userinfo->sn, chan, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
+	dvprintf("missed %d messages from %s on channel %d (reason %d: %s)\n", nummissed, userinfo->sn, chan, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
 
 	return 1;
 }
@@ -1549,7 +1549,7 @@ static int faimtest_parse_msgack(aim_session_t *sess, aim_frame_t *fr, ...)
 	sn = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: msgack: 0x%04x / %s\n", type, sn);
+	dvprintf("msgack: 0x%04x / %s\n", type, sn);
 
 	return 1;
 }
@@ -1596,7 +1596,7 @@ static int faimtest_parse_ratechange(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_end(ap);
 
 
-	dvprintf("faimtest: rate %s (rate class 0x%04x): curavg = %ld, maxavg = %ld, alert at %ld, clear warning at %ld, limit at %ld, disconnect at %ld (window size = %ld)\n",
+	dvprintf("rate %s (rate class 0x%04x): curavg = %ld, maxavg = %ld, alert at %ld, clear warning at %ld, limit at %ld, disconnect at %ld (window size = %ld)\n",
 				(code < 5)?codes[code]:"invalid",
 				rateclass,
 				currentavg, maxavg,
@@ -1658,7 +1658,7 @@ static int faimtest_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 	 * newevil is passed as an int representing the new evil value times
 	 * ten.
 	 */
-	dvprintf("faimtest: evil level change: new value = %2.1f%% (caused by %s)\n", ((float)newevil)/10, (userinfo && strlen(userinfo->sn))?userinfo->sn:"anonymous");
+	dvprintf("evil level change: new value = %2.1f%% (caused by %s)\n", ((float)newevil)/10, (userinfo && strlen(userinfo->sn))?userinfo->sn:"anonymous");
 
 	return 1;
 }
@@ -1675,7 +1675,7 @@ static int faimtest_parse_searchreply(aim_session_t *sess, aim_frame_t *fr, ...)
 	SNs = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: E-Mail Search Results for %s: ", address);
+	dvprintf("E-Mail Search Results for %s: ", address);
 
 	for(i = 0; i < num; i++)
 		dvinlineprintf("%s, ", &SNs[i*(MAXSNLEN+1)]);
@@ -1693,7 +1693,7 @@ static int faimtest_parse_searcherror(aim_session_t *sess, aim_frame_t *fr, ...)
 	address = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: E-Mail Search Results for %s: No Results or Invalid Email\n", address);
+	dvprintf("E-Mail Search Results for %s: No Results or Invalid Email\n", address);
 
 	return 1;
 }

@@ -11,7 +11,7 @@ static int directim_incoming(aim_session_t *sess, aim_frame_t *fr, ...)
 	msg = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: Directim from %s: %s\n", sn, msg);
+	dvprintf("Directim from %s: %s\n", sn, msg);
 
 	if (strstr(msg, "sendmsg")) {
 		int i;
@@ -52,7 +52,7 @@ static int directim_typing(aim_session_t *sess, aim_frame_t *fr, ...)
 	sn = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", sn);
+	dvprintf("ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", sn);
 
 	return 1;
 }
@@ -75,7 +75,7 @@ static int faimtest_directim_initiate(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	aim_send_im_direct(sess, newconn, "goodday");
 
-	dvprintf("faimtest: OFT: DirectIM: connected to %s\n", aim_directim_getsn(newconn));
+	dvprintf("OFT: DirectIM: connected to %s\n", aim_directim_getsn(newconn));
 
 	return 1;
 }
@@ -93,7 +93,7 @@ static int faimtest_getfile_filereq(aim_session_t *ses, aim_frame_t *fr, ...)
 	cookie = va_arg(ap, fu8_t *);
 	va_end(ap);
 
-	dvprintf("faimtest: request for file %s.\n", fh->name);
+	dvprintf("request for file %s.\n", fh->name);
 
 	return 1;
 }
@@ -116,14 +116,14 @@ static int faimtest_getfile_filesend(aim_session_t *sess, aim_frame_t *fr, ...)
 	cookie = va_arg(ap, fu8_t *);
 	va_end(ap);
 
-	dvprintf("faimtest: sending file %s(%ld).\n", fh->name, fh->size);
+	dvprintf("sending file %s(%ld).\n", fh->name, fh->size);
 
 	if (!(buf = malloc(2048)))
 		return -1;
 
 	if (!(path = (char *)calloc(1, strlen(priv->listingpath) +strlen(fh->name)+2))) {
 		dperror("calloc");
-		dprintf("faimtest: error in calloc of path\n");
+		dprintf("error in calloc of path\n");
 
 		return 0; /* XXX: no idea what winaim expects here =) */
 	}
@@ -131,7 +131,7 @@ static int faimtest_getfile_filesend(aim_session_t *sess, aim_frame_t *fr, ...)
 	snprintf(path, strlen(priv->listingpath)+strlen(fh->name)+2, "%s/%s", priv->listingpath, fh->name);
 
 	if (!(file = fopen(path, "r"))) {
-		dvprintf("faimtest: getfile_send fopen failed for %s. damn.\n", path);
+		dvprintf("getfile_send fopen failed for %s. damn.\n", path);
 		return 0;
 	}
 
@@ -187,7 +187,7 @@ static int faimtest_getfile_complete(aim_session_t *sess, aim_frame_t *fr, ...)
 	fh = va_arg(ap, struct aim_fileheader_t *);
 	va_end(ap);
 
-	dvprintf("faimtest: completed file transfer for %s.\n", fh->name);
+	dvprintf("completed file transfer for %s.\n", fh->name);
 
 	aim_conn_close(conn);
 	aim_conn_kill(sess, &conn);
@@ -208,7 +208,7 @@ static int faimtest_getfile_disconnect(aim_session_t *sess, aim_frame_t *fr, ...
 
 	aim_conn_kill(sess, &conn);
 
-	dvprintf("faimtest: getfile: disconnected from %s\n", sn);
+	dvprintf("getfile: disconnected from %s\n", sn);
 
 	return 1;
 }
@@ -244,7 +244,7 @@ static int faimtest_getfile_listing(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	filesize =  strtol(sizec, (char **)NULL, 10);
 
-	dvprintf("faimtest: requesting %d %s(%d long)\n", namelen, filename, filesize);
+	dvprintf("requesting %d %s(%d long)\n", namelen, filename, filesize);
 
 	aim_oft_getfile_request(sess, conn, filename, filesize);
 
@@ -268,7 +268,7 @@ static int faimtest_getfile_listingreq(aim_session_t *sess, aim_frame_t *fr, ...
 	fh = va_arg(ap, struct aim_fileheader_t *);
 	va_end(ap);
 
-	dvprintf("faimtest: sending listing of size %ld\n", fh->size);
+	dvprintf("sending listing of size %ld\n", fh->size);
 
 	if(!(buf = malloc(2048)))
 		return -1;
@@ -301,7 +301,7 @@ static int faimtest_getfile_listingreq(aim_session_t *sess, aim_frame_t *fr, ...
 		return 0;
 	}
 
-	dprintf("faimtest: sent listing\n");
+	dprintf("sent listing\n");
 	free(buf);
 
 	return 0;
@@ -320,7 +320,7 @@ static int faimtest_getfile_receive(aim_session_t *sess, aim_frame_t *fr, ...)
 	ft = va_arg(ap, struct aim_filetransfer_priv *);
 	va_end(ap);
 
-	dvprintf("faimtest: receiving %ld bytes of file data for %s:\n\t", ft->fh.size, ft->fh.name);
+	dvprintf("receiving %ld bytes of file data for %s:\n\t", ft->fh.size, ft->fh.name);
 
 	for(pos = 0; pos < ft->fh.size; pos++) {
 		read(conn->fd, &data, 1);
@@ -374,7 +374,7 @@ static int faimtest_getfile_initiate(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	priv = (struct aim_filetransfer_priv *)conn->priv;
 
-	dvprintf("faimtest: getfile: %s (%s) connected to us on %d\n", priv->sn, priv->ip, conn->fd);
+	dvprintf("getfile: %s (%s) connected to us on %d\n", priv->sn, priv->ip, conn->fd);
 
 	return 1;
 }
@@ -384,7 +384,7 @@ void getfile_start(aim_session_t *sess, aim_conn_t *conn, const char *sn)
 	aim_conn_t *newconn;
 
 	newconn = aim_getfile_initiate(sess, conn, sn);
-	dvprintf("faimtest: getting file listing from %s\n", sn);
+	dvprintf("getting file listing from %s\n", sn);
 	aim_conn_addhandler(sess, newconn,  AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEINITIATE, faimtest_getfile_initiate,0);
 
 	return;
@@ -396,7 +396,7 @@ void getfile_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *us
 	aim_conn_t *newconn;
 	struct aim_fileheader_t *fh;
 
-	dvprintf("faimtest: get file request from %s (at %s) %x\n", userinfo->sn, args->info.getfile.ip, args->reqclass);
+	dvprintf("get file request from %s (at %s) %x\n", userinfo->sn, args->info.getfile.ip, args->reqclass);
 
 	fh = aim_getlisting(sess, priv->listingfile);
 
@@ -406,7 +406,7 @@ void getfile_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *us
 
 	if ( (!newconn) || (newconn->fd == -1) ) {
 
-		dprintf("faimtest: getfile: requestconn: apparent error in accepttransfer\n");
+		dprintf("getfile: requestconn: apparent error in accepttransfer\n");
 
 		if (newconn)
 			aim_conn_kill(sess, &newconn);
@@ -422,7 +422,7 @@ void getfile_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *us
 
 	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEDISCONNECT, faimtest_getfile_disconnect, 0);      
 
-	dprintf("faimtest: getfile connect succeeded, handlers added.\n");
+	dprintf("getfile connect succeeded, handlers added.\n");
 
 	return;
 }
@@ -431,7 +431,7 @@ void directim_start(aim_session_t *sess, const char *sn)
 {
 	aim_conn_t *newconn;
 
-	printf("faimtest: opening directim to %s\n", sn);
+	printf("opening directim to %s\n", sn);
  	
 	newconn = aim_directim_initiate(sess, sn);
 
@@ -452,13 +452,13 @@ void directim_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *u
 {
 	aim_conn_t *newconn;
 
-	dvprintf("faimtest: OFT: DirectIM: request from %s (%s)\n", userinfo->sn, args->info.imimage.ip);
+	dvprintf("OFT: DirectIM: request from %s (%s)\n", userinfo->sn, args->info.imimage.ip);
 
 	newconn = aim_directim_connect(sess, userinfo->sn, args->info.imimage.ip, args->cookie);
 
 	if (!newconn || (newconn->fd == -1)) {
 
-		dprintf("faimtest: icbm: imimage: could not connect\n");
+		dprintf("icbm: imimage: could not connect\n");
 
 		if (newconn)
 			aim_conn_kill(sess, &newconn);
@@ -468,7 +468,7 @@ void directim_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *u
 		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, directim_incoming, 0);
 		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, directim_typing, 0);
 
-		dvprintf("faimtest: OFT: DirectIM: connected to %s\n", userinfo->sn);
+		dvprintf("OFT: DirectIM: connected to %s\n", userinfo->sn);
 
 		aim_send_im_direct(sess, newconn, "goodday");
 	}

@@ -12,9 +12,9 @@ static int faimtest_chat_join(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("faimtest: chat: %s:  New occupants have joined:\n", (char *)fr->conn->priv);
+	dvprintf("chat: %s:  New occupants have joined:\n", (char *)fr->conn->priv);
 	for (i = 0; i < count; i++)
-		dvprintf("faimtest: chat: %s: \t%s\n", (char *)fr->conn->priv, userinfo[i].sn);
+		dvprintf("chat: %s: \t%s\n", (char *)fr->conn->priv, userinfo[i].sn);
 
 	return 1;
 }
@@ -30,10 +30,10 @@ static int faimtest_chat_leave(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("faimtest: chat: %s:  Some occupants have left:\n", (char *)fr->conn->priv);
+	dvprintf("chat: %s:  Some occupants have left:\n", (char *)fr->conn->priv);
 
 	for (i = 0; i < count; i++)
-		dvprintf("faimtest: chat: %s: \t%s\n", (char *)fr->conn->priv, userinfo[i].sn);
+		dvprintf("chat: %s: \t%s\n", (char *)fr->conn->priv, userinfo[i].sn);
 
 	return 1;
 }
@@ -46,7 +46,7 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 	char *roomname;
 	int usercount, i;
 	char *roomdesc;
-	fu16_t unknown_c9, unknown_d2, unknown_d5, maxmsglen, maxvisiblemsglen;
+	fu16_t flags, unknown_d2, unknown_d5, maxmsglen, maxvisiblemsglen;
 	fu32_t creationtime;
 	const char *croomname = (const char *)fr->conn->priv;
 
@@ -56,7 +56,7 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 	usercount = va_arg(ap, int);
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	roomdesc = va_arg(ap, char *);
-	unknown_c9 = (fu16_t)va_arg(ap, unsigned int);
+	flags = (fu16_t)va_arg(ap, unsigned int);
 	creationtime = va_arg(ap, fu32_t);
 	maxmsglen = (fu16_t)va_arg(ap, unsigned int);
 	unknown_d2 = (fu16_t)va_arg(ap, unsigned int);
@@ -64,21 +64,26 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 	maxvisiblemsglen = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
-	dvprintf("faimtest: chat: %s:  info update:\n", croomname);
-	dvprintf("faimtest: chat: %s:  \tRoominfo: {%04x, %s, %04x}\n", croomname, roominfo->exchange, roominfo->name, roominfo->instance);
-	dvprintf("faimtest: chat: %s:  \tRoomname: %s\n", croomname, roomname);
-	dvprintf("faimtest: chat: %s:  \tRoomdesc: %s\n", croomname, roomdesc);
-	dvprintf("faimtest: chat: %s:  \tOccupants: (%d)\n", croomname, usercount);
+	dvprintf("chat: %s:  info update:\n", croomname);
+	dvprintf("chat: %s:  \tRoominfo: {%04x, %s, %04x}\n", croomname, roominfo->exchange, roominfo->name, roominfo->instance);
+	dvprintf("chat: %s:  \tRoomname: %s\n", croomname, roomname);
+	dvprintf("chat: %s:  \tRoomdesc: %s\n", croomname, roomdesc);
+	dvprintf("chat: %s:  \tOccupants: (%d)\n", croomname, usercount);
 
 	for (i = 0; i < usercount; i++)
-		dvprintf("faimtest: chat: %s:  \t\t%s\n", croomname, userinfo[i].sn);
+		dvprintf("chat: %s:  \t\t%s\n", croomname, userinfo[i].sn);
 
-	dvprintf("faimtest: chat: %s:  \tUnknown_c9: 0x%04x\n", croomname, unknown_c9);
-	dvprintf("faimtest: chat: %s:  \tCreation time: %lu (time_t)\n", croomname, creationtime);
-	dvprintf("faimtest: chat: %s:  \tUnknown_d2: 0x%04x\n", croomname, unknown_d2);
-	dvprintf("faimtest: chat: %s:  \tUnknown_d5: 0x%02x\n", croomname, unknown_d5);
-	dvprintf("faimtest: chat: %s:  \tMax message length: %d bytes\n", croomname, maxmsglen);
-	dvprintf("faimtest: chat: %s:  \tMax visible message length: %d bytes\n", croomname, maxvisiblemsglen);
+	dvprintf("chat: %s:  \tRoom flags: 0x%04x (%s%s%s%s)\n", 
+			croomname, flags,
+			(flags & AIM_CHATROOM_FLAG_EVILABLE) ? "Evilable, " : "",
+			(flags & AIM_CHATROOM_FLAG_NAV_ONLY) ? "Nav Only, " : "",
+			(flags & AIM_CHATROOM_FLAG_INSTANCING_ALLOWED) ? "Instancing allowed, " : "",
+			(flags & AIM_CHATROOM_FLAG_OCCUPANT_PEEK_ALLOWED) ? "Occupant peek allowed, " : "");
+	dvprintf("chat: %s:  \tCreation time: %lu (time_t)\n", croomname, creationtime);
+	dvprintf("chat: %s:  \tUnknown_d2: 0x%04x\n", croomname, unknown_d2);
+	dvprintf("chat: %s:  \tUnknown_d5: 0x%02x\n", croomname, unknown_d5);
+	dvprintf("chat: %s:  \tMax message length: %d bytes\n", croomname, maxmsglen);
+	dvprintf("chat: %s:  \tMax visible message length: %d bytes\n", croomname, maxvisiblemsglen);
 
 	return 1;
 }
@@ -95,7 +100,7 @@ static int faimtest_chat_incomingmsg(aim_session_t *sess, aim_frame_t *fr, ...)
 	msg = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("faimtest: chat: %s: incoming msg from %s: %s\n", (char *)fr->conn->priv, userinfo->sn, msg);
+	dvprintf("chat: %s: incoming msg from %s: %s\n", (char *)fr->conn->priv, userinfo->sn, msg);
 
 	/*
 	 * Do an echo for testing purposes.  But not for ourselves ("oops!")
@@ -126,16 +131,21 @@ static int faimtest_chatnav_info(aim_session_t *sess, aim_frame_t *fr, ...)
 		exchanges = va_arg(ap, struct aim_chat_exchangeinfo *);
 		va_end(ap);
 
-		dprintf("faimtest: chat info: Chat Rights:\n");
-		dvprintf("faimtest: chat info: \tMax Concurrent Rooms: %d\n", maxrooms);
+		dprintf("chat info: Chat Rights:\n");
+		dvprintf("chat info: \tMax Concurrent Rooms: %d\n", maxrooms);
 
-		dvprintf("faimtest: chat info: \tExchange List: (%d total)\n", exchangecount);
+		dvprintf("chat info: \tExchange List: (%d total)\n", exchangecount);
 		for (i = 0; i < exchangecount; i++) {
-			dvprintf("faimtest: chat info: \t\t%x: %s (%s/%s)\n", 
-			exchanges[i].number,	
+			dvprintf("chat info: \t\t%x: %s (%s/%s) (0x%04x = %s%s%s%s)\n", 
+			exchanges[i].number,
 			exchanges[i].name,
 			exchanges[i].charset1,
-			exchanges[i].lang1);
+			exchanges[i].lang1,
+			exchanges[i].flags,
+			(exchanges[i].flags & AIM_CHATROOM_FLAG_EVILABLE) ? "Evilable, " : "",
+			(exchanges[i].flags & AIM_CHATROOM_FLAG_NAV_ONLY) ? "Nav Only, " : "",
+			(exchanges[i].flags & AIM_CHATROOM_FLAG_INSTANCING_ALLOWED) ? "Instancing allowed, " : "",
+			(exchanges[i].flags & AIM_CHATROOM_FLAG_OCCUPANT_PEEK_ALLOWED) ? "Occupant peek allowed, " : "");
 		}
 
 	} else if (type == 0x0008) {
@@ -157,11 +167,11 @@ static int faimtest_chatnav_info(aim_session_t *sess, aim_frame_t *fr, ...)
 		ck = va_arg(ap, char *);
 		va_end(ap);
 
-		dvprintf("faimtest: received room create reply for %s/0x%04x\n", fqcn, exchange);
+		dvprintf("received room create reply for %s/0x%04x\n", fqcn, exchange);
 
 	} else {
 		va_end(ap);
-		dvprintf("faimtest: chatnav info: unknown type (%04x)\n", type);
+		dvprintf("chatnav info: unknown type (%04x)\n", type);
 	}
 
 	return 1;
@@ -200,7 +210,7 @@ void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, ip);
 	if (!tstconn || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
-		dprintf("faimtest: unable to connect to chat(nav) server\n");
+		dprintf("unable to connect to chat(nav) server\n");
 		if (tstconn)
 			aim_conn_kill(sess, &tstconn);
 		return;
@@ -223,12 +233,12 @@ void chat_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie, con
 
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
 	if (!tstconn || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
-		dprintf("faimtest: unable to connect to chat server\n");
+		dprintf("unable to connect to chat server\n");
 		if (tstconn) 
 			aim_conn_kill(sess, &tstconn);
 		return; 
 	}		
-	dvprintf("faimtest: chat: connected to %s on exchange %d\n", roomname, exchange);
+	dvprintf("chat: connected to %s on exchange %d\n", roomname, exchange);
 
 	/*
 	 * We must do this to attach the stored name to the connection!

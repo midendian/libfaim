@@ -919,8 +919,15 @@ faim_export int aim_remove_buddy(aim_session_t *, aim_conn_t *, const char *);
 /* aim_search.c */
 faim_export int aim_usersearch_address(aim_session_t *, aim_conn_t *, const char *);
 
+/* These apply to exchanges as well. */
+#define AIM_CHATROOM_FLAG_EVILABLE 0x0001
+#define AIM_CHATROOM_FLAG_NAV_ONLY 0x0002
+#define AIM_CHATROOM_FLAG_INSTANCING_ALLOWED 0x0004
+#define AIM_CHATROOM_FLAG_OCCUPANT_PEEK_ALLOWED 0x0008
+
 struct aim_chat_exchangeinfo {
 	fu16_t number;
+	fu16_t flags;
 	char *name;
 	char *charset1;
 	char *lang1;

@@ -93,12 +93,21 @@ static int parseinfo_perms(aim_session_t *sess, aim_module_t *mod, aim_frame_t *
 		aim_bstream_init(&tbs, exchangetlv->value, exchangetlv->length);
 
 		curexchange++;
-	
+
 		exchanges = realloc(exchanges, curexchange * sizeof(struct aim_chat_exchangeinfo));
 
 		/* exchange number */
 		exchanges[curexchange-1].number = aimbs_get16(&tbs);
 		innerlist = aim_readtlvchain(&tbs);
+
+		/* 
+		 * Type 0x000a: Unknown.
+		 *
+		 * Usually three bytes: 0x0114 (exchange 1) or 0x010f (others).
+		 *
+		 */
+		if (aim_gettlv(innerlist, 0x000a, 1))
+			;
 
 		/* 
 		 * Type 0x000d: Unknown.
@@ -124,10 +133,16 @@ static int parseinfo_perms(aim_session_t *sess, aim_module_t *mod, aim_frame_t *
 		}
 
 		/*
-		 * Type 0x00c9: Unknown
+		 * Type 0x00c9: Flags
+		 *
+		 * 1 Evilable
+		 * 2 Nav Only
+		 * 4 Instancing Allowed
+		 * 8 Occupant Peek Allowed
+		 *
 		 */ 
 		if (aim_gettlv(innerlist, 0x00c9, 1))
-			;
+			exchanges[curexchange-1].flags = aim_gettlv16(innerlist, 0x00c9, 1);
 		      
 		/*
 		 * Type 0x00ca: Creation Date 
@@ -154,12 +169,18 @@ static int parseinfo_perms(aim_session_t *sess, aim_module_t *mod, aim_frame_t *
 			;
 
 		/*
-		 * Type 0x00d3: Exchange Name
+		 * Type 0x00d3: Exchange Description
 		 */
 		if (aim_gettlv(innerlist, 0x00d3, 1))	
 			exchanges[curexchange-1].name = aim_gettlv_str(innerlist, 0x00d3, 1);
 		else
 			exchanges[curexchange-1].name = NULL;
+
+		/*
+		 * Type 0x00d4: Exchange Description URL
+		 */
+		if (aim_gettlv(innerlist, 0x00d4, 1))	
+			;
 
 		/*
 		 * Type 0x00d5: Creation Permissions
@@ -207,6 +228,12 @@ static int parseinfo_perms(aim_session_t *sess, aim_module_t *mod, aim_frame_t *
 		else
 			exchanges[curexchange-1].lang2 = NULL;
 		      
+		/*
+		 * Type 0x00da: Unknown
+		 */
+		if (aim_gettlv(innerlist, 0x00da, 1))	
+			;
+
 		aim_freetlvchain(&innerlist);
 	}
 

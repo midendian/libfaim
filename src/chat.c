@@ -371,7 +371,7 @@ static int infoupdate(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 	fu16_t tlvcount = 0;
 	aim_tlvlist_t *tlvlist;
 	char *roomdesc = NULL;
-	fu16_t unknown_c9 = 0;
+	fu16_t flags = 0;
 	fu32_t creationtime = 0;
 	fu16_t maxmsglen = 0, maxvisiblemsglen = 0;
 	fu16_t unknown_d2 = 0, unknown_d5 = 0;
@@ -424,10 +424,10 @@ static int infoupdate(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 	}
 
 	/* 
-	 * Type 0x00c9: Unknown. (2 bytes)
+	 * Type 0x00c9: Flags. (AIM_CHATROOM_FLAG)
 	 */
 	if (aim_gettlv(tlvlist, 0x00c9, 1))
-		unknown_c9 = aim_gettlv16(tlvlist, 0x00c9, 1);
+		flags = aim_gettlv16(tlvlist, 0x00c9, 1);
 
 	/* 
 	 * Type 0x00ca: Creation time (4 bytes)
@@ -504,7 +504,7 @@ static int infoupdate(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 				usercount,
 				userinfo,	
 				roomdesc,
-				unknown_c9,
+				flags,
 				creationtime,
 				maxmsglen,
 				unknown_d2,
