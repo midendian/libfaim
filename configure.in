@@ -3,7 +3,7 @@ AC_INIT(src/service.c)
 AM_INIT_AUTOMAKE(libfaim, 0.99.3)
 
 AC_PREFIX_DEFAULT(/usr)
-AM_CONFIG_HEADER(include/libfaim_config.h)
+AM_CONFIG_HEADER(config.h)
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -32,6 +32,7 @@ dnl Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h)
+AC_CHECK_FUNCS(getaddrinfo)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

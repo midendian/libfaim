@@ -14,3 +14,8 @@ missing
 mkinstalldirs
 ltconfig
 depcomp
+config.h
+config.h.in
+stamp-h
+stamp-h.in
+stamp-h1
