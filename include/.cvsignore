@@ -5,3 +5,5 @@ Makefile
 libfaim_config.h
 stamp-h
 stamp-h1
+config.h.in
+config.h
