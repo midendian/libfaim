@@ -61,5 +61,6 @@ AC_OUTPUT([
 	src/Makefile
 	utils/Makefile
 	utils/faimtest/Makefile
+	libfaim.spec
 ])
 

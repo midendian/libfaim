@@ -1,0 +1,45 @@
+%define name       @PACKAGE@
+%define version    @VERSION@
+%define release    1
+%define serial     1
+%define prefix     /usr
+%define sysconfdir /etc
+
+Summary:	Library for accessing the AOL Instant Messenger network.
+Name:		%{name}
+Version:	%{version}
+Release:	%{release}
+Serial:		%{serial}
+Copyright:	LGPL
+Group:		Applications/Internet
+Vendor:		ActiveBuddy, Inc.
+Url:		http://www.activebuddy.com/
+Source:		%{name}-%{version}.tar.gz
+Packager:	ActiveBuddy, Inc.
+BuildRoot:	/var/tmp/%{name}-%{version}-root
+
+%description
+libfaim.
+
+%prep
+%setup
+
+%build
+CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%{prefix}
+make
+if [ -d $RPM_BUILD_ROOT ]; then rm -r $RPM_BUILD_ROOT; fi;
+mkdir -p $RPM_BUILD_ROOT%{prefix}
+make prefix=$RPM_BUILD_ROOT%{prefix} install
+
+%install
+make DESTDIR=$RPM_BUILD_ROOT prefix=%{prefix} sysconfdir=%{sysconfdir} install
+
+%files
+%defattr(-,root,root)
+%{prefix}/lib/libfaim.so*
+%{prefix}/bin/faimtest
+%doc README AUTHORS BUGS CHANGES
+
+%clean
+rm -r $RPM_BUILD_ROOT
+
