@@ -380,14 +380,24 @@ typedef struct {
 	fu32_t membersince;
 	fu32_t onlinesince;
 	fu32_t sessionlen; 
-	int capspresent;
 	fu32_t capabilities;
 	struct {
 		fu32_t status;
 		fu32_t ipaddr;
 		fu8_t crap[0x25]; /* until we figure it out... */
 	} icqinfo;
+	fu32_t present;
 } aim_userinfo_t;
+
+#define AIM_USERINFO_PRESENT_FLAGS        0x00000001
+#define AIM_USERINFO_PRESENT_MEMBERSINCE  0x00000002
+#define AIM_USERINFO_PRESENT_ONLINESINCE  0x00000004
+#define AIM_USERINFO_PRESENT_IDLE         0x00000008
+#define AIM_USERINFO_PRESENT_ICQEXTSTATUS 0x00000010
+#define AIM_USERINFO_PRESENT_ICQIPADDR    0x00000020
+#define AIM_USERINFO_PRESENT_ICQDATA      0x00000040
+#define AIM_USERINFO_PRESENT_CAPABILITIES 0x00000080
+#define AIM_USERINFO_PRESENT_SESSIONLEN   0x00000100
 
 faim_export const char *aim_userinfo_sn(aim_userinfo_t *ui);
 faim_export fu16_t aim_userinfo_flags(aim_userinfo_t *ui);

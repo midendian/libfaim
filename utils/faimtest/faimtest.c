@@ -893,7 +893,7 @@ static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	dvprintf("userinfo: membersince: %lu\n", userinfo->membersince);
 	dvprintf("userinfo: onlinesince: %lu\n", userinfo->onlinesince);
 	dvprintf("userinfo: idletime: 0x%04x\n", userinfo->idletime);
-	dvprintf("userinfo: capabilities = %s = 0x%08lx\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
+	dvprintf("userinfo: capabilities = %s = 0x%08lx\n", (userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present", userinfo->capabilities);
 
 
 	if (inforeq == AIM_GETINFO_GENERALINFO) {
@@ -1221,7 +1221,7 @@ static int faimtest_parse_incoming_im_chan1(aim_session_t *sess, aim_conn_t *con
 	dvprintf("icbm: membersince = %lu\n", userinfo->membersince);
 	dvprintf("icbm: onlinesince = %lu\n", userinfo->onlinesince);
 	dvprintf("icbm: idletime = 0x%04x\n", userinfo->idletime);
-	dvprintf("icbm: capabilities = %s = 0x%08lx\n", userinfo->capspresent ? "present" : "not present", userinfo->capabilities);
+	dvprintf("icbm: capabilities = %s = 0x%08lx\n", (userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present", userinfo->capabilities);
 
 	dprintf("icbm: icbmflags = ");
 	if (args->icbmflags & AIM_IMFLAGS_AWAY)
@@ -1442,7 +1442,7 @@ static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 			(userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
 			(userinfo->flags&AIM_FLAG_ICQ)?" ICQ":"",
 			(userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
-			userinfo->capspresent ? "present" : "not present",
+			(userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present",
 			userinfo->capabilities);
 	return 1;
 }
@@ -1467,7 +1467,7 @@ static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 			 (userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
 			 (userinfo->flags&AIM_FLAG_ICQ)?" ICQ":"",
 			 (userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
-			 userinfo->capspresent ? "present" : "not present",
+			 (userinfo->present & AIM_USERINFO_PRESENT_CAPABILITIES) ? "present" : "not present",
 			 userinfo->capabilities);
 
 	return 1;
