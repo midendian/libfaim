@@ -1751,6 +1751,25 @@ static int faimtest_parse_searcherror(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
+static int handlepopup(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	char *msg, *url;
+	fu16_t width, height, delay;
+
+	va_start(ap, fr);
+	msg = va_arg(ap, char *);
+	url = va_arg(ap, char *);
+	width = va_arg(ap, unsigned int);
+	height = va_arg(ap, unsigned int);
+	delay = va_arg(ap, unsigned int);
+	va_end(ap);
+
+	dvprintf("popup: (%dx%x:%d) %s (%s)\n", width, height, delay, msg, url);
+
+	return 1;
+}
+
 static int serverpause(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 
@@ -1847,6 +1866,7 @@ void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0003, ssirights, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0006, ssidata, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x000f, ssidatanochange, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0008, 0x0002, handlepopup, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp_bos, 0); /* rate info */
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
