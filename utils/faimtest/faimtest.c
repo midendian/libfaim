@@ -592,6 +592,8 @@ static int faimtest_bosrights(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	dprintf("officially connected to BOS.\n");
 
+	aim_icq_reqofflinemsgs(sess);
+
 	return 1;
 }
 
@@ -1803,6 +1805,35 @@ static int ssidatanochange(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
+static int offlinemsg(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	struct aim_icq_offlinemsg *msg;
+
+	va_start(ap, fr);
+	msg = va_arg(ap, struct aim_icq_offlinemsg *);
+	va_end(ap);
+
+	if (msg->type == 0x0001) {
+
+		dvprintf("offline message from %ld at %d/%d/%d %02d:%02d : %s\n", msg->sender, msg->year, msg->month, msg->day, msg->hour, msg->minute, msg->msg);
+
+	} else {
+		dvprintf("unknown offline message type 0x%04x\n", msg->type);
+	}
+
+	return 1;
+}
+
+static int offlinemsgdone(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+
+	/* Tell the server to delete them. */
+	aim_icq_ackofflinemsgs(sess);
+
+	return 1;
+}
+
 void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 {
 
@@ -1840,6 +1871,8 @@ void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 	aim_conn_addhandler(sess, bosconn, 0x0009, 0x0001, faimtest_parse_genericerr, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0001, 0x000b, serverpause, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0001, 0x0012, migrate, 0);
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ICQ, AIM_CB_ICQ_OFFLINEMSG, offlinemsg, 0);
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ICQ, AIM_CB_ICQ_OFFLINEMSGCOMPLETE, offlinemsgdone, 0);
 	
 #ifdef MID_REWROTE_ALL_THE_CRAP
 	aim_conn_addhandler(sess, bosconn, 0xffff, 0xffff, faimtest_parse_unknown, 0);
