@@ -370,7 +370,7 @@ static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	aim_reqpersonalinfo(sess, fr->conn);
 	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_EVERYBUDDY);
+	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST | AIM_CAPS_ICQ);
 	aim_bos_reqbuddyrights(sess, fr->conn);
 
 	/* send the buddy list and profile (required, even if empty) */
@@ -868,8 +868,8 @@ static void printuserflags(fu16_t flags)
 		dinlineprintf("FREE ");
 	if (flags & AIM_FLAG_AWAY)
 		dinlineprintf("AWAY ");
-	if (flags & AIM_FLAG_UNKNOWN40)
-		dinlineprintf("ICQ? ");
+	if (flags & AIM_FLAG_ICQ)
+		dinlineprintf("ICQ ");
 	if (flags & AIM_FLAG_UNKNOWN80)
 		dinlineprintf("UNKNOWN80 ");
 	if (flags & AIM_FLAG_ACTIVEBUDDY)
@@ -1429,7 +1429,7 @@ static int faimtest_parse_oncoming(aim_session_t *sess, aim_frame_t *fr, ...)
 			(userinfo->flags&AIM_FLAG_OSCAR_PAY)?" OSCAR_PAY":"",
 			(userinfo->flags&AIM_FLAG_FREE)?" FREE":"",
 			(userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
-			(userinfo->flags&AIM_FLAG_UNKNOWN40)?" UNKNOWN40":"",
+			(userinfo->flags&AIM_FLAG_ICQ)?" ICQ":"",
 			(userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
 			userinfo->capspresent ? "present" : "not present",
 			userinfo->capabilities);
@@ -1454,7 +1454,7 @@ static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 			 (userinfo->flags&AIM_FLAG_OSCAR_PAY)?" OSCAR_PAY":"",
 			 (userinfo->flags&AIM_FLAG_FREE)?" FREE":"",
 			 (userinfo->flags&AIM_FLAG_AWAY)?" AWAY":"",
-			 (userinfo->flags&AIM_FLAG_UNKNOWN40)?" UNKNOWN40":"",
+			 (userinfo->flags&AIM_FLAG_ICQ)?" ICQ":"",
 			 (userinfo->flags&AIM_FLAG_UNKNOWN80)?" UNKNOWN80":"",
 			 userinfo->capspresent ? "present" : "not present",
 			 userinfo->capabilities);
@@ -1603,7 +1603,7 @@ static int faimtest_parse_ratechange(aim_session_t *sess, aim_frame_t *fr, ...)
 				alert, clear,
 				limit, disconnect,
 				windowsize);
-
+#if 0
 	if (code == AIM_RATE_CODE_CHANGE) {
 		/*
 		 * Not real sure when these get sent.
@@ -1635,7 +1635,7 @@ static int faimtest_parse_ratechange(aim_session_t *sess, aim_frame_t *fr, ...)
 		 */
 		aim_conn_setlatency(fr->conn, 0); 
 	}
-
+#endif
 	return 1;
 }
 
