@@ -483,21 +483,29 @@ faim_internal int aim_putuserinfo(aim_bstream_t *bs, aim_userinfo_t *info)
 	aimbs_put16(bs, info->warnlevel);
 
 
-	aim_addtlvtochain16(&tlvlist, 0x0001, info->flags);
-	aim_addtlvtochain32(&tlvlist, 0x0002, info->membersince);
-	aim_addtlvtochain32(&tlvlist, 0x0003, info->onlinesince);
-	aim_addtlvtochain16(&tlvlist, 0x0004, info->idletime);
+	if (info->present & AIM_USERINFO_PRESENT_FLAGS)
+		aim_addtlvtochain16(&tlvlist, 0x0001, info->flags);
+	if (info->present & AIM_USERINFO_PRESENT_MEMBERSINCE)
+		aim_addtlvtochain32(&tlvlist, 0x0002, info->membersince);
+	if (info->present & AIM_USERINFO_PRESENT_ONLINESINCE)
+		aim_addtlvtochain32(&tlvlist, 0x0003, info->onlinesince);
+	if (info->present & AIM_USERINFO_PRESENT_IDLE)
+		aim_addtlvtochain16(&tlvlist, 0x0004, info->idletime);
 
 #if ICQ_OSCAR_SUPPORT
 	if (atoi(info->sn) != 0) {
-		aim_addtlvtochain16(&tlvlist, 0x0006, info->icqinfo.status);
-		aim_addtlvtochain32(&tlvlist, 0x000a, info->icqinfo.ipaddr);
+		if (info->present & AIM_USERINFO_PRESENT_ICQEXTSTATUS)
+			aim_addtlvtochain16(&tlvlist, 0x0006, info->icqinfo.status);
+		if (info->present & AIM_USERINFO_PRESENT_ICQIPADDR)
+			aim_addtlvtochain32(&tlvlist, 0x000a, info->icqinfo.ipaddr);
 	}
 #endif
 
-	aim_addtlvtochain_caps(&tlvlist, 0x000d, info->capabilities);
+	if (info->present & AIM_USERINFO_PRESENT_CAPABILITIES)
+		aim_addtlvtochain_caps(&tlvlist, 0x000d, info->capabilities);
 
-	aim_addtlvtochain32(&tlvlist, (fu16_t)((info->flags & AIM_FLAG_AOL) ? 0x0010 : 0x000f), info->sessionlen);
+	if (info->present & AIM_USERINFO_PRESENT_SESSIONLEN)
+		aim_addtlvtochain32(&tlvlist, (fu16_t)((info->flags & AIM_FLAG_AOL) ? 0x0010 : 0x000f), info->sessionlen);
 
 	aimbs_put16(bs, aim_counttlvchain(&tlvlist));
 	aim_writetlvchain(bs, &tlvlist);
