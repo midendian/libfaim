@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Wed Mar 28 21:20:08 PST 2001
+  - Add flags arg to aim_chat_send_im()
+  - Add msglen arg to aim_send_im and aim_chat_send_im
+     - This will make more sense when I make the UNICODE commit (tomorrow?)
+
  - Wed Mar 28 16:51:25 PST 2001
   - I decided it was a good day while I was figuring out that it was a bad day.
   - See faimtest and login.c::memrequest().

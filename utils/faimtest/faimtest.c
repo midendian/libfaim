@@ -260,7 +260,7 @@ int logout(void)
 {
 
   if (ohcaptainmycaptain)
-    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...");
+    aim_send_im(&aimsess, aim_getconn_type(&aimsess, AIM_CONN_TYPE_BOS), ohcaptainmycaptain, 0, "ta ta...", strlen("ta ta..."));
 
   aim_session_kill(&aimsess);
 
@@ -1037,7 +1037,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
   } else if (strstr(tmpstr, "goodday")) {
 
-      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.");
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "Good day to you too.", strlen("Good day to you too."));
 
   } else if (strstr(tmpstr, "warnme")) {
 
@@ -1063,7 +1063,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
     if (!ohcaptainmycaptain) {
 
-      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!");
+      aim_send_im(sess, command->conn, userinfo->sn, AIM_IMFLAGS_ACK, "I have no owner!", strlen("I have no owner!"));
 
     } else {
       struct aim_conn_t *newconn;
@@ -1117,7 +1117,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 
   } else if (!strncmp(tmpstr, "reqsendmsg", 10)) {
 
-    aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900");
+    aim_send_im(sess, command->conn, ohcaptainmycaptain, 0, "sendmsg 7900", strlen("sendmsg 7900"));
 
   } else if (!strncmp(tmpstr, "reqauth", 7)) {
 
@@ -1151,7 +1151,7 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
 	newbuf[z] = (z % 10)+0x30;
       }
       newbuf[i] = '\0';
-      aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf);
+      aim_send_im(sess, command->conn, userinfo->sn, 0, newbuf, strlen(newbuf));
       free(newbuf);
     }
 
@@ -1803,7 +1803,7 @@ int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_stru
   if (strcmp(userinfo->sn, sess->sn) != 0)
     {
       sprintf(tmpbuf, "(%s said \"%s\")", userinfo->sn, msg);
-      aim_chat_send_im(sess, command->conn, tmpbuf);
+      aim_chat_send_im(sess, command->conn, 0, tmpbuf, strlen(tmpbuf));
     }
 
   return 1;
