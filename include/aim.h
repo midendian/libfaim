@@ -515,6 +515,18 @@ struct aim_authresp_info {
 	struct aim_clientrelease latestbeta;
 };
 
+/* Callback data for redirect. */
+struct aim_redirect_data {
+	fu16_t group;
+	const char *ip;
+	const fu8_t *cookie;
+	struct { /* group == AIM_CONN_TYPE_CHAT */
+		fu16_t exchange;
+		const char *room;
+		fu16_t instance;
+	} chat;
+};
+
 faim_export int aim_clientready(aim_session_t *sess, aim_conn_t *conn);
 faim_export int aim_sendflapver(aim_session_t *sess, aim_conn_t *conn);
 faim_export int aim_request_login(aim_session_t *sess, aim_conn_t *conn, const char *sn);
@@ -939,7 +951,7 @@ struct aim_chat_exchangeinfo {
 #define AIM_CHATFLAGS_AWAY      0x0002
 faim_export int aim_chat_send_im(aim_session_t *sess, aim_conn_t *conn, fu16_t flags, const char *msg, int msglen);
 faim_export int aim_chat_join(aim_session_t *sess, aim_conn_t *conn, fu16_t exchange, const char *roomname, fu16_t instance);
-faim_export int aim_chat_attachname(aim_conn_t *conn, const char *roomname);
+faim_export int aim_chat_attachname(aim_conn_t *conn, fu16_t exchange, const char *roomname, fu16_t instance);
 faim_export char *aim_chat_getname(aim_conn_t *conn);
 faim_export aim_conn_t *aim_chat_getconn(aim_session_t *, const char *name);
 

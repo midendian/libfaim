@@ -471,16 +471,12 @@ static int faimtest_infochange(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	int serviceid;
-	char *ip;
-	fu8_t *cookie;
+	struct aim_redirect_data *redir;
 
 	va_start(ap, fr);
-	serviceid = va_arg(ap, int);
-	ip = va_arg(ap, char *);
-	cookie = va_arg(ap, fu8_t *);
+	redir = va_arg(ap, struct aim_redirect_data *);
 
-	if (serviceid == 0x0005) {  /* Adverts */
+	if (redir->group == 0x0005) {  /* Adverts */
 #if 0
 		aim_conn_t *tstconn;
 
@@ -495,10 +491,10 @@ static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 			dprintf("sent cookie to adverts host\n");
 		}
 #endif
-	} else if (serviceid == 0x0007) {  /* Authorizer */
+	} else if (redir->group == 0x0007) {  /* Authorizer */
 		aim_conn_t *tstconn;
 		
-		tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
+		tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, redir->ip);
 		if (!tstconn || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
 			dprintf("unable to reconnect with authorizer\n");
 		} else {
@@ -509,24 +505,19 @@ static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
 			/* Send the cookie to the Auth */
-			aim_sendcookie(sess, tstconn, cookie);
+			aim_sendcookie(sess, tstconn, redir->cookie);
 			dprintf("sent cookie to authorizer host\n");
 		}
-	} else if (serviceid == 0x000d) {  /* ChatNav */
+	} else if (redir->group == 0x000d) {  /* ChatNav */
 
-		chatnav_redirect(sess, ip, cookie);
+		chatnav_redirect(sess, redir);
 		
-	} else if (serviceid == 0x000e) { /* Chat */
-		char *roomname = NULL;
-		int exchange;
+	} else if (redir->group == 0x000e) { /* Chat */
 
-		roomname = va_arg(ap, char *);
-		exchange = va_arg(ap, int);
-
-		chat_redirect(sess, ip, cookie, roomname, exchange);
+		chat_redirect(sess, redir);
 
 	} else {
-		dvprintf("uh oh... got redirect for unknown service 0x%04x!!\n", serviceid);
+		dvprintf("uh oh... got redirect for unknown service 0x%04x!!\n", redir->group);
 	}
 
 	va_end(ap);
@@ -1462,7 +1453,8 @@ static int faimtest_parse_offgoing(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int faimtest_parse_genericerr(aim_session_t *sess, aim_frame_t *fr, ...)
+/* Used by chat as well. */
+int faimtest_parse_genericerr(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
 	fu16_t reason;

@@ -171,6 +171,8 @@ static void connkill_real(aim_session_t *sess, aim_conn_t **deadconn)
 	 */
 	if ((*deadconn)->type == AIM_CONN_TYPE_RENDEZVOUS)
 		aim_conn_kill_rend(sess, *deadconn);
+	else if ((*deadconn)->type == AIM_CONN_TYPE_CHAT)
+		aim_conn_kill_chat(sess, *deadconn);
 
 	if ((*deadconn)->inside) {
 		aim_conn_inside_t *inside = (aim_conn_inside_t *)(*deadconn)->inside;

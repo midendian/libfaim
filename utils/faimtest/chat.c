@@ -12,9 +12,9 @@ static int faimtest_chat_join(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("chat: %s:  New occupants have joined:\n", (char *)fr->conn->priv);
+	dvprintf("chat: %s:  New occupants have joined:\n", aim_chat_getname(fr->conn));
 	for (i = 0; i < count; i++)
-		dvprintf("chat: %s: \t%s\n", (char *)fr->conn->priv, userinfo[i].sn);
+		dvprintf("chat: %s: \t%s\n", aim_chat_getname(fr->conn), userinfo[i].sn);
 
 	return 1;
 }
@@ -30,10 +30,10 @@ static int faimtest_chat_leave(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, aim_userinfo_t *);
 	va_end(ap);
 
-	dvprintf("chat: %s:  Some occupants have left:\n", (char *)fr->conn->priv);
+	dvprintf("chat: %s:  Some occupants have left:\n", aim_chat_getname(fr->conn));
 
 	for (i = 0; i < count; i++)
-		dvprintf("chat: %s: \t%s\n", (char *)fr->conn->priv, userinfo[i].sn);
+		dvprintf("chat: %s: \t%s\n", aim_chat_getname(fr->conn), userinfo[i].sn);
 
 	return 1;
 }
@@ -48,7 +48,9 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 	char *roomdesc;
 	fu16_t flags, unknown_d2, unknown_d5, maxmsglen, maxvisiblemsglen;
 	fu32_t creationtime;
-	const char *croomname = (const char *)fr->conn->priv;
+	const char *croomname;
+
+	croomname = aim_chat_getname(fr->conn);
 
 	va_start(ap, fr);
 	roominfo = va_arg(ap, struct aim_chat_roominfo *);
@@ -100,7 +102,7 @@ static int faimtest_chat_incomingmsg(aim_session_t *sess, aim_frame_t *fr, ...)
 	msg = va_arg(ap, char *);
 	va_end(ap);
 
-	dvprintf("chat: %s: incoming msg from %s: %s\n", (char *)fr->conn->priv, userinfo->sn, msg);
+	dvprintf("chat: %s: incoming msg from %s: %s\n", aim_chat_getname(fr->conn), userinfo->sn, msg);
 
 	/*
 	 * Do an echo for testing purposes.  But not for ourselves ("oops!")
@@ -186,6 +188,7 @@ static int conninitdone_chat(aim_session_t *sess, aim_frame_t *fr, ...)
 
 		dprintf("chatnav ready\n");
 		
+		aim_conn_addhandler(sess, fr->conn, 0x000d, 0x0001, faimtest_parse_genericerr, 0);
 		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CTN, AIM_CB_CTN_INFO, faimtest_chatnav_info, 0);
 
 		aim_chatnav_reqrights(sess, fr->conn);
@@ -194,6 +197,7 @@ static int conninitdone_chat(aim_session_t *sess, aim_frame_t *fr, ...)
 
 		dprintf("chat ready\n");
 		
+		aim_conn_addhandler(sess, fr->conn, 0x000e, 0x0001, faimtest_parse_genericerr, 0);
 		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERJOIN, faimtest_chat_join, 0);
 		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_USERLEAVE, faimtest_chat_leave, 0);
 		aim_conn_addhandler(sess, fr->conn, AIM_CB_FAM_CHT, AIM_CB_CHT_ROOMINFOUPDATE, faimtest_chat_infoupdate, 0);
@@ -204,11 +208,11 @@ static int conninitdone_chat(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
+void chatnav_redirect(aim_session_t *sess, struct aim_redirect_data *redir)
 {
 	aim_conn_t *tstconn;
 
-	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, ip);
+	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, redir->ip);
 	if (!tstconn || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
 		dprintf("unable to connect to chat(nav) server\n");
 		if (tstconn)
@@ -219,7 +223,7 @@ void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_chat, 0);
 
-	aim_sendcookie(sess, tstconn, cookie);
+	aim_sendcookie(sess, tstconn, redir->cookie);
 
 	dprintf("chatnav: connected\n");
 
@@ -227,28 +231,28 @@ void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 }
 
 /* XXX this needs instance too */
-void chat_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie, const char *roomname, fu16_t exchange)
+void chat_redirect(aim_session_t *sess, struct aim_redirect_data *redir)
 {
 	aim_conn_t *tstconn;
 
-	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
+	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, redir->ip);
 	if (!tstconn || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
 		dprintf("unable to connect to chat server\n");
 		if (tstconn) 
 			aim_conn_kill(sess, &tstconn);
 		return; 
 	}		
-	dvprintf("chat: connected to %s on exchange %d\n", roomname, exchange);
+	dvprintf("chat: connected to %s instance %d on exchange %d\n", redir->chat.room, redir->chat.instance, redir->chat.exchange);
 
 	/*
 	 * We must do this to attach the stored name to the connection!
 	 */
-	aim_chat_attachname(tstconn, roomname);
+	aim_chat_attachname(tstconn, redir->chat.exchange, redir->chat.room, redir->chat.instance);
 
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_chat, 0);
 
-	aim_sendcookie(sess, tstconn, cookie);
+	aim_sendcookie(sess, tstconn, redir->cookie);
 
 	return;	
 }

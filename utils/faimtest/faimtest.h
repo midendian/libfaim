@@ -37,6 +37,7 @@ void cmd_gotkey(void);
 void cmd_uninit(void);
 
 /* faimtest.c */
+int faimtest_parse_genericerr(aim_session_t *sess, aim_frame_t *fr, ...);
 int faimtest_conncomplete(aim_session_t *sess, aim_frame_t *fr, ...);
 int faimtest_flapversion(aim_session_t *sess, aim_frame_t *fr, ...);
 int faimtest_init(void);
@@ -50,8 +51,8 @@ void directim_start(aim_session_t *sess, const char *sn);
 void directim_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *userinfo, struct aim_incomingim_ch2_args *args);
 
 /* chat.c */
-void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie);
-void chat_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie, const char *roomname, fu16_t exchange);
+void chatnav_redirect(aim_session_t *sess, struct aim_redirect_data *redir);
+void chat_redirect(aim_session_t *sess, struct aim_redirect_data *redir);
 
 #define DPRINTF_OUTSTREAM stdout
 #define dprintf(x) { \
