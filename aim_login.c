@@ -253,9 +253,9 @@ int aim_authparse(struct aim_session_t *sess,
    * No matter what, we should have a screen name.
    */
   sn = aim_gettlv_str(tlvlist, 0x0001, 1);
-  memcpy(sess->logininfo.screen_name, sn, strlen(sn));
-  sn[(strlen(sn))] = '\0';
-  
+  strncpy(sess->logininfo.screen_name, sn, strlen(sn));
+  free(sn);
+
   /*
    * Check for an error code.  If so, we should also
    * have an error url.
