@@ -1,0 +1,15 @@
+
+CFLAGS = -Wstrict-prototypes -Wall -I. 
+
+ifdef LIBFAIM_INC
+CFLAGS += -I$(LIBFAIM_INC)
+endif
+
+LDFLAGS = 
+ifdef LIBFAIM_LIB
+LDFLAGS += -lfaim -ldl -L$(LIBFAIM_LIB)
+endif
+
+AR = ar
+RANLIB = ranlib
+

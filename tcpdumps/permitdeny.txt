@@ -1,0 +1,44 @@
+
+-----------------------------
+"Allow only the users below"
+  - midendian
+  - midguru
+
+	2a02 3b8a 001c 
+	0009 0005 0000 0000 0000 
+	  09 6d69 6465 6e64 6961 6e 
+	  07 6d69 6467 7572 75
+
+----------------------------
+"Allow all users to contact me" (logged on as midguru)
+
+ 2a02 3b8d 0012 
+ 0009 0007 0000 0000 0000 
+   07 6d69 6467 7572 75
+
+----------------------------
+"Allow only users on my buddy list" 
+
+
+ 2a02 3b8f 0062 0009
+                         0005 0000 0000 0000 0a4d 6f6f 6e50 5374
+                         6163 6509 6d69 6465 6e64 6961 6e08 5475
+                         6a69 6361 7431 0954 6865 4f72 6254 776f
+                         0a67 726f 6b20 6c69 6e75 7808 6569 6e6d
+                         6f72 6f6e 0864 6970 7574 7338 310a 636c
+                         6172 696e 6574 3137 074d 6964 4775 7275
+
+---------------------------
+"Block all users"
+
+Sending a 0009/0005 with only yourself on it blocks everyone (but yourself).
+
+---------------------------
+"Block the users below"
+  -midendian
+  -midguru
+
+ 2a02 3b94 001c 0009
+                         0007 0000 0000 0000 096d 6964 656e 6469
+                         616e 076d 6964 6775 7275
+
