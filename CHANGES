@@ -1,6 +1,16 @@
 
 No release numbers
 ------------------
+ - Fri Mar 23 01:45:28 UTC 2001
+  - Add AIM_CLIENTINFO_KNOWNGOOD
+  - Fix a few details in aim_send_login (thanks temas)
+  - Prevent aim_rxhandlers from being called recursively
+     - This is something that has been in my PENDING_AIM mailbox for over
+       a year now.  I figured it was trivial enough to throw in.  EveryBuddy
+       wanted it, but I don't remember why.  It should never happen anyway.
+  - Use AIM_CLIENTINFO_KNOWNGOOD
+     - This lets faimtest log in after today's round of AOL being mean.
+
  - Fri Mar 16 23:12:58 UTC 2001
   - Remove one level from aim_rxdispatch()
 

@@ -308,10 +308,15 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 {
   int i = 0;
   struct command_rx_struct *workingPtr = NULL;
+  static int critical = 0;
   
+  if (critical)
+    return 0; /* don't call recursively! */
+
+  critical = 1;
+
   if (sess->queue_incoming == NULL) {
     faimdprintf(sess, 1, "parse_generic: incoming packet queue empty.\n");
-    return 0;
   } else {
     workingPtr = sess->queue_incoming;
     for (i = 0; workingPtr != NULL; workingPtr = workingPtr->next, i++) {
@@ -507,11 +512,6 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
 
       }
-
-      /* Try it raw and see if we can get it to happen... */
-      if (!workingPtr->handled) /* XXX this is probably bad. */
-	workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, family, subtype, workingPtr);
-
     }
   }
 
@@ -522,6 +522,8 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
    * you'll have :)
    */
   aim_purge_rxqueue(sess);
+
+  critical = 0;
   
   return 0;
 }

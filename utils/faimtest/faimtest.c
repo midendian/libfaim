@@ -1570,7 +1570,7 @@ int faimtest_parse_misses(struct aim_session_t *sess, struct command_rx_struct *
 
 int faimtest_parse_login(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  struct client_info_s info = {"faimtest (with SNAC login)", 4, 1, 2010, "us", "en", 0x0004, 0x0000, 0x0000004b}; /* 4.1.2010 */
+  struct client_info_s info = AIM_CLIENTINFO_KNOWNGOOD;
   char *key;
   va_list ap;
   

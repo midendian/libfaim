@@ -137,6 +137,16 @@ faim_export int aim_request_login(struct aim_session_t *sess,
  *   lang = "en"
  *   country = "us"
  *   unknown4a = 0x01
+ *
+ * Latest WinAIM that libfaim can emulate without server-side buddylists:
+ *   clientstring = "AOL Instant Messenger (SM), version 3.5.1670/WIN32"
+ *   major2 = 0x0004
+ *   major =  0x0003
+ *   minor =  0x0005
+ *   minor2 = 0x0000
+ *   build =  0x0686
+ *   unknown =0x0000002a
+ *
  */
 faim_export int aim_send_login (struct aim_session_t *sess,
 				struct aim_conn_t *conn, 
@@ -185,6 +195,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
     curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0003, strlen(clientinfo->clientstring), clientinfo->clientstring);
 
   if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
+
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0016, (unsigned short)clientinfo->major2);
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0017, (unsigned short)clientinfo->major);
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0018, (unsigned short)clientinfo->minor);
@@ -193,7 +204,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
   
     curbyte += aim_puttlv_32(newpacket->data+curbyte, 0x0014, clientinfo->unknown);
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0009, 0x0015);
-    curbyte += aim_puttlv_8(newpacket->data+curbyte, 0x004a, 0x00);
+
   } else {
     /* Use very specific version numbers, to further indicate the hack. */
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0016, 0x010a);
@@ -205,14 +216,14 @@ faim_export int aim_send_login (struct aim_session_t *sess,
   }
 
   if (strlen(clientinfo->country))
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, strlen(clientinfo->country), clientinfo->country);
+    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, strlen(clientinfo->country), clientinfo->country);
   else
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, 2, "us");
+    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, 2, "us");
 
   if (strlen(clientinfo->lang))
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, strlen(clientinfo->lang), clientinfo->lang);
+    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, strlen(clientinfo->lang), clientinfo->lang);
   else
-    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000f, 2, "en");
+    curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x000e, 2, "en");
   
   newpacket->commandlen = curbyte;
 

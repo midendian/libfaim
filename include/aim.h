@@ -169,6 +169,18 @@ struct client_info_s {
   long unknown;
 };
 
+#define AIM_CLIENTINFO_KNOWNGOOD { \
+  "AOL Instant Messenger (SM), version 3.5.1670/WIN32", \
+  0x0003, \
+  0x0005, \
+  0x0686, \
+  "us", \
+  "en", \
+  0x0004, \
+  0x0000, \
+  0x0000002a, \
+}
+
 #ifndef TRUE
 #define TRUE 1
 #define FALSE 0
