@@ -427,37 +427,48 @@ void detectaim(struct pcap_pkthdr *hdr, char *pkt)
 	 flap->channel,
 	 flap->seqnum,
 	 flap->len);
-  printf("SNAC:\n");
 
-
-  /* for overrun checking... */
-  for (maxfamily=1;snactypes[maxfamily].family; maxfamily++)
-    ;
-  if (snac->family <= maxfamily)
+  /* jump around flap */
+  pkt += 6;
+  newlen -= 6;
+  
+  if ((snac->family == 0x0000) && (snac->subtype == 0x0001))
     {
-      for (maxsubtype=1;snactypes[snac->family].subtypes[maxsubtype].name; maxsubtype++)
-	;
+      printf("\t\tNo SNAC. ACK only.\n");
     }
-  maxfamily--;
-  maxsubtype--;
+  else
+    {
+      printf("SNAC:\n");
+      
+      /* for overrun checking... */
+      for (maxfamily=1;snactypes[maxfamily].family; maxfamily++)
+	;
+      if (snac->family <= maxfamily)
+	{
+	  for (maxsubtype=1;snactypes[snac->family].subtypes[maxsubtype].name; maxsubtype++)
+	    ;
+	}
+      maxfamily--;
+      maxsubtype--;
+      
+      printf("\tFamily:\t\t0x%04x (%s)\n", 
+	     snac->family,
+	     (snac->family > maxfamily)?"Out of Range":snactypes[snac->family].family);
+      printf("\tSubtype:\t0x%04x (%s)\n",
+	     snac->subtype,
+	     (snac->subtype > maxsubtype)?"Out of Range":snactypes[snac->family].subtypes[snac->subtype].name);
+      printf("\tFlags:\t\t0x%02x,0x%02x\tID:\t0x%08lx\n", snac->flags[0], snac->flags[1], snac->id);
+      
+      /* jump around snac */
+      pkt += 16;
+      newlen -= 16;
 
-  printf("\tFamily:\t\t0x%04x (%s)\n", 
-	 snac->family,
-	 (snac->family > maxfamily)?"Out of Range":snactypes[snac->family].family);
-  printf("\tSubtype:\t0x%04x (%s)\n",
-	 snac->subtype,
-	 (snac->subtype > maxsubtype)?"Out of Range":snactypes[snac->family].subtypes[snac->subtype].name);
-  printf("\tFlags:\t\t0x%02x,0x%02x\tID:\t0x%08lx\n", snac->flags[0], snac->flags[1], snac->id);
-
-  /* jump around flap+snac */
-  pkt += 16;
-  newlen -= 16;
-
-  if (snactypes[snac->family].subtypes[snac->subtype].parser)
-    (*(snactypes[snac->family].subtypes[snac->subtype].parser))((u_char *)pkt, newlen);
-
+      if (snactypes[snac->family].subtypes[snac->subtype].parser)
+	(*(snactypes[snac->family].subtypes[snac->subtype].parser))((u_char *)pkt, newlen);
+    }
+  
   printf("\nRAW:\n");
-
+  
   for (i=0;i<newlen;i+=2)
     {
       if (!((i)%16))
