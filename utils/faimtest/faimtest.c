@@ -64,6 +64,7 @@ int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_stru
 int faimtest_chat_infoupdate(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_chat_leave(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 int faimtest_chat_join(struct aim_session_t *sess, struct command_rx_struct *command, ...);
+int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct *command, ...);
 
 static char *screenname,*password,*server=NULL;
 
@@ -72,7 +73,14 @@ int main(void)
   struct aim_session_t aimsess;
   struct aim_conn_t *authconn = NULL, *waitingconn = NULL;
   int keepgoing = 1, stayconnected = 1;
+
+#if 0
+  /* Use something like this for AIM */
   struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
+#else
+  /* or something exactly like this for ICQ and AIM */
+  struct client_info_s info = {"Random String (libfaim)", 4, 30, 3141, "us", "en"};
+#endif
   int selstat = 0;
 
   aim_session_init(&aimsess);
@@ -389,6 +397,9 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
       aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
+
+      aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, faimtest_parse_connerr, 0);
+
       aim_auth_sendcookie(sess, bosconn, sess->logininfo.cookie);
     }
   return 1;
@@ -399,12 +410,14 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
   struct aim_userinfo_s *userinfo;
   char *prof_encoding = NULL;
   char *prof = NULL;
+  unsigned short inforeq = 0;
 
   va_list ap;
   va_start(ap, command);
   userinfo = va_arg(ap, struct aim_userinfo_s *);
   prof_encoding = va_arg(ap, char *);
   prof = va_arg(ap, char *);
+  inforeq = va_arg(ap, unsigned short);
   va_end(ap);
   
   printf("faimtest: userinfo: sn: %s\n", userinfo->sn);
@@ -439,8 +452,14 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
   printf("faimtest: userinfo: onlinesince: %lu\n", userinfo->onlinesince);
   printf("faimtest: userinfo: idletime: 0x%04x\n", userinfo->idletime);
   
-  printf("faimtest: userinfo: profile_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
-  printf("faimtest: userinfo: prof: %s\n", prof ? prof : "[none]");
+  if (inforeq == AIM_GETINFO_GENERALINFO) {
+    printf("faimtest: userinfo: profile_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
+    printf("faimtest: userinfo: prof: %s\n", prof ? prof : "[none]");
+  } else if (inforeq == AIM_GETINFO_AWAYMESSAGE) {
+    printf("faimtest: userinfo: awaymsg_encoding: %s\n", prof_encoding ? prof_encoding : "[none]");
+    printf("faimtest: userinfo: awaymsg: %s\n", prof ? prof : "[none]");
+  } else 
+    printf("faimtest: userinfo: unknown info request\n");
   
   return 1;
 }
@@ -925,5 +944,21 @@ int faimtest_chatnav_info(struct aim_session_t *sess, struct command_rx_struct *
       va_end(ap);
       printf("faimtest: chatnav info: unknown type (%04x)\n", type);
     }
+  return 1;
+}
+
+int faimtest_parse_connerr(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  unsigned short code;
+  char *msg = NULL;
+
+  ap = va_start(ap, command);
+  code = va_arg(ap, unsigned short);
+  msg = va_arg(ap, char *);
+  va_end(ap);
+
+  printf("faimtest: connerr: Code 0x%04x: %s\n", code, msg);
+
   return 1;
 }
