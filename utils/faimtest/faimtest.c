@@ -509,9 +509,11 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
     case 0x000e: /* Chat */
       {
 	char *roomname = NULL;
+	int exchange;
 	struct aim_conn_t *tstconn = NULL;
 
 	roomname = va_arg(ap, char *);
+	exchange = va_arg(ap, int);
 
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
 	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR))
@@ -520,7 +522,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	    if (tstconn) aim_conn_kill(sess, &tstconn);
 	    return 1;
 	  }		
-	printf("faimtest: chat: connected\n");
+	printf("faimtest: chat: connected to %s on exchange %d\n", roomname, exchange);
 
 	/*
 	 * We must do this to attach the stored name to the connection!
