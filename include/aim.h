@@ -936,6 +936,27 @@ faim_export int aim_chat_invite(aim_session_t *sess, aim_conn_t *conn, const cha
 faim_export int aim_chatnav_createroom(aim_session_t *sess, aim_conn_t *conn, const char *name, fu16_t exchange);
 faim_export int aim_chat_leaveroom(aim_session_t *sess, const char *name);
 
+
+#define AIM_SSI_TYPE_BUDDY         0x0000
+#define AIM_SSI_TYPE_GROUP         0x0001
+#define AIM_SSI_TYPE_PERMITLIST    0x0002
+#define AIM_SSI_TYPE_DENYLIST      0x0003
+#define AIM_SSI_TYPE_PDINFO        0x0004
+#define AIM_SSI_TYPE_PRESENCEPREFS 0x0005
+
+struct aim_ssi_item {
+	char *name;
+	fu16_t gid;
+	fu16_t bid;
+	fu16_t type;
+	void *data;
+	struct aim_ssi_item *next;
+};
+
+faim_export int aim_ssi_reqrights(aim_session_t *sess, aim_conn_t *conn);
+faim_export int aim_ssi_reqdata(aim_session_t *sess, aim_conn_t *conn, time_t localstamp, fu16_t localrev);
+faim_export int aim_ssi_ackdata(aim_session_t *sess, aim_conn_t *conn);
+
 /* aim_util.c */
 /*
  * These are really ugly.  You'd think this was LISP.  I wish it was.

@@ -872,6 +872,7 @@ faim_export void aim_session_init(aim_session_t *sess, fu32_t flags, int debugle
 	aim__registermodule(sess, chatnav_modfirst);
 	aim__registermodule(sess, chat_modfirst);
 	aim__registermodule(sess, locate_modfirst);
+	aim__registermodule(sess, ssi_modfirst);
 	aim__registermodule(sess, general_modfirst);
 
 	return;

@@ -633,6 +633,8 @@ static int faimtest_parse_buddyrights(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	dvprintf("buddy list rights: Max buddies = %d / Max watchers = %d\n", maxbuddies, maxwatchers);
 
+	aim_ssi_reqrights(sess, fr->conn);
+
 	return 1;
 }
 
@@ -1790,11 +1792,62 @@ static int migrate(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
+static int ssirights(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+
+	dprintf("got SSI rights, requesting data\n");
+
+	aim_ssi_reqdata(sess, fr->conn, 0, 0x0000);
+
+	return 1;
+}
+
+static int ssidata(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	va_list ap;
+	fu8_t fmtver;
+	fu16_t rev;
+	fu32_t stamp;
+	struct aim_ssi_item *list, *l;
+
+	va_start(ap, fr);
+	fmtver = va_arg(ap, unsigned int);
+	rev = va_arg(ap, unsigned int);
+	stamp = va_arg(ap, fu32_t);
+	list = va_arg(ap, struct aim_ssi_item *);
+	va_end(ap);
+
+	dprintf("got SSI data:\n");
+	for (l = list; l; l = l->next) {
+		dvprintf("\t0x%04x (%s) - 0x%04x/0x%04x\n",
+				l->type,
+				l->name,
+				l->gid, l->bid);
+	}
+
+	aim_ssi_ackdata(sess, fr->conn);
+
+	return 1;
+}
+
+static int ssidatanochange(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+
+	dprintf("server says we have the latest SSI data already\n");
+
+	aim_ssi_ackdata(sess, fr->conn);
+
+	return 1;
+}
+
 void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 {
 
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 
+	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0003, ssirights, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0006, ssidata, 0);
+	aim_conn_addhandler(sess, bosconn, 0x0013, 0x000f, ssidatanochange, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp_bos, 0); /* rate info */
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);

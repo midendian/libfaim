@@ -43,6 +43,7 @@ faim_internal int chatnav_modfirst(aim_session_t *sess, aim_module_t *mod);
 faim_internal int chat_modfirst(aim_session_t *sess, aim_module_t *mod);
 faim_internal int locate_modfirst(aim_session_t *sess, aim_module_t *mod);
 faim_internal int general_modfirst(aim_session_t *sess, aim_module_t *mod);
+faim_internal int ssi_modfirst(aim_session_t *sess, aim_module_t *mod);
 
 faim_internal int aim_genericreq_n(aim_session_t *, aim_conn_t *conn, fu16_t family, fu16_t subtype);
 faim_internal int aim_genericreq_n_snacid(aim_session_t *, aim_conn_t *conn, fu16_t family, fu16_t subtype);

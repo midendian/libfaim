@@ -20,6 +20,7 @@ libfaim_la_SOURCES =	admin.c		\
 			rxqueue.c	\
 			search.c	\
 			snac.c		\
+			ssi.c		\
 			stats.c		\
 			tlv.c		\
 			txqueue.c	\
