@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Thu May  3 15:47:23 PDT 2001
+  - Clean up getcap/putcaps
+  - Add GAMES2 and SENDBUDDYLIST caps (the latter is new in winaim 4.7beta)
+  - Update hash to latest value
+
  - Wed Apr 25 11:51:39 PDT 2001
   - I think this was a bug.
 
