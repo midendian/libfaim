@@ -797,29 +797,41 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
   return 1;
 }
 
-static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, char *modname)
+static int getaimdata(unsigned char *buf, int buflen, unsigned long offset, const char *modname)
 {
   FILE *f;
+  static const char defaultmod[] = "aim.exe";
+  char *filename = NULL;
 
-  char *filename;
-  int len;
+  if (modname) {
 
-  len = strlen(aimbinarypath)+1+strlen(modname)+1;
+    if (!(filename = malloc(strlen(aimbinarypath)+1+strlen(modname)+4+1))) {
+      dperror("memrequest: malloc");
+      return -1;
+    }
 
-  if(!(filename = malloc(len))) {
-    dperror("memrequest: malloc");
-    return -1;
+    sprintf(filename, "%s/%s.ocm", aimbinarypath, modname);
+
+  } else {
+
+    if (!(filename = malloc(strlen(aimbinarypath)+1+strlen(defaultmod)+1))) {
+      dperror("memrequest: malloc");
+      return -1;
+    }
+
+    sprintf(filename, "%s/%s", aimbinarypath, defaultmod);
+
   }
 
-  memset(filename,0, len);
-  memcpy(filename, aimbinarypath, strlen(aimbinarypath));
-  filename[strlen(filename)] = '/';
-  strncat(filename, modname, len - strlen(filename));
+  dvprintf("memrequest: loading %d bytes from 0x%08lx in \"%s\"...\n", buflen, offset, filename);
 
   if (!(f = fopen(filename, "r"))) {
     dperror("memrequest: fopen");
+    free(filename);
     return -1;
   }
+
+  free(filename);
 
   if (fseek(f, offset, SEEK_SET) == -1) {
     dperror("memrequest: fseek");
@@ -864,8 +876,6 @@ static int faimtest_memrequest(struct aim_session_t *sess, struct command_rx_str
   }
 
   if (aimbinarypath && (getaimdata(buf, len, offset, modname) == len)) {
-
-    dvprintf("memrequest: sending %ld bytes from 0x%08lx in \"%s/%s\"...\n", len, offset, aimbinarypath, modname);
 
     aim_sendmemblock(sess, command->conn, offset, len, buf);
 

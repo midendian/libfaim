@@ -715,31 +715,28 @@ static int memrequest(struct aim_session_t *sess, aim_module_t *mod, struct comm
 {
   rxcallback_t userfunc;
   unsigned long offset, len;
-  struct aim_tlvlist_t *tlvlist;
-  struct aim_tlv_t *tlv;
-  char *modname;
+  int i = 0;
+  struct aim_tlvlist_t *list;
+  char *modname = NULL;
 
   offset = aimutil_get32(data);
+  i += 4;
+
   len = aimutil_get32(data+4);
+  i += 4;
 
-  if(rx->commandlen > 0x12) { /* XXX right len? */
-    tlvlist = aim_readtlvchain(data+8, datalen-8);
+  list = aim_readtlvchain(data+i, datalen-i);
 
-    if((tlv = aim_gettlv(tlvlist, 0x0001, 1))) {
-      modname = malloc(tlv->length + 5);
-      memset(modname, 0, tlv->length + 5);
-      memcpy(modname, tlv->value, tlv->length);
-      strncat(modname, ".ocm", tlv->length + 5 - strlen(modname));
-    } else {
-      modname = "aim.exe";
-    }
-  }  else
-    modname = "aim.exe";
-    
-  faimdprintf(sess, 1, "data at 0x%08lx (%d bytes) of %s requested\n", offset, len, modname);
+  if (aim_gettlv(list, 0x0001, 1))
+    modname = aim_gettlv_str(list, 0x0001, 1);
+
+  faimdprintf(sess, 1, "data at 0x%08lx (%d bytes) of requested\n", offset, len, modname?modname:"aim.exe");
 
   if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
     return userfunc(sess, rx, offset, len, modname);
+
+  free(modname);
+  aim_freetlvchain(&list);
 
   return 0;
 }
