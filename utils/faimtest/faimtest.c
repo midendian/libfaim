@@ -116,12 +116,57 @@ static char *msgerrreasons[] = {
   "Not while on AOL"};
 static int msgerrreasonslen = 25;
 
+static char *screenname,*password,*server=NULL;
+
 int faimtest_reportinterval(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
   if (command->data) {
     printf("aim: minimum report interval: %d (seconds?)\n", aimutil_get16(command->data+10));
   } else
     printf("aim: NULL minimum report interval!\n");
+  return 1;
+}
+
+int faimtest_flapversion(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+
+  printf("faimtest: using FLAP version %u\n", aimutil_get32(command->data));
+
+#if 0
+  /* 
+   * This is an alternate location for starting the login process.
+   */
+  /* XXX should do more checking to make sure its really the right AUTH conn */
+  if (command->conn->type == AIM_CONN_TYPE_AUTH) {
+    /* do NOT send a connack/flapversion, request_login will send it if needed */
+    aim_request_login(sess, command->conn, screenname);
+    printf("faimtest: login request sent\n");
+  }
+#endif
+
+  return 1;
+}
+
+/*
+ * This is a frivilous callback. You don't need it. I only used it for
+ * debugging non-blocking connects.
+ *
+ * If packets are sent to a conn before its fully connected, they
+ * will be queued and then transmitted when the connection completes.
+ *
+ */
+int faimtest_conncomplete(struct aim_session_t *sess, struct command_rx_struct *command, ...)
+{
+  va_list ap;
+  struct aim_conn_t *conn;
+
+  va_start(ap, command);
+  conn = va_arg(ap, struct aim_conn_t *);
+  va_end(ap);
+  
+  if (conn)
+    printf("faimtest: connection on %d completed\n", conn->fd);
+
   return 1;
 }
 
@@ -141,8 +186,6 @@ int initwsa(void)
   return WSAStartup(wVersionRequested, &wsaData);
 }
 #endif /* _WIN32 */
-
-static char *screenname,*password,*server=NULL;
 
 int main(void)
 {
@@ -183,7 +226,8 @@ int main(void)
   }
 #endif /* _WIN32 */
 
-  aim_session_init(&aimsess);
+  /* Pass zero as flags if you want blocking connects */
+  aim_session_init(&aimsess, AIM_SESS_FLAGS_NONBLOCKCONNECT);
 
 #ifdef FILESUPPORT
   if(listingpath) {
@@ -221,14 +265,15 @@ int main(void)
     return -1;
   }
 
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
+  aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
   aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0007, faimtest_parse_login, 0);
-  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);
-    
-  /* do NOT send a connack/flapversion, request_login will send it if needed */
-  aim_request_login(&aimsess, authconn, screenname);
+  aim_conn_addhandler(&aimsess, authconn, 0x0017, 0x0003, faimtest_parse_authresp, 0);    
 
   aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEBUGCONN_CONNECT, faimtest_debugconn_connect, 0);
 
+  /* If the connection is in progress, this will just be queued */
+  aim_request_login(&aimsess, authconn, screenname);
   printf("faimtest: login request sent\n");
 
   while (keepgoing) {
@@ -432,11 +477,13 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	struct aim_conn_t *tstconn;
 	/* Open a connection to the Auth */
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_AUTH, ip);
-	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR) )
+	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR) )
 	  fprintf(stderr, "faimtest: unable to reconnect with authorizer\n");
-	else
+	else {
+	  aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	  /* Send the cookie to the Auth */
 	  aim_auth_sendcookie(sess, tstconn, cookie);
+	}
 
       }  
       break;
@@ -444,7 +491,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
       {
 	struct aim_conn_t *tstconn = NULL;
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHATNAV, ip);
-	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR)) {
+	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR)) {
 	  fprintf(stderr, "faimtest: unable to connect to chatnav server\n");
 	  if (tstconn) aim_conn_kill(sess, &tstconn);
 	  return 1;
@@ -454,6 +501,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
 #endif
 	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_auth_sendcookie(sess, tstconn, cookie);
 	fprintf(stderr, "\achatnav: connected\n");
       }
@@ -466,7 +514,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	roomname = va_arg(ap, char *);
 
 	tstconn = aim_newconn(sess, AIM_CONN_TYPE_CHAT, ip);
-	if ( (tstconn==NULL) || (tstconn->status >= AIM_CONN_STATUS_RESOLVERR))
+	if ( (tstconn==NULL) || (tstconn->status & AIM_CONN_STATUS_RESOLVERR))
 	  {
 	    fprintf(stderr, "faimtest: unable to connect to chat server\n");
 	    if (tstconn) aim_conn_kill(sess, &tstconn);
@@ -480,6 +528,7 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 	aim_chat_attachname(tstconn, roomname);
 
 	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
+	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
 	aim_auth_sendcookie(sess, tstconn, cookie);
       }
       break;
@@ -520,10 +569,11 @@ int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct
   bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, sess->logininfo.BOSIP);
   if (bosconn == NULL) {
     fprintf(stderr, "faimtest: could not connect to BOS: internal error\n");
-  } else if (bosconn->status != 0) {	
+  } else if (bosconn->status & AIM_CONN_STATUS_CONNERR) {	
     fprintf(stderr, "faimtest: could not connect to BOS\n");
     aim_conn_kill(sess, &bosconn);
   } else {
+    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
     aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
     aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
     aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);

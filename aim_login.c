@@ -100,11 +100,12 @@ faim_export int aim_request_login(struct aim_session_t *sess,
 
     newrx->lock = 0;
 
-    sess->snaclogin = 0;
+    sess->flags &= ~AIM_SESS_FLAGS_SNACLOGIN;
+
     return 0;
   } 
 
-  sess->snaclogin = 1;
+  sess->flags |= AIM_SESS_FLAGS_SNACLOGIN;
 
   aim_sendconnack(sess, conn);
 
@@ -149,9 +150,9 @@ faim_export int aim_send_login (struct aim_session_t *sess,
 
   newpacket->lock = 1;
 
-  newpacket->hdr.oscar.type = sess->snaclogin?0x02:0x01;
+  newpacket->hdr.oscar.type = (sess->flags & AIM_SESS_FLAGS_SNACLOGIN)?0x02:0x01;
   
-  if (sess->snaclogin)
+  if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN)
     curbyte = aim_putsnac(newpacket->data, 0x0017, 0x0002, 0x0000, 0x00010000);
   else {
     curbyte  = aimutil_put16(newpacket->data, 0x0000);
@@ -160,7 +161,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
 
   curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0001, strlen(sn), sn);
   
-  if (sess->snaclogin) {
+  if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
     md5_byte_t digest[16];
 
     aim_encode_password_md5(password, key, digest);
@@ -178,7 +179,7 @@ faim_export int aim_send_login (struct aim_session_t *sess,
   if (strlen(clientinfo->clientstring))
     curbyte += aim_puttlv_str(newpacket->data+curbyte, 0x0003, strlen(clientinfo->clientstring), clientinfo->clientstring);
 
-  if (sess->snaclogin) {
+  if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN) {
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0016, (unsigned short)clientinfo->major2);
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0017, (unsigned short)clientinfo->major);
     curbyte += aim_puttlv_16(newpacket->data+curbyte, 0x0018, (unsigned short)clientinfo->minor);
@@ -292,7 +293,7 @@ faim_internal int aim_authparse(struct aim_session_t *sess,
    * For SNAC login, there's a 17/3 SNAC header in front.
    *
    */
-  if (sess->snaclogin)
+  if (sess->flags & AIM_SESS_FLAGS_SNACLOGIN)
     tlvlist = aim_readtlvchain(command->data+10, command->commandlen-10);
   else
     tlvlist = aim_readtlvchain(command->data, command->commandlen);

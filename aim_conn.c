@@ -194,7 +194,7 @@ faim_internal struct aim_conn_t *aim_getconn_type(struct aim_session_t *sess,
 
   faim_mutex_lock(&sess->connlistlock);
   for (cur = sess->connlist; cur; cur = cur->next) {
-    if (cur->type == type)
+    if ((cur->type == type) && !(cur->status & AIM_CONN_STATUS_INPROGRESS))
       break;
   }
   faim_mutex_unlock(&sess->connlistlock);
@@ -344,13 +344,24 @@ static int aim_proxyconnect(struct aim_session_t *sess,
       return -1;
     }
 
-    memset(&sa.sin_zero, 0, 8);
+    memset(&sa, 0, sizeof(struct sockaddr_in));
     sa.sin_port = htons(port);
     memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
     sa.sin_family = hp->h_addrtype;
   
     fd = socket(hp->h_addrtype, SOCK_STREAM, 0);
+
+    if (sess->flags & AIM_SESS_FLAGS_NONBLOCKCONNECT)
+      fcntl(fd, F_SETFL, O_NONBLOCK); /* XXX save flags */
+
     if (connect(fd, (struct sockaddr *)&sa, sizeof(struct sockaddr_in)) < 0) {
+      if (sess->flags & AIM_SESS_FLAGS_NONBLOCKCONNECT) {
+	if ((errno == EINPROGRESS) || (errno == EINTR)) {
+	  if (statusret)
+	    *statusret |= AIM_CONN_STATUS_INPROGRESS;
+	  return fd;
+	}
+      }
       close(fd);
       fd = -1;
     }
@@ -518,9 +529,9 @@ faim_export struct aim_conn_t *aim_select(struct aim_session_t *sess,
 					  struct timeval *timeout, int *status)
 {
   struct aim_conn_t *cur;
-  fd_set fds;
+  fd_set fds, wfds;
   int maxfd = 0;
-  int i;
+  int i, haveconnecting = 0;
 
   faim_mutex_lock(&sess->connlistlock);
   if (sess->connlist == NULL) {
@@ -530,32 +541,50 @@ faim_export struct aim_conn_t *aim_select(struct aim_session_t *sess,
   }
   faim_mutex_unlock(&sess->connlistlock);
 
-  /* 
-   * If we have data waiting to be sent, return immediatly
-   */
-  if (sess->queue_outgoing != NULL) {
-    *status = 1;
-    return NULL;
-  } 
-
   FD_ZERO(&fds);
+  FD_ZERO(&wfds);
   maxfd = 0;
 
   faim_mutex_lock(&sess->connlistlock);
   for (cur = sess->connlist; cur; cur = cur->next) {
+    if (cur->status & AIM_CONN_STATUS_INPROGRESS) {
+      FD_SET(cur->fd, &wfds);
+      haveconnecting++;
+    }
     FD_SET(cur->fd, &fds);
     if (cur->fd > maxfd)
       maxfd = cur->fd;
   }
   faim_mutex_unlock(&sess->connlistlock);
 
-  if ((i = select(maxfd+1, &fds, NULL, NULL, timeout))>=1) {
+  /* 
+   * If we have data waiting to be sent, return
+   *
+   * We have to not do this if theres at least one
+   * connection thats still connecting, since that connection
+   * may have queued data and this return would prevent
+   * the connection from ever completing!  This is a major
+   * inadequacy of the libfaim way of doing things.  It means
+   * that nothing can transmit as long as there's connecting
+   * sockets. Evil.
+   *
+   * But its still better than having blocking connects.
+   *
+   */
+  if (!haveconnecting && (sess->queue_outgoing != NULL)) {
+    *status = 1;
+    return NULL;
+  } 
+
+  if ((i = select(maxfd+1, &fds, &wfds, NULL, timeout))>=1) {
     faim_mutex_lock(&sess->connlistlock);
     for (cur = sess->connlist; cur; cur = cur->next) {
-      if (FD_ISSET(cur->fd, &fds)) {
+      if ((FD_ISSET(cur->fd, &fds)) || 
+	  ((cur->status & AIM_CONN_STATUS_INPROGRESS) && 
+	   FD_ISSET(cur->fd, &wfds))) {
 	*status = 2;
 	faim_mutex_unlock(&sess->connlistlock);
-	return cur;
+	return cur; /* XXX race condition here -- shouldnt unlock connlist */
       }
     }
     *status = 0; /* shouldn't happen */
@@ -592,6 +621,8 @@ faim_export int aim_conn_isready(struct aim_conn_t *conn)
  *
  * @newstatus is %XOR'd with the previous value of the connection
  * status and returned.  Returns -1 if the connection is invalid.
+ *
+ * This isn't real useful.
  *
  */
 faim_export int aim_conn_setstatus(struct aim_conn_t *conn, int status)
@@ -669,11 +700,12 @@ faim_export void aim_setupproxy(struct aim_session_t *sess, char *server, char *
 /**
  * aim_session_init - Initializes a session structure
  * @sess: Session to initialize
+ * @flags: Flags to use. Any of %AIM_SESS_FLAGS %OR'd together.
  *
  * Sets up the initial values for a session.
  *
  */
-faim_export void aim_session_init(struct aim_session_t *sess)
+faim_export void aim_session_init(struct aim_session_t *sess, unsigned long flags)
 {
   if (!sess)
     return;
@@ -685,7 +717,15 @@ faim_export void aim_session_init(struct aim_session_t *sess)
   sess->pendingjoin = NULL;
   aim_initsnachash(sess);
   sess->snac_nextid = 0x00000001;
-  sess->snaclogin = 1; /* default to yes, oh gods yes. */
+
+  sess->flags = 0;
+
+  /*
+   * Default to SNAC login unless XORLOGIN is explicitly set.
+   */
+  if (!(flags & AIM_SESS_FLAGS_XORLOGIN))
+    sess->flags |= AIM_SESS_FLAGS_SNACLOGIN;
+  sess->flags |= flags;
 
   /*
    * This must always be set.  Default to the queue-based
@@ -694,4 +734,76 @@ faim_export void aim_session_init(struct aim_session_t *sess)
   sess->tx_enqueue = &aim_tx_enqueue__queuebased;
 
   return;
+}
+
+/**
+ * aim_conn_isconnecting - Determine if a connection is connecting
+ * @conn: Connection to examine
+ *
+ * Returns nonzero if the connection is in the process of
+ * connecting (or if it just completed and aim_conn_completeconnect()
+ * has yet to be called on it).
+ *
+ */
+faim_export int aim_conn_isconnecting(struct aim_conn_t *conn)
+{
+  if (!conn)
+    return 0;
+  return (conn->status & AIM_CONN_STATUS_INPROGRESS)?1:0;
+}
+
+faim_export int aim_conn_completeconnect(struct aim_session_t *sess, struct aim_conn_t *conn)
+{
+  fd_set fds, wfds;
+  struct timeval tv;
+  int res, error = ETIMEDOUT;
+  rxcallback_t userfunc;
+
+  if (!conn || (conn->fd == -1))
+    return -1;
+
+  if (!(conn->status & AIM_CONN_STATUS_INPROGRESS))
+    return -1;
+
+  FD_ZERO(&fds);
+  FD_SET(conn->fd, &fds);
+  FD_ZERO(&wfds);
+  FD_SET(conn->fd, &wfds);
+  tv.tv_sec = 0;
+  tv.tv_usec = 0;
+
+  if ((res = select(conn->fd+1, &fds, &wfds, NULL, &tv)) == -1) {
+    error = errno;
+    aim_conn_close(conn);
+    errno = error;
+    return -1;
+  } else if (res == 0) {
+    printf("faim: aim_conn_completeconnect: false alarm on %d\n", conn->fd);
+    return 0; /* hasn't really completed yet... */
+  } 
+
+  if (FD_ISSET(conn->fd, &fds) || FD_ISSET(conn->fd, &wfds)) {
+    int len = sizeof(error);
+
+    if (getsockopt(conn->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+      error = errno;
+  }
+
+  if (error) {
+    aim_conn_close(conn);
+    errno = error;
+    return -1;
+  }
+
+  fcntl(conn->fd, F_SETFL, 0); /* XXX should restore original flags */
+
+  conn->status &= ~AIM_CONN_STATUS_INPROGRESS;
+
+  if ((userfunc = aim_callhandler(conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE)))
+    userfunc(sess, NULL, conn);
+
+  /* Flush out the queues if there was something waiting for this conn  */
+  aim_tx_flushqueue(sess);
+
+  return 0;
 }
