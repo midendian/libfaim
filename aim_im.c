@@ -166,6 +166,8 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
   struct aim_userinfo_s userinfo;
   u_short wastebits;
 
+  memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
+ 
   i = 10; /* Skip SNAC header */
 
   /*
@@ -204,7 +206,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
   memcpy(userinfo.sn, command->data+i+1, (int)command->data[i]);
   userinfo.sn[(int)command->data[i]] = '\0';
   i += 1 + (int)command->data[i];
-      
+
   /*
    * Warning Level
    */
@@ -234,9 +236,7 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
       struct aim_tlv_t *msgblocktlv, *tmptlv;
       u_char *msgblock;
       u_short flag1,flag2;
-      
-      memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
-      
+           
       /*
        * Check Autoresponse status.  If it is an autoresponse,
        * it will contain a second type 0x0004 TLV, with zero length.
