@@ -127,7 +127,7 @@ faim_export int aim_chat_send_im(aim_session_t *sess, aim_conn_t *conn, fu16_t f
 		aimutil_put8(ckstr+i, (fu8_t) rand());
 
 	cookie = aim_mkcookie(ckstr, AIM_COOKIETYPE_CHAT, NULL);
-	cookie->data = ""; /* XXX store somethign useful here */
+	cookie->data = NULL; /* XXX store something useful here */
 
 	aim_cachecookie(sess, cookie);
 

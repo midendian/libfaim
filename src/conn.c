@@ -866,8 +866,6 @@ faim_export void aim_session_init(aim_session_t *sess, fu32_t flags, int debugle
 	aim_connrst(sess);
 	sess->queue_outgoing = NULL;
 	sess->queue_incoming = NULL;
-	sess->pendingjoin = NULL;
-	sess->pendingjoinexchange = 0;
 	aim_initsnachash(sess);
 	sess->msgcookies = NULL;
 	sess->snacid_next = 0x00000001;

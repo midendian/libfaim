@@ -330,14 +330,6 @@ typedef struct aim_session_s {
 	int (*tx_enqueue)(struct aim_session_s *, aim_frame_t *);
 
 	/*
-	 * This is a dreadful solution to the what-room-are-we-joining
-	 * problem.  (There's no connection between the service
-	 * request and the resulting redirect.)
-	 */ 
-	char *pendingjoin;
-	fu16_t pendingjoinexchange;
-
-	/*
 	 * Outstanding snac handling 
 	 *
 	 * XXX: Should these be per-connection? -mid
