@@ -223,7 +223,7 @@ struct command_rx_struct *aim_purge_rxqueue(struct command_rx_struct *queue)
     }
   else 
     {
-      while (queue->handled == 1) 
+      while (queue && queue->handled == 1) 
 	{
 	  workingPtr = queue;
 	  queue = queue->next;
@@ -233,7 +233,7 @@ struct command_rx_struct *aim_purge_rxqueue(struct command_rx_struct *queue)
 
       workingPtr = queue;
 
-      while (workingPtr->next != (struct command_rx_struct *)NULL)
+      while (workingPtr && (workingPtr->next != (struct command_rx_struct *)NULL))
 	{
 	  if (workingPtr->next->handled == 1) 
 	    {
