@@ -127,12 +127,6 @@ struct aim_tool_version {
 	fu16_t toolversion;
 };
 
-struct aim_directim_intdata {
-	fu8_t cookie[8];
-	char sn[MAXSNLEN+1];
-	char ip[22];
-};
-
 faim_internal fu16_t aim_getcap(aim_session_t *sess, aim_bstream_t *bs, int len);
 faim_internal int aim_putcap(aim_bstream_t *bs, fu16_t caps);
 
@@ -150,6 +144,10 @@ faim_internal int aim_putuserinfo(aim_bstream_t *bs, struct aim_userinfo_s *info
 faim_internal int aim_chat_readroominfo(aim_bstream_t *bs, struct aim_chat_roominfo *outinfo);
 
 faim_internal void faimdprintf(aim_session_t *sess, int dlevel, const char *format, ...);
+
+faim_internal void aim_conn_close_rend(aim_session_t *sess, aim_conn_t *conn);
+faim_internal void aim_conn_kill_rend(aim_session_t *sess, aim_conn_t *conn);
+
 
 #ifndef FAIM_INTERNAL_INSANE
 #define printf() printf called inside libfaim

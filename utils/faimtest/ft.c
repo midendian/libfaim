@@ -1,22 +1,6 @@
 
 #include "faimtest.h"
 
-static int directim_connect(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-#if 0
-	  va_list ap;
-	  struct aim_directim_priv *priv;
-	  
-	  va_start(ap, fr);
-	  priv = va_arg(ap, struct aim_directim_priv *);
-
-	  va_end(ap);
-#endif	  
-	  dprintf("faimtest: directim_connect\n");
-
-	  return 1;
-}
-
 static int directim_incoming(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
@@ -59,22 +43,6 @@ static int directim_incoming(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int directim_disconnect(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	va_list ap;
-	char *sn;
-
-	va_start(ap, fr);
-	sn = va_arg(ap, char *);
-	va_end(ap);
-
-	dvprintf("faimtest: directim: disconnected from %s\n", sn);
-
-	aim_conn_kill(sess, &fr->conn);
-
-	return 1;
-}
-
 static int directim_typing(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
@@ -103,7 +71,6 @@ static int faimtest_directim_initiate(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_conn_kill(sess, &listenerconn);
 
 	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, directim_incoming, 0);
-	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, directim_disconnect, 0);
 	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, directim_typing, 0);
 
 	aim_send_im_direct(sess, newconn, "goodday");
@@ -499,7 +466,6 @@ void directim_requested(aim_session_t *sess, aim_conn_t *conn, struct aim_userin
 	} else {
 
 		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, directim_incoming, 0);
-		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, directim_disconnect, 0);
 		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, directim_typing, 0);
 
 		dvprintf("faimtest: OFT: DirectIM: connected to %s\n", userinfo->sn);

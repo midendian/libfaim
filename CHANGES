@@ -1,6 +1,19 @@
 
 No release numbers
 ------------------
+ - Sat Sep  8 17:07:09 PDT 2001
+  - Fix directim so you can do it more than once without crashing.
+   - This removes the connect/disconnect callbacks.  They were pointless, as
+       you can get the same information at a better spot by looking for when
+       aim_getcommand returns -1, just like is done for FLAP connections.
+   - (This was causing aim_conn_kill to be called twice for the same connect,
+       once in the client callback, and once more when aim_getcommand returned
+       the -1).
+  - Add aim_conn_(close|kill)_rend().  This is for destroying the cookie and
+     the internal data sections in one spot.
+  - Fix a bug in aim_connrst (and hence aim_logout()) that caused intdata/priv
+     to not be freed in those cases.  Evil.
+
  - Sat Sep  8 07:32:27 PDT 2001
   - Clean up ft.c slightly.  Direct IM now works.  In both directions.
    - This could still use a lot more help.  It should use bstreams more.

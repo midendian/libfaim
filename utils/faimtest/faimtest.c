@@ -317,6 +317,8 @@ int main(int argc, char **argv)
 						dvprintf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
 						/* we should have callbacks for all these, else the library will do the conn_kill for us. */
 						if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
+							if (waitingconn->subtype == AIM_CONN_SUBTYPE_OFT_DIRECTIM)
+								dvprintf("disconnected from %s\n", aim_directim_getsn(waitingconn));
 							aim_conn_kill(&aimsess, &waitingconn);
 						} else
 							aim_conn_kill(&aimsess, &waitingconn);

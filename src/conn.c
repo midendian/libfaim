@@ -15,6 +15,35 @@
 #include <netinet/in.h>
 #endif
 
+static void connkill_real(aim_session_t *sess, aim_conn_t **deadconn)
+{
+
+	aim_rxqueue_cleanbyconn(sess, *deadconn);
+	aim_tx_cleanqueue(sess, *deadconn);
+
+	if ((*deadconn)->fd != -1) 
+		aim_conn_close(*deadconn);
+
+	/*
+	 * XXX ->priv should never be touched by the library. I know
+	 * it used to be, but I'm getting rid of all that.  Use
+	 * ->internal instead.
+	 */
+	if ((*deadconn)->priv)
+		free((*deadconn)->priv);
+
+	/*
+	 * This will free ->internal if it necessary...
+	 */
+	if ((*deadconn)->type == AIM_CONN_TYPE_RENDEZVOUS)
+		aim_conn_kill_rend(sess, *deadconn);
+
+	free(*deadconn);
+	deadconn = NULL;
+
+	return;
+}
+
 /**
  * aim_connrst - Clears out connection list, killing remaining connections.
  * @sess: Session to be cleared
@@ -33,7 +62,7 @@ static void aim_connrst(aim_session_t *sess)
 		while (cur) {
 			tmp = cur->next;
 			aim_conn_close(cur);
-			free(cur);
+			connkill_real(sess, &cur);
 			cur = tmp;
 		}
 	}
@@ -79,24 +108,16 @@ static void aim_conn_init(aim_conn_t *deadconn)
  */
 static aim_conn_t *aim_conn_getnext(aim_session_t *sess)
 {
-	aim_conn_t *newconn, *cur;
+	aim_conn_t *newconn;
 
 	if (!(newconn = malloc(sizeof(aim_conn_t)))) 	
 		return NULL;
 	memset(newconn, 0, sizeof(aim_conn_t));
 
 	aim_conn_init(newconn);
-	newconn->next = NULL;
 
-	faim_mutex_lock(&sess->connlistlock);
-	if (!sess->connlist)
-		sess->connlist = newconn;
-	else {
-		for (cur = sess->connlist; cur->next; cur = cur->next)
-			;
-		cur->next = newconn;
-	}
-	faim_mutex_unlock(&sess->connlistlock);
+	newconn->next = sess->connlist;
+	sess->connlist = newconn;
 
 	return newconn;
 }
@@ -112,42 +133,23 @@ static aim_conn_t *aim_conn_getnext(aim_session_t *sess)
  */
 faim_export void aim_conn_kill(aim_session_t *sess, aim_conn_t **deadconn)
 {
-	aim_conn_t *cur;
+	aim_conn_t *cur, **prev;
 
 	if (!deadconn || !*deadconn)	
 		return;
 
-	aim_tx_cleanqueue(sess, *deadconn);
-
-	faim_mutex_lock(&sess->connlistlock);
-	if (sess->connlist == NULL)
-		;
-	else if (sess->connlist->next == NULL) {
-		if (sess->connlist == *deadconn)
-		sess->connlist = NULL;
-	} else {
-		cur = sess->connlist;
-		while (cur->next) {
-			if (cur->next == *deadconn) {
-				cur->next = cur->next->next;
-				break;
-			}
-			cur = cur->next;
+	for (prev = &sess->connlist; (cur = *prev); ) {
+		if (cur == *deadconn) {
+			*prev = cur->next;
+			break;
 		}
+		prev = &cur->next;
 	}
-	faim_mutex_unlock(&sess->connlistlock);
 
-	/* XXX: do we need this for txqueue too? */
-	aim_rxqueue_cleanbyconn(sess, *deadconn);
+	if (!cur)
+		return; /* oops */
 
-	if ((*deadconn)->fd != -1) 
-		aim_conn_close(*deadconn);
-	if ((*deadconn)->priv)
-		free((*deadconn)->priv);
-	if ((*deadconn)->internal)
-		free((*deadconn)->internal);
-	free(*deadconn);
-	deadconn = NULL;
+	connkill_real(sess, &cur);
 
 	return;
 }
@@ -160,7 +162,7 @@ faim_export void aim_conn_kill(aim_session_t *sess, aim_conn_t **deadconn)
  *
  * This leaves everything untouched except for clearing the 
  * handler list and setting the fd to -1 (used to recognize
- * dead connections).
+ * dead connections).  It will also remove cookies if necessary.
  *
  */
 faim_export void aim_conn_close(aim_conn_t *deadconn)
@@ -173,6 +175,9 @@ faim_export void aim_conn_close(aim_conn_t *deadconn)
 	deadconn->fd = -1;
 	if (deadconn->handlerlist)
 		aim_clearhandlers(deadconn);
+	if (deadconn->type == AIM_CONN_TYPE_RENDEZVOUS)
+		aim_conn_close_rend((aim_session_t *)deadconn->sessv, deadconn);
+
 
 	return;
 }

@@ -21,11 +21,17 @@
    o look for memory leaks.. there's going to be shitloads, i'm sure. 
 */
 
+struct aim_directim_intdata {
+	fu8_t cookie[8];
+	char sn[MAXSNLEN+1];
+	char ip[22];
+};
+
 static int listenestablish(fu16_t portnum);
 static struct aim_fileheader_t *aim_oft_getfh(unsigned char *hdr);
  
 /**
- * aim_handlerendconnect - call this to accept OFT connections and set up the requisite structures
+ * aim_handlerendconnect - call this to accept OFT connections and set up the required structures
  * @sess: the session
  * @cur: the conn the incoming connection is on
  *
@@ -916,56 +922,91 @@ static int getcommand_getfile(aim_session_t *sess, aim_conn_t *conn)
 #endif
 }
 
-static void disconnected_sendfile(aim_session_t *sess, aim_conn_t *conn)
+static void connclose_sendfile(aim_session_t *sess, aim_conn_t *conn)
 {
-	aim_frame_t fr;
-	aim_rxcallback_t userfunc;
 	aim_msgcookie_t *cook;
 	struct aim_filetransfer_priv *priv = (struct aim_filetransfer_priv *)conn->priv;
 
 	cook = aim_uncachecookie(sess, priv->cookie, AIM_COOKIETYPE_OFTSEND);
 	aim_cookie_free(sess, cook);
 
-	fr.conn = conn;
+	return;
+}
 
-	if ( (userfunc = aim_callhandler(sess, conn, AIM_CB_FAM_OFT, AIM_CB_OFT_SENDFILEDISCONNECT)) ) 
-		userfunc(sess, &fr, priv->sn);
+static void connkill_sendfile(aim_session_t *sess, aim_conn_t *conn)
+{
+	
+	free(conn->internal);
 
 	return;
 }
 
-static void disconnected_getfile(aim_session_t *sess, aim_conn_t *conn)
+static void connclose_getfile(aim_session_t *sess, aim_conn_t *conn)
 {
-	aim_frame_t fr;
-	aim_rxcallback_t userfunc;
 	aim_msgcookie_t *cook;
 	struct aim_filetransfer_priv *priv = (struct aim_filetransfer_priv *)conn->priv;
 
 	cook = aim_uncachecookie(sess, priv->cookie, AIM_COOKIETYPE_OFTGET);
 	aim_cookie_free(sess, cook);
 
-	fr.conn = conn;
+	return;
+}
 
-	if ( (userfunc = aim_callhandler(sess, conn, AIM_CB_FAM_OFT, AIM_CB_OFT_GETFILEDISCONNECT)) )
-		userfunc(sess, &fr, priv->sn);
+static void connkill_getfile(aim_session_t *sess, aim_conn_t *conn)
+{
+	
+	free(conn->internal);
 
 	return;
 }
 
-static void disconnected_directim(aim_session_t *sess, aim_conn_t *conn)
+static void connclose_directim(aim_session_t *sess, aim_conn_t *conn)
 {
-	aim_frame_t fr;
 	struct aim_directim_intdata *intdata = (struct aim_directim_intdata *)conn->internal;
-	aim_rxcallback_t userfunc;
 	aim_msgcookie_t *cook;
 
 	cook = aim_uncachecookie(sess, intdata->cookie, AIM_COOKIETYPE_OFTIM);
 	aim_cookie_free(sess, cook);
 
-	fr.conn = conn;
+	return;
+}
 
-	if ( (userfunc = aim_callhandler(sess, conn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT)) )
-		userfunc(sess, &fr, intdata->sn);
+static void connkill_directim(aim_session_t *sess, aim_conn_t *conn)
+{
+	
+	free(conn->internal);
+
+	return;
+}
+
+faim_internal void aim_conn_close_rend(aim_session_t *sess, aim_conn_t *conn)
+{
+
+	if (conn->type != AIM_CONN_TYPE_RENDEZVOUS)
+		return;
+
+	if (conn->subtype == AIM_CONN_SUBTYPE_OFT_SENDFILE)
+		connclose_sendfile(sess, conn);
+	else if (conn->subtype == AIM_CONN_SUBTYPE_OFT_GETFILE)
+		connclose_getfile(sess, conn);
+	else if (conn->subtype == AIM_CONN_SUBTYPE_OFT_DIRECTIM)
+		connclose_directim(sess, conn);
+
+	return;
+}
+
+faim_internal void aim_conn_kill_rend(aim_session_t *sess, aim_conn_t *conn)
+{
+
+	if (conn->type != AIM_CONN_TYPE_RENDEZVOUS)
+		return;
+
+	if (conn->subtype == AIM_CONN_SUBTYPE_OFT_SENDFILE)
+		connkill_sendfile(sess, conn);
+	else if (conn->subtype == AIM_CONN_SUBTYPE_OFT_GETFILE)
+		connkill_getfile(sess, conn);
+	else if (conn->subtype == AIM_CONN_SUBTYPE_OFT_DIRECTIM)
+		connkill_directim(sess, conn);
 
 	return;
 }
@@ -1334,13 +1375,6 @@ faim_internal int aim_get_command_rendezvous(aim_session_t *sess, aim_conn_t *co
 	if (aim_recv(conn->fd, hdrbuf1, 6) < 6) {
 
 		faimdprintf(sess, 2, "faim: rend: read error (fd: %i)\n", conn->fd);
-
-		if (conn->subtype == AIM_CONN_SUBTYPE_OFT_DIRECTIM)
-			disconnected_directim(sess, conn);
-		else if (conn->subtype == AIM_CONN_SUBTYPE_OFT_GETFILE)
-			disconnected_getfile(sess, conn);
-		else if (conn->subtype == AIM_CONN_SUBTYPE_OFT_SENDFILE)
-			disconnected_sendfile(sess, conn);
 
 		aim_conn_close(conn);
 
