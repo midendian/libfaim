@@ -956,6 +956,8 @@ struct aim_ssi_item {
 faim_export int aim_ssi_reqrights(aim_session_t *sess, aim_conn_t *conn);
 faim_export int aim_ssi_reqdata(aim_session_t *sess, aim_conn_t *conn, time_t localstamp, fu16_t localrev);
 faim_export int aim_ssi_enable(aim_session_t *sess, aim_conn_t *conn);
+faim_export int aim_ssi_modbegin(aim_session_t *sess, aim_conn_t *conn);
+faim_export int aim_ssi_modend(aim_session_t *sess, aim_conn_t *conn);
 
 /* aim_util.c */
 /*

@@ -142,6 +142,28 @@ faim_export int aim_ssi_enable(aim_session_t *sess, aim_conn_t *conn)
 }
 
 /*
+ * SSI Begin Data Modification.
+ *
+ * Tells the server you're going to start modifying data.
+ * 
+ */
+faim_export int aim_ssi_modbegin(aim_session_t *sess, aim_conn_t *conn)
+{
+	return aim_genericreq_n(sess, conn, 0x0013, 0x0011);
+}
+
+/*
+ * SSI End Data Modification.
+ *
+ * Tells the server you're done modifying data.
+ *
+ */
+faim_export int aim_ssi_modend(aim_session_t *sess, aim_conn_t *conn)
+{
+	return aim_genericreq_n(sess, conn, 0x0013, 0x0012);
+}
+
+/*
  * SSI Data Unchanged.
  *
  * Response to aim_ssi_reqdata() if the server-side data is not newer than
