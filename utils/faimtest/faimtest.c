@@ -1120,7 +1120,7 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, aim_userinf
 
 	} else if (strstr(tmpstr, "open directim")) {
 
-		directim_start(sess, conn, userinfo->sn);
+		directim_start(sess, userinfo->sn);
 
 	} else if(strstr(tmpstr, "lookup")) {
 

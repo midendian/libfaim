@@ -427,13 +427,13 @@ void getfile_requested(aim_session_t *sess, aim_conn_t *conn, aim_userinfo_t *us
 	return;
 }
 
-void directim_start(aim_session_t *sess, aim_conn_t *conn, const char *sn)
+void directim_start(aim_session_t *sess, const char *sn)
 {
 	aim_conn_t *newconn;
 
 	printf("faimtest: opening directim to %s\n", sn);
  	
-	newconn = aim_directim_initiate(sess, conn, sn);
+	newconn = aim_directim_initiate(sess, sn);
 
 	if (!newconn || (newconn->fd == -1)) {
 
