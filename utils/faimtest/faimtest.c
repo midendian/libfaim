@@ -461,8 +461,8 @@ static int faimtest_infochange(aim_session_t *sess, aim_frame_t *fr, ...)
 
 	va_start(ap, fr);
 	change = va_arg(ap, int);
-	perms = va_arg(ap, fu16_t);
-	type = va_arg(ap, fu16_t);
+	perms = (fu16_t)va_arg(ap, unsigned int);
+	type = (fu16_t)va_arg(ap, unsigned int);
 	length = va_arg(ap, int);
 	val = va_arg(ap, char *);
 	str = va_arg(ap, int);
@@ -944,7 +944,7 @@ static int faimtest_parse_userinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	userinfo = va_arg(ap, struct aim_userinfo_s *);
 	prof_encoding = va_arg(ap, char *);
 	prof = va_arg(ap, char *);
-	inforeq = va_arg(ap, fu16_t);
+	inforeq = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
 	dvprintf("faimtest: userinfo: sn: %s\n", userinfo->sn);
@@ -1512,7 +1512,7 @@ static int faimtest_parse_genericerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	fu16_t reason;
 
 	va_start(ap, fr);
-	reason = va_arg(ap, fu16_t);
+	reason = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
 	dvprintf("faimtest: snac threw error (reason 0x%04x: %s)\n", reason, (reason<msgerrreasonslen)?msgerrreasons[reason]:"unknown");
@@ -1527,7 +1527,7 @@ static int faimtest_parse_msgerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	fu16_t reason;
 
 	va_start(ap, fr);
-	reason = va_arg(ap, fu16_t);
+	reason = (fu16_t)va_arg(ap, unsigned int);
 	destsn = va_arg(ap, char *);
 	va_end(ap);
 
@@ -1543,7 +1543,7 @@ static int faimtest_parse_locerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	fu16_t reason;
 
 	va_start(ap, fr);
-	reason = va_arg(ap, fu16_t);
+	reason = (fu16_t)va_arg(ap, unsigned int);
 	destsn = va_arg(ap, char *);
 	va_end(ap);
 
@@ -1568,10 +1568,10 @@ static int faimtest_parse_misses(aim_session_t *sess, aim_frame_t *fr, ...)
 	struct aim_userinfo_s *userinfo;
 
 	va_start(ap, fr);
-	chan = va_arg(ap, fu16_t);
+	chan = (fu16_t)va_arg(ap, unsigned int);
 	userinfo = va_arg(ap, struct aim_userinfo_s *);
-	nummissed = va_arg(ap, fu16_t);
-	reason = va_arg(ap, fu16_t);
+	nummissed = (fu16_t)va_arg(ap, unsigned int);
+	reason = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
 	dvprintf("faimtest: missed %d messages from %s on channel %d (reason %d: %s)\n", nummissed, userinfo->sn, chan, reason, (reason<missedreasonslen)?missedreasons[reason]:"unknown");
@@ -1589,7 +1589,7 @@ static int faimtest_parse_msgack(aim_session_t *sess, aim_frame_t *fr, ...)
 	char *sn = NULL;
 
 	va_start(ap, fr);
-	type = va_arg(ap, fu16_t);
+	type = (fu16_t)va_arg(ap, unsigned int);
 	sn = va_arg(ap, char *);
 	va_end(ap);
 
@@ -1615,12 +1615,12 @@ static int faimtest_parse_ratechange(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_start(ap, fr); 
 
 	/* See code explanations below */
-	code = va_arg(ap, fu16_t);
+	code = (fu16_t)va_arg(ap, unsigned int);
 
 	/*
 	 * See comments above aim_parse_ratechange_middle() in aim_rxhandlers.c.
 	 */
-	rateclass = va_arg(ap, fu16_t);
+	rateclass = (fu16_t)va_arg(ap, unsigned int);
 
 	/*
 	 * Not sure what this is exactly.  I think its the temporal 
@@ -1690,7 +1690,7 @@ static int faimtest_parse_evilnotify(aim_session_t *sess, aim_frame_t *fr, ...)
 	struct aim_userinfo_s *userinfo;
 
 	va_start(ap, fr);
-	newevil = va_arg(ap, fu16_t);
+	newevil = (fu16_t)va_arg(ap, unsigned int);
 	userinfo = va_arg(ap, struct aim_userinfo_s *);
 	va_end(ap);
 

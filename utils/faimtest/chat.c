@@ -56,12 +56,12 @@ static int faimtest_chat_infoupdate(aim_session_t *sess, aim_frame_t *fr, ...)
 	usercount = va_arg(ap, int);
 	userinfo = va_arg(ap, struct aim_userinfo_s *);
 	roomdesc = va_arg(ap, char *);
-	unknown_c9 = va_arg(ap, fu16_t);
+	unknown_c9 = (fu16_t)va_arg(ap, unsigned int);
 	creationtime = va_arg(ap, fu32_t);
-	maxmsglen = va_arg(ap, fu16_t);
-	unknown_d2 = va_arg(ap, fu16_t);
-	unknown_d5 = va_arg(ap, fu16_t);
-	maxvisiblemsglen = va_arg(ap, fu16_t);
+	maxmsglen = (fu16_t)va_arg(ap, unsigned int);
+	unknown_d2 = (fu16_t)va_arg(ap, unsigned int);
+	unknown_d5 = (fu16_t)va_arg(ap, unsigned int);
+	maxvisiblemsglen = (fu16_t)va_arg(ap, unsigned int);
 	va_end(ap);
 
 	dvprintf("faimtest: chat: %s:  info update:\n", croomname);
@@ -114,7 +114,7 @@ static int faimtest_chatnav_info(aim_session_t *sess, aim_frame_t *fr, ...)
 	va_list ap;
 
 	va_start(ap, fr);
-	type = va_arg(ap, fu16_t);
+	type = (fu16_t)va_arg(ap, unsigned int);
 
 	if (type == 0x0002) {
 		int maxrooms;
@@ -145,14 +145,14 @@ static int faimtest_chatnav_info(aim_session_t *sess, aim_frame_t *fr, ...)
 		fu32_t createtime;
 
 		fqcn = va_arg(ap, char *);
-		instance = va_arg(ap, fu16_t);
-		exchange = va_arg(ap, fu16_t);
-		flags = va_arg(ap, fu16_t);
+		instance = (fu16_t)va_arg(ap, unsigned int);
+		exchange = (fu16_t)va_arg(ap, unsigned int);
+		flags = (fu16_t)va_arg(ap, unsigned int);
 		createtime = va_arg(ap, fu32_t);
-		maxmsglen = va_arg(ap, fu16_t);
-		maxoccupancy = va_arg(ap, fu16_t);
-		createperms = va_arg(ap, fu8_t);
-		unknown = va_arg(ap, fu16_t);
+		maxmsglen = (fu16_t)va_arg(ap, unsigned int);
+		maxoccupancy = (fu16_t)va_arg(ap, unsigned int);
+		createperms = (fu8_t)va_arg(ap, unsigned int);
+		unknown = (fu16_t)va_arg(ap, unsigned int);
 		name = va_arg(ap, char *);
 		ck = va_arg(ap, char *);
 		va_end(ap);
