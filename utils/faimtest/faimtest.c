@@ -44,9 +44,6 @@
 
  */
 
-#define FAIMTEST_SCREENNAME "SCREENNAME"
-#define FAIMTEST_PASSWORD "PASSWORD"
-
 #include <faim/aim.h> 
 
 int faimtest_parse_oncoming(struct aim_session_t *, struct command_rx_struct *, ...);
@@ -64,6 +61,8 @@ int faimtest_parse_misses(struct aim_session_t *, struct command_rx_struct *comm
 int faimtest_parse_motd(struct aim_session_t *, struct command_rx_struct *command, ...);
 int faimtest_parse_login(struct aim_session_t *, struct command_rx_struct *command, ...);
 
+static char *screenname,*password;
+
 int main(void)
 {
   struct aim_session_t aimsess;
@@ -72,6 +71,13 @@ int main(void)
   struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
     
   aim_session_init(&aimsess);
+
+  if ( !(screenname = getenv("SCREENNAME")) ||
+       !(password = getenv("PASSWORD")))
+    {
+      printf("Must specify SCREENAME and PASSWORD in environment.\n");
+      return -1;
+    }
 
   /*
    * (I used a goto-based loop here because n wanted quick proof
@@ -105,7 +111,7 @@ int main(void)
 #else
       aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_AUTHSUCCESS, faimtest_parse_authresp, 0);
       aim_conn_addhandler(&aimsess, authconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_authsvrready, 0);
-      aim_send_login(&aimsess, authconn, FAIMTEST_SCREENNAME, FAIMTEST_PASSWORD, &info);
+      aim_send_login(&aimsess, authconn, screenname, password, &info);
  
 #endif
     }
@@ -145,6 +151,7 @@ int faimtest_serverready(struct aim_session_t *sess, struct command_rx_struct *c
   switch (command->conn->type)
     {
     case AIM_CONN_TYPE_BOS:
+
       aim_bos_reqrate(sess, command->conn); /* request rate info */
       aim_bos_ackrateresp(sess, command->conn);  /* ack rate info response -- can we say timing? */
       aim_bos_setprivacyflags(sess, command->conn, 0x00000003);
@@ -428,84 +435,133 @@ int faimtest_parse_userinfo(struct aim_session_t *sess, struct command_rx_struct
  */
 int faimtest_parse_incoming_im(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
-  struct aim_userinfo_s *userinfo;
-  char *msg = NULL;
-  u_int icbmflags = 0;
+  int channel;
   va_list ap;
-  char *tmpstr = NULL;
-  u_short flag1, flag2;
 
   va_start(ap, command);
-  userinfo = va_arg(ap, struct aim_userinfo_s *);
-  msg = va_arg(ap, char *);
-  icbmflags = va_arg(ap, u_int);
-  flag1 = va_arg(ap, u_short);
-  flag2 = va_arg(ap, u_short);
-  va_end(ap);
+  channel = va_arg(ap, int);
 
-  printf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
-  printf("faimtest: icbm: warnlevel = 0x%04x\n", userinfo->warnlevel);
-  printf("faimtest: icbm: class = 0x%04x ", userinfo->class);
-  if (userinfo->class & 0x0010)
-    printf("(FREE)\n");
-  else if (userinfo->class & 0x0001)
-    printf("(TRIAL)\n");
-  else if (userinfo->class & 0x0004)
-    printf("(AOL)\n");
-  else
-    printf("(UNKNOWN)\n");
-  printf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
-  printf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
-  printf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
-
-  printf("faimtest: icbm: icbmflags = ");
-  if (icbmflags & AIM_IMFLAGS_AWAY)
-    printf("away ");
-  if (icbmflags & AIM_IMFLAGS_ACK)
-    printf("ackrequest ");
-  printf("\n");
-  
-  printf("faimtest: icbm: encoding flags = {%04x, %04x}\n", flag1, flag2);
-
-  printf("faimtest: icbm: message: %s\n", msg);
-
-  if (msg)
+  /*
+   * Channel 1: Standard Message
+   */
+  if (channel == 1)
     {
-      tmpstr = index(msg, '>');
-      if (tmpstr != NULL)
-	tmpstr+=1;
-      else
-	tmpstr = msg;
+      struct aim_userinfo_s *userinfo;
+      char *msg = NULL;
+      u_int icbmflags = 0;
+      char *tmpstr = NULL;
+      u_short flag1, flag2;
+  
+      userinfo = va_arg(ap, struct aim_userinfo_s *);
+      msg = va_arg(ap, char *);
+      icbmflags = va_arg(ap, u_int);
+      flag1 = va_arg(ap, u_short);
+      flag2 = va_arg(ap, u_short);
+      va_end(ap);
       
-      if ( (strlen(tmpstr) >= 10) &&
-	   (!strncmp(tmpstr, "disconnect", 10)) )
+      printf("faimtest: icbm: sn = \"%s\"\n", userinfo->sn);
+      printf("faimtest: icbm: warnlevel = 0x%04x\n", userinfo->warnlevel);
+      printf("faimtest: icbm: class = 0x%04x ", userinfo->class);
+      if (userinfo->class & 0x0010)
+	printf("(FREE) ");
+      if (userinfo->class & 0x0001)
+	printf("(TRIAL) ");
+      if (userinfo->class & 0x0004)
+	printf("(AOL) ");
+      printf("\n");
+      printf("faimtest: icbm: membersince = %lu\n", userinfo->membersince);
+      printf("faimtest: icbm: onlinesince = %lu\n", userinfo->onlinesince);
+      printf("faimtest: icbm: idletime = 0x%04x\n", userinfo->idletime);
+      
+      printf("faimtest: icbm: icbmflags = ");
+      if (icbmflags & AIM_IMFLAGS_AWAY)
+	printf("away ");
+      if (icbmflags & AIM_IMFLAGS_ACK)
+	printf("ackrequest ");
+      printf("\n");
+      
+      printf("faimtest: icbm: encoding flags = {%04x, %04x}\n", flag1, flag2);
+      
+      printf("faimtest: icbm: message: %s\n", msg);
+      
+      if (msg)
 	{
-	  aim_send_im(sess, command->conn, "midendian", 0, "ta ta...");
-	  aim_logoff(sess);
-	}
-      else if (strstr(tmpstr, "goodday"))
-	{
-	  printf("faimtest: icbm: sending response\n");
-	  aim_send_im(sess, command->conn, userinfo->sn, 0, "Good day to you too.");
-	}
+	  tmpstr = index(msg, '>');
+	  if (tmpstr != NULL)
+	    tmpstr+=1;
+	  else
+	    tmpstr = msg;
+	  
+	  if ( (strlen(tmpstr) >= 10) &&
+	       (!strncmp(tmpstr, "disconnect", 10)) )
+	    {
+	      aim_send_im(sess, command->conn, "midendian", 0, "ta ta...");
+	      aim_logoff(sess);
+	    }
+	  else if (strstr(tmpstr, "goodday"))
+	    {
+	      printf("faimtest: icbm: sending response\n");
+	      aim_send_im(sess, command->conn, userinfo->sn, 0, "Good day to you too.");
+	    }
 #if 0
-      else if (!strncmp(tmpstr, "joinchat", 8))
-	{
-	  aim_chat_join(sess, command->conn, "GoodDay");
-	}
+	  else if (!strncmp(tmpstr, "joinchat", 8))
+	    {
+	      aim_chat_join(sess, command->conn, "GoodDay");
+	    }
 #endif
-      else 
-	{
+	  else 
+	    {
 #if 0
-	  printf("faimtest: icbm:  starting chat...\n");
-	  aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
+	      printf("faimtest: icbm:  starting chat...\n");
+	      aim_bos_reqservice(sess, command->conn, AIM_CONN_TYPE_CHATNAV);
 #else
-	  aim_bos_setidle(sess, command->conn, 0x0ffffffe);
+	      aim_bos_setidle(sess, command->conn, 0x0ffffffe);
 #endif
+	    }
+	  
 	}
-
     }
+  /*
+   * Channel 2: Chat Invitation
+   */
+  else if (channel == 2)
+    {
+      struct aim_userinfo_s *userinfo;
+      char *roomname,*msg,*encoding,*lang;
+      u_short exchange, instance;
 
+      userinfo = va_arg(ap, struct aim_userinfo_s *);
+      roomname = va_arg(ap, char *);
+      msg = va_arg(ap, char *);
+      encoding = va_arg(ap, char *);
+      lang = va_arg(ap, char *);
+      exchange = va_arg(ap, u_short);
+      instance = va_arg(ap, u_short);
+      va_end(ap);
+      
+      printf("faimtest: chat invitation: source sn = %s\n", userinfo->sn);
+      printf("faimtest: chat invitation: \twarnlevel = 0x%04x\n", userinfo->warnlevel);
+      printf("faimtest: chat invitation: \tclass = 0x%04x ", userinfo->class);
+      if (userinfo->class & 0x0010)
+	printf("(FREE) ");
+      if (userinfo->class & 0x0001)
+	printf("(TRIAL) ");
+      if (userinfo->class & 0x0004)
+	printf("(AOL) ");
+      printf("\n");
+      /* we dont get membersince on chat invites! */
+      printf("faimtest: chat invitation: \tonlinesince = %lu\n", userinfo->onlinesince);
+      printf("faimtest: chat invitation: \tidletime = 0x%04x\n", userinfo->idletime);
+      
+      printf("faimtest: chat invitation: message = %s\n", msg);
+      printf("faimtest: chat invitation: room name = %s\n", roomname);
+      printf("faimtest: chat invitation: encoding = %s\n", encoding);
+      printf("faimtest: chat invitation: language = %s\n", lang);
+      printf("faimtest: chat invitation: exchange = 0x%04x\n", exchange);
+      printf("faimtest: chat invitation: instance = 0x%04x\n", instance);
+    }
+  else
+    printf("faimtest does not support channels > 2 (chan = %02x)\n", channel);
   printf("faimtest: icbm: done with ICBM handling\n");
 
   return 1;

@@ -223,25 +223,44 @@ u_long aim_bos_setbuddylist(struct aim_session_t *sess,
  *
  * Gives BOS your profile.
  *
+ * 
+ * The large data chunk given here is of unknown decoding.
+ * What I do know is that each 0x20 byte repetition 
+ * represents a capability.  People with only the 
+ * first two reptitions can support normal messaging
+ * and chat (client version 2.0 or 3.0).  People with 
+ * the third as well can also support voice chat (client
+ * version 3.5 or higher).  IOW, if we don't send this,
+ * we won't get chat invitations (get "software doesn't
+ * support chat" error).
+ *
+ * This data is broadcast along with your oncoming
+ * buddy command to everyone who has you on their
+ * buddy list, as a type 0x0002 TLV.
+ * 
  */
 u_long aim_bos_setprofile(struct aim_session_t *sess,
 			  struct aim_conn_t *conn, 
 			  char *profile)
 {
-  int packet_profile_len = 0;
   struct command_tx_struct newpacket;
   int i = 0;
+  u_char funkydata[] = {
+    0x09, 0x46, 0x13, 0x46, 0x4c, 0x7f, 0x11, 0xd1, 
+    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00,
+    0x09, 0x46, 0x13, 0x41, 0x4c, 0x7f, 0x11, 0xd1, 
+    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00,
 
-  /* len: SNAC */
-  packet_profile_len = 10;
-  /* len: T+L (where t(0001)) */
-  packet_profile_len += 2 + 2;
-  /* len: V (where t(0001)) */
-  packet_profile_len += strlen("text/x-aolrtf");
-  /* len: T+L (where t(0002)) */
-  packet_profile_len += 2 + 2;
-  /* len: V (where t(0002)) */
-  packet_profile_len += strlen(profile);
+    0x09, 0x46, 0x13, 0x45, 0x4c, 0x7f, 0x11, 0xd1, 
+    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00,
+    0x74, 0x8f, 0x24, 0x20, 0x62, 0x87, 0x11, 0xd1, 
+    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00,
+
+    0x09, 0x46, 0x13, 0x48, 0x4c, 0x7f, 0x11, 0xd1,
+    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00,
+    0x09, 0x46, 0x13, 0x43, 0x4c, 0x7f, 0x11, 0xd1, 
+    0x82, 0x22, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00
+  };
 
   newpacket.type = 0x02;
   if (conn)
@@ -249,32 +268,23 @@ u_long aim_bos_setprofile(struct aim_session_t *sess,
   else
     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
 
-  newpacket.commandlen = packet_profile_len;
-  newpacket.data = (char *) malloc(packet_profile_len);
-
-  i = 0;
+  newpacket.commandlen = 1152+strlen(profile)+1; /*arbitrarily large */
+  newpacket.data = (char *) malloc(newpacket.commandlen);
 
   i += aim_putsnac(newpacket.data, 0x0002, 0x004, 0x0000, sess->snac_nextid);
-
-  /* TLV t(0001) */
-  newpacket.data[i++] = 0x00;
-  newpacket.data[i++] = 0x01;
-  /* TLV l(000d) */
-  newpacket.data[i++] = 0x00;
-  newpacket.data[i++] = 0x0d;
-  /* TLV v(text/x-aolrtf) */
-  memcpy(&(newpacket.data[i]), "text/x-aolrtf", 0x000d);
-  i += 0x000d;
+  i += aim_puttlv_str(newpacket.data+i, 0x0001, strlen("text/x-aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
+  i += aim_puttlv_str(newpacket.data+i, 0x0002, strlen(profile), profile);
+  /* why do we send this twice?  */
+  i += aim_puttlv_str(newpacket.data+i, 0x0003, strlen("text/x-aolrtf; charset=\"us-ascii\""), "text/x-aolrtf; charset=\"us-ascii\"");
   
-  /* TLV t(0002) */
-  newpacket.data[i++] = 0x00;
-  newpacket.data[i++] = 0x02;
-  /* TLV l() */
-  newpacket.data[i++] = (strlen(profile) >> 8) & 0xFF;
-  newpacket.data[i++] = (strlen(profile) & 0xFF);
-  /* TLV v(profile) */
-  memcpy(&(newpacket.data[i]), profile, strlen(profile));
+  /* a blank TLV 0x0004   --- not sure what this is either */
+  i += aimutil_put16(newpacket.data+i, 0x0004);
+  i += aimutil_put16(newpacket.data+i, 0x0000);
 
+  /* Capability information. */
+  i += aim_puttlv_str(newpacket.data+i, 0x0005, 0x0060, funkydata);
+
+  newpacket.commandlen = i;
   aim_tx_enqueue(sess, &newpacket);
   
   return (sess->snac_nextid++);
@@ -481,36 +491,42 @@ u_long aim_setversions(struct aim_session_t *sess,
   else
     newpacket.conn = aim_getconn_type(sess, AIM_CONN_TYPE_BOS);
   newpacket.type = 0x02;
-  newpacket.commandlen = 10 + (4*13);
+  newpacket.commandlen = 10 + (4*11);
 
   newpacket.data = (char *) malloc(newpacket.commandlen);
   i = aim_putsnac(newpacket.data, 0x0001, 0x0017, 0x0000, sess->snac_nextid);
 
   i += aimutil_put16(newpacket.data+i, 0x0001);
   i += aimutil_put16(newpacket.data+i, 0x0003);
+
   i += aimutil_put16(newpacket.data+i, 0x0002);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x0003);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x0004);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x0006);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x0008);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x0009);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x000a);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x000b);
   i += aimutil_put16(newpacket.data+i, 0x0002);
+
   i += aimutil_put16(newpacket.data+i, 0x000c);
   i += aimutil_put16(newpacket.data+i, 0x0001);
+
   i += aimutil_put16(newpacket.data+i, 0x0015);
-  i += aimutil_put16(newpacket.data+i, 0x0003);
-  i += aimutil_put16(newpacket.data+i, 0x000f);
-  i += aimutil_put16(newpacket.data+i, 0x0001);
-  i += aimutil_put16(newpacket.data+i, 0x0005);
   i += aimutil_put16(newpacket.data+i, 0x0001);
 
 #if 0

@@ -158,21 +158,14 @@ u_long aim_send_im(struct aim_session_t *sess,
 int aim_parse_incoming_im_middle(struct aim_session_t *sess,
 				 struct command_rx_struct *command)
 {
-  struct aim_userinfo_s userinfo;
-  u_int i = 0, j = 0, y = 0, z = 0;
-  char *msg = NULL;
-  u_int icbmflags = 0;
+  u_int i = 0,z;
   rxcallback_t userfunc = NULL;
   u_char cookie[8];
   int channel;
   struct aim_tlvlist_t *tlvlist;
-  struct aim_tlv_t *msgblocktlv, *tmptlv;
-  u_char *msgblock;
+  struct aim_userinfo_s userinfo;
   u_short wastebits;
-  u_short flag1,flag2;
 
-  memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
-  
   i = 10; /* Skip SNAC header */
 
   /*
@@ -187,12 +180,19 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
    * Channel 0x0001 is the message channel.  There are 
    * other channels for things called "rendevous"
    * which represent chat and some of the other new
-   * features of AIM2/3/3.5.  We only support 
-   * standard messages; those on channel 0x0001.
+   * features of AIM2/3/3.5. 
+   *
+   * Channel 0x0002 is the Rendevous channel, which
+   * is where Chat Invitiations come from.
+   * 
    */
   channel = aimutil_get16(command->data+i);
   i += 2;
-  if (channel != 0x0001)
+  
+  /*
+   *
+   */
+  if ((channel != 0x01) && (channel != 0x02))
     {
       printf("faim: icbm: ICBM received on an unsupported channel.  Ignoring.\n (chan = %04x)", channel);
       return 1;
@@ -204,15 +204,19 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
   memcpy(userinfo.sn, command->data+i+1, (int)command->data[i]);
   userinfo.sn[(int)command->data[i]] = '\0';
   i += 1 + (int)command->data[i];
+      
+  /*
+   * Warning Level
+   */
+  userinfo.warnlevel = aimutil_get16(command->data+i); /* guess */
+  i += 2;
 
   /*
-   * Unknown bits.
+   * Number of TLVs that follow.  Not needed.
    */
   wastebits = aimutil_get16(command->data+i);
   i += 2;
-  wastebits = aimutil_get16(command->data+i);
-  i += 2;
-
+  
   /*
    * Read block of TLVs.  All further data is derived
    * from what is parsed here.
@@ -220,128 +224,220 @@ int aim_parse_incoming_im_middle(struct aim_session_t *sess,
   tlvlist = aim_readtlvchain(command->data+i, command->commandlen-i);
 
   /*
-   * Check Autoresponse status.  If it is an autoresponse,
-   * it will contain a second type 0x0004 TLV, with zero length.
+   * From here on, its depends on what channel we're on.
    */
-  if (aim_gettlv(tlvlist, 0x0004, 2))
-    icbmflags |= AIM_IMFLAGS_AWAY;
-
-  /*
-   * Check Ack Request status.
-   */
-  if (aim_gettlv(tlvlist, 0x0003, 2))
-    icbmflags |= AIM_IMFLAGS_ACK;
-
-  /*
-   * Extract the various pieces of the userinfo struct.
-   */
-  /* Class. */
-  if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
-    userinfo.class = aimutil_get16(tmptlv->value);
-  /* Member-since date. */
-  if ((tmptlv = aim_gettlv(tlvlist, 0x0002, 1)))
+  if (channel == 1)
     {
-      /* If this is larger than 4, its probably the message block, skip */
-      if (tmptlv->length <= 4)
-	userinfo.membersince = aimutil_get32(tmptlv->value);
+     u_int j = 0, y = 0, z = 0;
+      char *msg = NULL;
+      u_int icbmflags = 0;
+      struct aim_tlv_t *msgblocktlv, *tmptlv;
+      u_char *msgblock;
+      u_short flag1,flag2;
+      
+      memset(&userinfo, 0x00, sizeof(struct aim_userinfo_s));
+      
+      /*
+       * Check Autoresponse status.  If it is an autoresponse,
+       * it will contain a second type 0x0004 TLV, with zero length.
+       */
+      if (aim_gettlv(tlvlist, 0x0004, 2))
+	icbmflags |= AIM_IMFLAGS_AWAY;
+      
+      /*
+       * Check Ack Request status.
+       */
+      if (aim_gettlv(tlvlist, 0x0003, 2))
+	icbmflags |= AIM_IMFLAGS_ACK;
+      
+      /*
+       * Extract the various pieces of the userinfo struct.
+       */
+      /* Class. */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
+	userinfo.class = aimutil_get16(tmptlv->value);
+      /* Member-since date. */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0002, 1)))
+	{
+	  /* If this is larger than 4, its probably the message block, skip */
+	  if (tmptlv->length <= 4)
+	    userinfo.membersince = aimutil_get32(tmptlv->value);
+	}
+      /* On-since date */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0003, 1)))
+	userinfo.onlinesince = aimutil_get32(tmptlv->value);
+      /* Idle-time */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0004, 1)))
+	userinfo.idletime = aimutil_get16(tmptlv->value);
+      /* Session Length (AIM) */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x000f, 1)))
+	userinfo.sessionlen = aimutil_get16(tmptlv->value);
+      /* Session Length (AOL) */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0010, 1)))
+	userinfo.sessionlen = aimutil_get16(tmptlv->value);
+      
+      /*
+       * Message block.
+       *
+       * XXX: Will the msgblock always be the second 0x0002? 
+       */
+      msgblocktlv = aim_gettlv(tlvlist, 0x0002, 1);
+      if (!msgblocktlv)
+	{
+	  printf("faim: icbm: major error! no message block TLV found!\n");
+	  aim_freetlvchain(&tlvlist);
+	}
+      
+      /*
+       * Extracting the message from the unknown cruft.
+       * 
+       * This is a bit messy, and I'm not really qualified,
+       * even as the author, to comment on it.  At least
+       * its not as bad as a while loop shooting into infinity.
+       *
+       * "Do you believe in magic?"
+       *
+       */
+      msgblock = msgblocktlv->value;
+      j = 0;
+      
+      wastebits = aimutil_get8(msgblock+j++);
+      wastebits = aimutil_get8(msgblock+j++);
+      
+      y = aimutil_get16(msgblock+j);
+      j += 2;
+      for (z = 0; z < y; z++)
+	wastebits = aimutil_get8(msgblock+j++);
+      wastebits = aimutil_get8(msgblock+j++);
+      wastebits = aimutil_get8(msgblock+j++);
+      
+      /* 
+       * Message string length, including flag words.
+       */
+      i = aimutil_get16(msgblock+j);
+      j += 2;
+      
+      /*
+       * Flag words.
+       *
+       * Its rumored that these can kick in some funky
+       * 16bit-wide char stuff that used to really kill
+       * libfaim.  Hopefully the latter is no longer true.
+       *
+       * Though someone should investiagte the former.
+       *
+       */
+      flag1 = aimutil_get16(msgblock+j);
+      j += 2;
+      flag2 = aimutil_get16(msgblock+j);
+      j += 2;
+      
+      if (flag1 || flag2)
+	printf("faim: icbm: **warning: encoding flags are being used! {%04x, %04x}\n", flag1, flag2);
+      
+      /* 
+       * Message string. 
+       */
+      i -= 4;
+      msg = (char *)malloc(i+1);
+      memcpy(msg, msgblock+j, i);
+      msg[i] = '\0';
+      
+      /*
+       * Call client.
+       */
+      userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+      if (userfunc)
+	i = userfunc(sess, command, channel, &userinfo, msg, icbmflags, flag1, flag2);
+      else 
+	i = 0;
+      
+      free(msg);
     }
-  /* On-since date */
-  if ((tmptlv = aim_gettlv(tlvlist, 0x0003, 1)))
-    userinfo.onlinesince = aimutil_get32(tmptlv->value);
-  /* Idle-time */
-  if ((tmptlv = aim_gettlv(tlvlist, 0x0004, 1)))
-    userinfo.idletime = aimutil_get16(tmptlv->value);
-  /* Session Length (AIM) */
-  if ((tmptlv = aim_gettlv(tlvlist, 0x000f, 1)))
-    userinfo.sessionlen = aimutil_get16(tmptlv->value);
-  /* Session Length (AOL) */
-  if ((tmptlv = aim_gettlv(tlvlist, 0x0010, 1)))
-    userinfo.sessionlen = aimutil_get16(tmptlv->value);
-
-  /*
-   * Message block.
-   *
-   * XXX: Will the msgblock always be the second 0x0002? 
-   */
-  msgblocktlv = aim_gettlv(tlvlist, 0x0002, 1);
-  if (!msgblocktlv)
+  else if (channel == 0x0002)
     {
-      printf("faim: icbm: major error! no message block TLV found!\n");
-      aim_freetlvchain(&tlvlist);
-    }
+      struct aim_tlv_t *block1;
+      struct aim_tlvlist_t *list2;
+      struct aim_tlv_t *tmptlv;
+      int a;
+      u_short exchange,instance;
+      char *roomname,*msg,*encoding,*lang;
+      
+      /* Class. */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0001, 1)))
+	userinfo.class = aimutil_get16(tmptlv->value);
+      /* On-since date */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0003, 1)))
+	userinfo.onlinesince = aimutil_get32(tmptlv->value);
+      /* Idle-time */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0004, 1)))
+	userinfo.idletime = aimutil_get16(tmptlv->value);
+      /* Session Length (AIM) */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x000f, 1)))
+	userinfo.sessionlen = aimutil_get16(tmptlv->value);
+      /* Session Length (AOL) */
+      if ((tmptlv = aim_gettlv(tlvlist, 0x0010, 1)))
+	userinfo.sessionlen = aimutil_get16(tmptlv->value);
 
-  /*
-   * Extracting the message from the unknown cruft.
-   * 
-   * This is a bit messy, and I'm not really qualified,
-   * even as the author, to comment on it.  At least
-   * its not as bad as a while loop shooting into infinity.
-   *
-   * "Do you believe in magic?"
-   *
-   */
-  msgblock = msgblocktlv->value;
-  j = 0;
+      /*
+       * There's another block of TLVs embedded in the type 5 here. 
+       */
+      block1 = aim_gettlv(tlvlist, 0x0005, 1);
+      if (!block1)
+	return 1; /* major problem */
 
-  wastebits = aimutil_get8(msgblock+j++);
-  wastebits = aimutil_get8(msgblock+j++);
-  
-  y = aimutil_get16(msgblock+j);
-  j += 2;
-  for (z = 0; z < y; z++)
-    wastebits = aimutil_get8(msgblock+j++);
-  wastebits = aimutil_get8(msgblock+j++);
-  wastebits = aimutil_get8(msgblock+j++);
+      a = 0x1a; /* skip -- not sure what this information is! */
+
+      list2 = aim_readtlvchain(block1->value+a, block1->length-a);
+      if (aim_gettlv(list2, 0x2711, 1))
+	{
+	  struct aim_tlv_t *name;
+	  int len;
+
+	  name = aim_gettlv(list2, 0x2711, 1);
+	  
+	  exchange = aimutil_get16(name->value+0);
+
+	  len = aimutil_get16(name->value+2);
+	  roomname = (char *)malloc(len+1);
+	  memcpy(roomname, name->value+3, len);
+	  roomname[len] = '\0';
+
+	  instance = aimutil_get16(name->value+3+len);
+	}
+
+      if (aim_gettlv(list2, 0x000c, 1))
+	  msg = aim_gettlv_str(list2, 0x000c, 1);
+
+      if (aim_gettlv(list2, 0x000d, 1))
+	  encoding = aim_gettlv_str(list2, 0x000d, 1);
  
-  /* 
-   * Message string length, including flag words.
-   */
-  i = aimutil_get16(msgblock+j);
-  j += 2;
-
-  /*
-   * Flag words.
-   *
-   * Its rumored that these can kick in some funky
-   * 16bit-wide char stuff that used to really kill
-   * libfaim.  Hopefully the latter is no longer true.
-   *
-   * Though someone should investiagte the former.
-   *
-   */
-  flag1 = aimutil_get16(msgblock+j);
-  j += 2;
-  flag2 = aimutil_get16(msgblock+j);
-  j += 2;
-
-  if (flag1 || flag2)
-    printf("faim: icbm: **warning: encoding flags are being used! {%04x, %04x}\n", flag1, flag2);
-
-  /* 
-   * Message string. 
-   */
-  i -= 4;
-  msg = (char *)malloc(i+1);
-  memcpy(msg, msgblock+j, i);
-  msg[i] = '\0';
+      if (aim_gettlv(list2, 0x000e, 1))
+	  lang = aim_gettlv_str(list2, 0x000e, 1);
+      
+      /*
+       * Call client.
+       */
+      userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
+      if (userfunc)
+	i = userfunc(sess, command, channel, &userinfo, roomname, msg, encoding+1, lang+1, exchange, instance);
+      else 
+	i = 0;
+      
+      free(roomname);
+      free(msg);
+      free(encoding);
+      free(lang);
+      aim_freetlvchain(&list2);
+    }
 
   /*
    * Free up the TLV chain.
    */
   aim_freetlvchain(&tlvlist);
+  
 
-  /*
-   * Call client.
-   */
-  userfunc = aim_callhandler(command->conn, 0x0004, 0x0007);
-  if (userfunc)
-    i = userfunc(sess, command, &userinfo, msg, icbmflags, flag1, flag2);
-  else 
-    i = 0;
-
-  free(msg);
-
-  return 1;
+  return i;
 }
 
 /*
