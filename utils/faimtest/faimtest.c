@@ -306,12 +306,10 @@ int main(int argc, char **argv)
 				cmd_gotkey();
 			} else {
 				if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS_OUT) {
-#if 0
 					if (aim_handlerendconnect(&aimsess, waitingconn) < 0) {
 						dprintf("connection error (rend out)\n");
 						aim_conn_kill(&aimsess, &waitingconn);
 					}
-#endif
 				} else {
 					if (aim_get_command(&aimsess, waitingconn) >= 0) {
 						aim_rxdispatch(&aimsess);
@@ -319,7 +317,6 @@ int main(int argc, char **argv)
 						dvprintf("connection error (type 0x%04x:0x%04x)\n", waitingconn->type, waitingconn->subtype);
 						/* we should have callbacks for all these, else the library will do the conn_kill for us. */
 						if (waitingconn->type == AIM_CONN_TYPE_RENDEZVOUS) {
-							dprintf("connection error: rendezvous connection. you forgot register a disconnect callback, right?\n");	  
 							aim_conn_kill(&aimsess, &waitingconn);
 						} else
 							aim_conn_kill(&aimsess, &waitingconn);
@@ -1056,9 +1053,9 @@ static int faimtest_handlecmd(aim_session_t *sess, aim_conn_t *conn, struct aim_
 		aim_getinfo(sess, conn, "midendian", AIM_GETINFO_GENERALINFO);
 		aim_getinfo(sess, conn, "midendian", AIM_GETINFO_AWAYMESSAGE);
 
-	} else if (!strncmp(tmpstr, "open directim", 13)) {
+	} else if (strstr(tmpstr, "open directim")) {
 
-		directim_start(sess, conn, (strlen(tmpstr) < 14)?userinfo->sn:tmpstr+14);
+		directim_start(sess, conn, userinfo->sn);
 
 	} else if(!(strncmp(tmpstr, "lookup", 6))) {
 

@@ -109,7 +109,6 @@ faim_internal aim_conn_t *aim_cloneconn(aim_session_t *sess, aim_conn_t *src);
 faim_internal void aim_clonehandlers(aim_session_t *sess, aim_conn_t *dest, aim_conn_t *src);
 
 faim_internal int aim_oft_buildheader(unsigned char *,struct aim_fileheader_t *);
-faim_internal int aim_listenestablish(u_short);
 
 faim_internal int aim_parse_unknown(aim_session_t *, aim_frame_t *, ...);
 
@@ -126,6 +125,12 @@ struct aim_tool_version {
 	fu16_t version;
 	fu16_t tool;
 	fu16_t toolversion;
+};
+
+struct aim_directim_intdata {
+	fu8_t cookie[8];
+	char sn[MAXSNLEN+1];
+	char ip[22];
 };
 
 faim_internal fu16_t aim_getcap(aim_session_t *sess, aim_bstream_t *bs, int len);

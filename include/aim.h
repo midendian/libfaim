@@ -268,6 +268,7 @@ typedef struct aim_conn_s {
 	flap_seqnum_t seqnum;
 	fu32_t status;
 	void *priv; /* misc data the client may want to store */
+	void *internal; /* internal conn-specific libfaim data */
 	time_t lastactivity; /* time of last transmit */
 	int forcedlatency; 
 	void *handlerlist;
@@ -609,11 +610,6 @@ faim_export int aim_ads_clientready(aim_session_t *sess, aim_conn_t *conn);
 faim_export int aim_ads_requestads(aim_session_t *sess, aim_conn_t *conn);
 
 /* aim_im.c */
-struct aim_directim_priv {
-	fu8_t cookie[8];
-	char sn[MAXSNLEN+1];
-	fu8_t ip[30];
-};
 
 struct aim_fileheader_t {
 #if 0
@@ -716,8 +712,9 @@ struct aim_incomingim_ch1_args {
 };
 
 struct aim_incomingim_ch2_args {
-	unsigned short reqclass;
-	unsigned short status;
+	fu8_t cookie[8];
+	fu16_t reqclass;
+	fu16_t status;
 	union {
 		struct {
 			fu32_t checksum;
@@ -727,7 +724,9 @@ struct aim_incomingim_ch2_args {
 		} icon;
 		struct {
 		} voice;
-		struct aim_directim_priv *directim;
+		struct {
+			fu8_t ip[22]; /* xxx.xxx.xxx.xxx:xxxxx\0 */
+		} imimage;
 		struct {
 			char *msg;
 			char *encoding;
@@ -748,8 +747,9 @@ faim_export int aim_send_im(aim_session_t *, aim_conn_t *, const char *destsn, u
 faim_export int aim_send_icon(aim_session_t *sess, aim_conn_t *conn, const char *sn, const fu8_t *icon, int iconlen, time_t stamp, fu32_t iconsum);
 faim_export fu32_t aim_iconsum(const fu8_t *buf, int buflen);
 faim_export int aim_send_im_direct(aim_session_t *, aim_conn_t *, const char *msg);
-faim_export aim_conn_t *aim_directim_initiate(aim_session_t *, aim_conn_t *, struct aim_directim_priv *, const char *destsn);
-faim_export aim_conn_t *aim_directim_connect(aim_session_t *, aim_conn_t *, struct aim_directim_priv *);
+faim_export const char *aim_directim_getsn(aim_conn_t *conn);
+faim_export aim_conn_t *aim_directim_initiate(aim_session_t *, aim_conn_t *, const char *destsn);
+faim_export aim_conn_t *aim_directim_connect(aim_session_t *, const char *sn, const char *addr, const fu8_t *cookie);
 
 faim_export aim_conn_t *aim_getfile_initiate(aim_session_t *sess, aim_conn_t *conn, const char *destsn);
 faim_export int aim_oft_getfile_request(aim_session_t *sess, aim_conn_t *conn, const char *name, int size);

@@ -317,10 +317,12 @@ static int sendframe_oft(aim_session_t *sess, aim_frame_t *fr)
 	aimbs_put16(&hbs, fr->hdr.oft.type);
 	aimbs_putraw(&hbs, fr->hdr.oft.hdr2, fr->hdr.oft.hdr2len);
 
+	aim_bstream_rewind(&hbs);
+	
 	if (aim_bstream_send(&hbs, fr->conn, hbslen) != hbslen) {
 
 		err = -errno;
-
+		
 	} else if (aim_bstream_curpos(&fr->data)) {
 		int len;
 
@@ -335,6 +337,7 @@ static int sendframe_oft(aim_session_t *sess, aim_frame_t *fr)
 
 	fr->handled = 1;
 	fr->conn->lastactivity = time(NULL);
+
 
 	return err;
 }

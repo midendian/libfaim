@@ -144,6 +144,8 @@ faim_export void aim_conn_kill(aim_session_t *sess, aim_conn_t **deadconn)
 		aim_conn_close(*deadconn);
 	if ((*deadconn)->priv)
 		free((*deadconn)->priv);
+	if ((*deadconn)->internal)
+		free((*deadconn)->internal);
 	free(*deadconn);
 	deadconn = NULL;
 
@@ -425,6 +427,7 @@ faim_internal aim_conn_t *aim_cloneconn(aim_session_t *sess, aim_conn_t *src)
 	conn->subtype = src->subtype;
 	conn->seqnum = src->seqnum;
 	conn->priv = src->priv;
+	conn->internal = src->internal;
 	conn->lastactivity = src->lastactivity;
 	conn->forcedlatency = src->forcedlatency;
 	conn->sessv = src->sessv;

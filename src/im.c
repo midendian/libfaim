@@ -624,6 +624,87 @@ static int incomingim_ch1(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 	return ret;
 }
 
+static int incomingim_ch2_buddyicon(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+	aim_rxcallback_t userfunc;
+	int ret = 0;
+	aim_tlv_t *miscinfo;
+	aim_bstream_t tbs;
+
+	miscinfo = aim_gettlv(list2, 0x2711, 1);
+	aim_bstream_init(&tbs, miscinfo->value, miscinfo->length);
+
+	args->info.icon.checksum = aimbs_get32(&tbs);
+	args->info.icon.length = aimbs_get32(&tbs);
+	args->info.icon.timestamp = aimbs_get32(&tbs);
+	args->info.icon.icon = aimbs_getraw(&tbs, args->info.icon.length);
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, 0x0002, userinfo, args);
+
+	free(args->info.icon.icon);
+
+	return ret;
+}
+
+static int incomingim_ch2_imimage(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, struct aim_userinfo_s *userinfo, struct aim_incomingim_ch2_args *args, aim_tlvlist_t *list2)
+{
+	aim_rxcallback_t userfunc;
+	int ret = 0;
+
+	/* Primary IP address */
+	if (aim_gettlv(list2, 0x0003, 1)) {
+		aim_tlv_t *tlv;
+
+		tlv = aim_gettlv(list2, 0x0003, 1);
+
+		snprintf(args->info.imimage.ip, sizeof(args->info.imimage.ip),
+					"%d.%d.%d.%d:4443",
+					tlv->value[0],
+					tlv->value[1],
+					tlv->value[2],
+					tlv->value[3]);
+	}
+
+	/* 
+	 * Alternate IP address
+	 *
+	 * Sort of.  The peer doesn't send this -- the OSCAR
+	 * server does.  So it will be the IP address that the
+	 * peer is directly connected to the internet with, which 
+	 * may not be the same as the IP above.  If these two
+	 * values differ, it's rather unlikely that this
+	 * rendezvous is going to happen...
+	 *
+	 */
+	if (aim_gettlv(list2, 0x0004, 1))
+		;
+		
+	/* Port number (not correct -- ignore) */
+	if (aim_gettlv(list2, 0x0005, 1)) 
+		;
+
+	/* Unknown -- two bytes = 0x0001 */
+	if (aim_gettlv(list2, 0x000a, 1))
+		;
+
+	/* Unknown -- no value */
+	if (aim_gettlv(list2, 0x000f, 1))
+		;
+
+	faimdprintf(sess, 1, "rend: directIM request from %s (%s)\n", userinfo->sn, args->info.imimage.ip);
+
+	/* 
+	 * XXX: there are a couple of different request packets for
+	 *          different things 
+	 */
+
+	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
+		ret = userfunc(sess, rx, 0x0002, userinfo, args);
+
+	return ret;
+}
+
 /* XXX Ugh.  I think its obvious. */
 static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, fu16_t channel, struct aim_userinfo_s *userinfo, aim_tlvlist_t *tlvlist, fu8_t *cookie)
 {
@@ -660,6 +741,7 @@ static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 	cookie2 = aimbs_getraw(&bbs, 8);
 	if (memcmp(cookie, cookie2, 8) != 0) 
 		faimdprintf(sess, 0, "rend: warning cookies don't match!\n");
+	memcpy(args.cookie, cookie2, 8);
 	free(cookie2);
 
 	/*
@@ -687,6 +769,7 @@ static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 	 */
 	list2 = aim_readtlvchain(&bbs);
 
+#if 0 /* this should be in the per-type blocks */
 	if (!list2 || ((args.reqclass != AIM_CAPS_IMIMAGE) && !(aim_gettlv(list2, 0x2711, 1)))) {
 		aim_msgcookie_t *cook;
 		int type;
@@ -734,26 +817,14 @@ static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 
 		return 1;
 	}
+#endif
 
 	/*
 	 * The rest of the handling depends on what type it is.
 	 */
 	if (args.reqclass & AIM_CAPS_BUDDYICON) {
-		aim_tlv_t *miscinfo;
-		aim_bstream_t tbs;
 
-		miscinfo = aim_gettlv(list2, 0x2711, 1);
-		aim_bstream_init(&tbs, miscinfo->value, miscinfo->length);
-
-		args.info.icon.checksum = aimbs_get32(&tbs);
-		args.info.icon.length = aimbs_get32(&tbs);
-		args.info.icon.timestamp = aimbs_get32(&tbs);
-		args.info.icon.icon = aimbs_getraw(&tbs, args.info.icon.length);
-
-		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-			ret = userfunc(sess, rx, channel, userinfo, &args);
-
-		free(args.info.icon.icon);
+		ret = incomingim_ch2_buddyicon(sess, mod, rx, snac, userinfo, &args, list2);
 
 	} else if (args.reqclass & AIM_CAPS_VOICE) {
 		aim_msgcookie_t *cachedcook;
@@ -778,40 +849,8 @@ static int incomingim_ch2(aim_session_t *sess, aim_module_t *mod, aim_frame_t *r
 			ret = userfunc(sess, rx, channel, userinfo, &args);
 
 	} else if (args.reqclass & AIM_CAPS_IMIMAGE) {
-		char ip[30];
-		struct aim_directim_priv *priv;
 
-		memset(ip, 0, sizeof(ip));
-
-		if (aim_gettlv(list2, 0x0003, 1) && aim_gettlv(list2, 0x0005, 1)) {
-			aim_tlv_t *iptlv, *porttlv;
-			  
-			iptlv = aim_gettlv(list2, 0x0003, 1);
-			porttlv = aim_gettlv(list2, 0x0005, 1);
-
-			snprintf(ip, 30, "%d.%d.%d.%d:%d", 
-				aimutil_get8(iptlv->value+0),
-				aimutil_get8(iptlv->value+1),
-				aimutil_get8(iptlv->value+2),
-				aimutil_get8(iptlv->value+3),
-				4443 /*aimutil_get16(porttlv->value)*/);
-		}
-
-		faimdprintf(sess, 1, "rend: directIM request from %s (%s)\n",
-				userinfo->sn, ip);
-
-		/* 
-		 * XXX: there are a couple of different request packets for
-		 *          different things 
-		 */
-
-		args.info.directim = priv = (struct aim_directim_priv *)calloc(1, sizeof(struct aim_directim_priv)); /* XXX error */
-		memcpy(priv->ip, ip, sizeof(priv->ip));
-		memcpy(priv->sn, userinfo->sn, sizeof(priv->sn));
-		memcpy(priv->cookie, cookie, sizeof(priv->cookie));
-
-		if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-			ret = userfunc(sess, rx, channel, userinfo, &args);
+		ret = incomingim_ch2_imimage(sess, mod, rx, snac, userinfo, &args, list2);
 
 	} else if (args.reqclass & AIM_CAPS_CHAT) {
 		aim_tlv_t *miscinfo;

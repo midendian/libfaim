@@ -1,8 +1,9 @@
 
 #include "faimtest.h"
 
-static int faimtest_directim_connect(aim_session_t *sess, aim_frame_t *fr, ...)
+static int directim_connect(aim_session_t *sess, aim_frame_t *fr, ...)
 {
+#if 0
 	  va_list ap;
 	  struct aim_directim_priv *priv;
 	  
@@ -10,35 +11,28 @@ static int faimtest_directim_connect(aim_session_t *sess, aim_frame_t *fr, ...)
 	  priv = va_arg(ap, struct aim_directim_priv *);
 
 	  va_end(ap);
-	  
+#endif	  
 	  dprintf("faimtest: directim_connect\n");
 
 	  return 1;
 }
 
-static int faimtest_directim_incoming(aim_session_t *sess, aim_frame_t *fr, ...)
+static int directim_incoming(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	char *msg;
-	aim_conn_t *conn;
-	struct aim_directim_priv *priv;
+	char *sn, *msg;
 
 	va_start(ap, fr);
-	conn = va_arg(ap, aim_conn_t *);
+	sn = va_arg(ap, char *);
 	msg = va_arg(ap, char *);
 	va_end(ap);
 
-	if (!(priv = conn->priv)) {
-		dvprintf("faimtest: directim: no private struct on conn with fd %d\n", conn->fd);
-		return 0;
-	}
+	dvprintf("faimtest: Directim from %s: %s\n", sn, msg);
 
-	dvprintf("faimtest: Directim from %s: %s\n", priv->sn, msg);
-
-	if (!strncmp(msg, "sendmsg", 7)) {
+	if (strstr(msg, "sendmsg")) {
 		int i;
 
-		i = atoi(msg+8);
+		i = atoi(strstr(msg, "sendmsg")+8);
 		if (i < 10000) {
 			char *newbuf;
 			int z;
@@ -47,58 +41,50 @@ static int faimtest_directim_incoming(aim_session_t *sess, aim_frame_t *fr, ...)
 			for (z = 0; z < i; z++)
 				newbuf[z] = (z % 10)+0x30;
 			newbuf[i] = '\0';
-			aim_send_im_direct(sess, conn, newbuf);
+			aim_send_im_direct(sess, fr->conn, newbuf);
 			free(newbuf);
 		}
 
-	} else if (!strncmp(msg, "goodday", 7)) {
+	} else if (strstr(msg, "goodday")) {
 
-		aim_send_im_direct(sess, conn, "Good day to you, too");
+		aim_send_im_direct(sess, fr->conn, "Good day to you, too");
 
 	} else {
 		char newmsg[1024];
 
 		snprintf(newmsg, sizeof(newmsg), "unknown (%s)\n", msg);
-		aim_send_im_direct(sess, conn, newmsg);
+		aim_send_im_direct(sess, fr->conn, newmsg);
 	}
 
 	return 1;
 }
 
-static int faimtest_directim_disconnect(aim_session_t *sess, aim_frame_t *fr, ...)
+static int directim_disconnect(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	aim_conn_t *conn;
 	char *sn;
 
 	va_start(ap, fr);
-	conn = va_arg(ap, aim_conn_t *);
 	sn = va_arg(ap, char *);
 	va_end(ap);
 
 	dvprintf("faimtest: directim: disconnected from %s\n", sn);
 
-	aim_conn_kill(sess, &conn);
+	aim_conn_kill(sess, &fr->conn);
 
 	return 1;
 }
 
-static int faimtest_directim_typing(aim_session_t *sess, aim_frame_t *fr, ...)
+static int directim_typing(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	aim_conn_t *conn;
-	struct aim_directim_priv *priv;
+	char *sn;
 
 	va_start(ap, fr);
-	conn = va_arg(ap, aim_conn_t *);
+	sn = va_arg(ap, char *);
 	va_end(ap);
 
-	if (!(priv = (struct aim_directim_priv *)conn->priv)) {
-		dvprintf("faimtest: no private struct on conn with fd %d!\n", conn->fd);
-		return 0;
-	}
-
-	dvprintf("faimtest: ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", priv->sn);
+	dvprintf("faimtest: ohmigod! %s has started typing (DirectIM). He's going to send you a message! *squeal*\n", sn);
 
 	return 1;
 }
@@ -106,7 +92,6 @@ static int faimtest_directim_typing(aim_session_t *sess, aim_frame_t *fr, ...)
 static int faimtest_directim_initiate(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
-	struct aim_directim_priv *priv;
 	aim_conn_t *newconn, *listenerconn;
 
 	va_start(ap, fr);
@@ -117,17 +102,13 @@ static int faimtest_directim_initiate(aim_session_t *sess, aim_frame_t *fr, ...)
 	aim_conn_close(listenerconn);
 	aim_conn_kill(sess, &listenerconn);
 
-	priv = (struct aim_directim_priv *)newconn->priv;
-
-	dvprintf("faimtest: OFT: DirectIM: intitiate success to %s\n", priv->ip);
-
-	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, faimtest_directim_incoming, 0);
-	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
-	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, faimtest_directim_typing, 0);
+	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, directim_incoming, 0);
+	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, directim_disconnect, 0);
+	aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, directim_typing, 0);
 
 	aim_send_im_direct(sess, newconn, "goodday");
 
-	dvprintf("faimtest: OFT: DirectIM: connected to %s\n", priv->sn);
+	dvprintf("faimtest: OFT: DirectIM: connected to %s\n", aim_directim_getsn(newconn));
 
 	return 1;
 }
@@ -484,8 +465,8 @@ void directim_start(aim_session_t *sess, aim_conn_t *conn, const char *sn)
 	aim_conn_t *newconn;
 
 	printf("faimtest: opening directim to %s\n", sn);
-	
-	newconn = aim_directim_initiate(sess, conn, NULL, sn);
+ 	
+	newconn = aim_directim_initiate(sess, conn, sn);
 
 	if (!newconn || (newconn->fd == -1)) {
 
@@ -504,22 +485,22 @@ void directim_requested(aim_session_t *sess, aim_conn_t *conn, struct aim_userin
 {
 	aim_conn_t *newconn;
 
+	dvprintf("faimtest: OFT: DirectIM: request from %s (%s)\n", userinfo->sn, args->info.imimage.ip);
 
-	dvprintf("faimtest: OFT: DirectIM: request from %s (%s)\n", userinfo->sn, args->info.directim->ip);
-
-	/* XXX why does these need conn? */
-	newconn = aim_directim_connect(sess, conn, args->info.directim);
+	newconn = aim_directim_connect(sess, userinfo->sn, args->info.imimage.ip, args->cookie);
 
 	if (!newconn || (newconn->fd == -1)) {
+
 		dprintf("faimtest: icbm: imimage: could not connect\n");
 
 		if (newconn)
 			aim_conn_kill(sess, &newconn);
+
 	} else {
 
-		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, faimtest_directim_incoming, 0);
-		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, faimtest_directim_disconnect, 0);
-		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, faimtest_directim_typing, 0);
+		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMINCOMING, directim_incoming, 0);
+		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMDISCONNECT, directim_disconnect, 0);
+		aim_conn_addhandler(sess, newconn, AIM_CB_FAM_OFT, AIM_CB_OFT_DIRECTIMTYPING, directim_typing, 0);
 
 		dvprintf("faimtest: OFT: DirectIM: connected to %s\n", userinfo->sn);
 

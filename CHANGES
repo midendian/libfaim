@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Sat Sep  8 07:32:27 PDT 2001
+  - Clean up ft.c slightly.  Direct IM now works.  In both directions.
+   - This could still use a lot more help.  It should use bstreams more.
+
  - Sat Sep  8 00:55:46 PDT 2001
   - Chatnav loop fix. (Err. I shouldn't code when I'm that tired.)
   - Remove some things from BUGS
