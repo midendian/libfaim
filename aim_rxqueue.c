@@ -9,6 +9,7 @@
 
 #include <faim/aim.h> 
 
+
 /*
  * This is a modified read() to make SURE we get the number
  * of bytes we are told to, otherwise block.
@@ -16,7 +17,7 @@
  * Modified to count errno (Sébastien Carpe <scarpe@atos-group.com>)
  * 
 */
-int Read(int fd, u_char *buf, int len)
+int aim_failsaferead(int fd, u_char *buf, int len)
 {
   int i = 0;
   int j = 0;
@@ -59,19 +60,17 @@ int aim_get_command(struct aim_session_t *sess)
   struct timeval tv;
   char generic[6]; 
   struct command_rx_struct *workingStruct = NULL;
-  struct command_rx_struct *workingPtr = NULL;
   struct aim_conn_t *conn = NULL;
-#if debug > 0
-  printf("Reading generic/unknown response...");
-#endif
-  
-  
+  int selstat = 0;
+
+  faimdprintf(1, "Reading generic/unknown response...");
+
   /* dont wait at all (ie, never call this unless something is there) */
   tv.tv_sec = 0; 
   tv.tv_usec = 0;
-  conn = aim_select(sess, &tv);
+  conn = aim_select(sess, &tv, &selstat);
 
-  if (conn==NULL)
+  if (conn==NULL) 
     return 0;  /* nothing waiting */
 
   s = conn->fd;
@@ -92,7 +91,7 @@ int aim_get_command(struct aim_session_t *sess)
   /* read first 6 bytes (the FLAP header only) off the socket */
   while ( (select(s+1, &fds, NULL, NULL, &tv) == 1) && (i < 6))
     {
-      if ((err = Read(s, &(generic[i]), 1)) < 0)
+      if ((err = aim_failsaferead(s, &(generic[i]), 1)) < 0)
 	{
 	  /* error is probably not recoverable...(must be a pessimistic day) */
 	  aim_conn_close(conn);
@@ -104,26 +103,18 @@ int aim_get_command(struct aim_session_t *sess)
 	  if (generic[i] == 0x2a)
 	  {
 	    readgood = 1;
-#if debug > 1
-	    printf("%x ", generic[i]);
-	    fflush(stdout);
-#endif
+	    faimdprintf(1, "%x ", generic[i]);
 	    i++;
 	  }
 	  else
 	    {
-#if debug > 1
-	      printf("skipping 0x%d ", generic[i]);
-	      fflush(stdout);
-#endif
+	      faimdprintf(1, "skipping 0x%d ", generic[i]);
 	      j++;
 	    }
 	}
       else
 	{
-#if debug > 1
-	  printf("%x ", generic[i]);
-#endif
+	  faimdprintf(1, "%x ", generic[i]);
 	  i++;
 	}
       FD_ZERO(&fds);
@@ -132,19 +123,21 @@ int aim_get_command(struct aim_session_t *sess)
       tv.tv_usec= 2;
     }
 
-  if (generic[0] != 0x2a)
-    {
-      /* this really shouldn't happen, since the main loop
-	 select() should protect us from entering this function
-	 without data waiting  */
-      printf("Bad incoming data!");
-      return -1;
-    }
+  /*
+   * This shouldn't happen unless the socket breaks, the server breaks,
+   * or we break.  We must handle it just in case.
+   */
+  if (generic[0] != 0x2a) {
+    printf("Bad incoming data!");
+    return -1;
+  }	
 
   isav = i;
 
   /* allocate a new struct */
   workingStruct = (struct command_rx_struct *) malloc(sizeof(struct command_rx_struct));
+  memset(workingStruct, 0x00, sizeof(struct command_rx_struct));
+
   workingStruct->lock = 1;  /* lock the struct */
 
   /* store channel -- byte 2 */
@@ -156,20 +149,18 @@ int aim_get_command(struct aim_session_t *sess)
   /* store commandlen -- bytes 5 and 6 */
   workingStruct->commandlen = aimutil_get16(generic+4);
 
+  workingStruct->nofree = 0; /* free by default */
+
   /* malloc for data portion */
   workingStruct->data = (u_char *) malloc(workingStruct->commandlen);
 
   /* read the data portion of the packet */
-  i = Read(s, workingStruct->data, workingStruct->commandlen);
-  if (i < 0)
-    {
-      aim_conn_close(conn);
-      return i;
-    }
+  if (aim_failsaferead(s, workingStruct->data, workingStruct->commandlen) < 0){
+    aim_conn_close(conn);
+    return -1;
+  }
 
-#if debug > 0
-  printf(" done. (%db+%db read, %db skipped)\n", isav, i, j);
-#endif
+  faimdprintf(1, " done. (%db+%db read, %db skipped)\n", isav, i, j);
 
   workingStruct->conn = conn;
 
@@ -177,18 +168,21 @@ int aim_get_command(struct aim_session_t *sess)
   workingStruct->lock = 0; /* unlock */
 
   /* enqueue this packet */
-  if (sess->queue_incoming == NULL)
-    {
-      sess->queue_incoming = workingStruct;
-    }
-  else
-    {
-      workingPtr = sess->queue_incoming;
-      while (workingPtr->next != NULL)
-	workingPtr = workingPtr->next;
-      workingPtr->next = workingStruct;
-    }
-  
+  if (sess->queue_incoming == NULL) {
+    sess->queue_incoming = workingStruct;
+  } else {
+    struct command_rx_struct *cur;
+
+    /*
+     * This append operation takes a while.  It might be faster
+     * if we maintain a pointer to the last entry in the queue
+     * and just update that.  Need to determine if the overhead
+     * to maintain that is lower than the overhead for this loop.
+     */
+    for (cur = sess->queue_incoming; cur->next; cur = cur->next)
+      ;
+    cur->next = workingStruct;
+  }
   
   workingStruct->conn->lastactivity = time(NULL);
 
@@ -196,71 +190,59 @@ int aim_get_command(struct aim_session_t *sess)
 }
 
 /*
- *  purge_rxqueue()
+ * Purge recieve queue of all handled commands (->handled==1).  Also
+ * allows for selective freeing using ->nofree so that the client can
+ * keep the data for various purposes.  
  *
- *  This is just what it sounds.  It purges the receive (rx) queue of
- *  all handled commands.  This is normally called from inside 
- *  aim_rxdispatch() after it's processed all the commands in the queue.
+ * If ->nofree is nonzero, the frame will be delinked from the global list, 
+ * but will not be free'ed.  The client _must_ keep a pointer to the
+ * data -- libfaim will not!  If the client marks ->nofree but
+ * does not keep a pointer, it's lost forever.
  *
  */
-struct command_rx_struct *aim_purge_rxqueue(struct command_rx_struct *queue)
+void aim_purge_rxqueue(struct aim_session_t *sess)
 {
-  struct command_rx_struct *workingPtr = NULL;
-  struct command_rx_struct *workingPtr2 = NULL;
+  struct command_rx_struct *cur = NULL;
+  struct command_rx_struct *tmp;
 
-  if (queue == (struct command_rx_struct *)NULL) 
-    {
-    /* do nothing */
-    }
-  else if (queue->next == (struct command_rx_struct *)NULL)
-    {
-      if (queue->handled == 1) {
-	workingPtr = queue;
-	queue = NULL;
-	free(workingPtr->data);
-	free(workingPtr);
-      }
-    }
-  else 
-    {
-      while (queue && queue->handled == 1) 
-	{
-	  workingPtr = queue;
-	  queue = queue->next;
-	  free(workingPtr->data);
-	  free(workingPtr);
-	}
+  if (sess->queue_incoming == NULL)
+    return;
+  
+  if (sess->queue_incoming->next == NULL) {
+    if (sess->queue_incoming->handled) {
+      tmp = sess->queue_incoming;
+      sess->queue_incoming = NULL;
 
-      workingPtr = queue;
-
-      while (workingPtr && (workingPtr->next != (struct command_rx_struct *)NULL))
-	{
-	  if (workingPtr->next->handled == 1) 
-	    {
-	      workingPtr2 = workingPtr->next;
-	      workingPtr->next = workingPtr->next->next;
-	      free(workingPtr2->data);
-	      free(workingPtr2);
-	    } 
-	  else /* TODO: rework this so the additional if isn't needed */
-	    {
-	      if (workingPtr->next == (struct command_rx_struct *)NULL) 
-		{
-		  if (workingPtr->handled == 1)
-		    {
-		      workingPtr2 = workingPtr;
-		      workingPtr = NULL;
-		      free(workingPtr2->data);
-		      free(workingPtr2);
-		      return queue;
-		    }
-		} 
-	      else 
-		{
-		  workingPtr = workingPtr->next;
-		}
-	    }
-	}
+      if (!tmp->nofree) {
+	free(tmp->data);
+	free(tmp);
+      } else
+	tmp->next = NULL;
     }
-  return queue;
+    return;
+  }
+
+  for(cur = sess->queue_incoming; cur->next != NULL; ) {
+    if (cur->next->handled) {
+      tmp = cur->next;
+      cur->next = tmp->next;
+      if (!tmp->nofree) {
+	free(tmp->data);
+	free(tmp);
+      } else
+	tmp->next = NULL;
+    }	
+    cur = cur->next;
+
+    /* 
+     * Be careful here.  Because of the way we just
+     * manipulated the pointer, cur may be NULL and 
+     * the for() will segfault doing the check unless
+     * we find this case first.
+     */
+    if (cur == NULL)	
+      break;
+  }
+
+  return;
 }

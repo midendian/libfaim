@@ -1,6 +1,16 @@
 
 No release numbers
 ------------------
+ - Sun Mar 19 06:07:52 UTC 2000
+   - Added a parameter to aim_select to return event type 
+     - REQUIRES CLIENT CHANGES.
+   - For the most part rewrote the tx and rx queuing code 
+     - Should fix many, many outstanding problems in and related
+         to that code, including one that keeps memory from freeing 
+   - Fixed several bugs in various places
+   - Reformated a lot of code, and did general cleanups
+   - Should have a generally more robust lib now.
+
  - Sun Mar 12 00:07:40 UTC 2000
    - Fixed a robustness problem in aim_handleredirect_middle()
    - Added TLV chain creation routines (yes, aimd is progressing)

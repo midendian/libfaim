@@ -50,6 +50,12 @@
  */
 #define AIM_COOKIELEN            0x100
 
+#if debug > 0
+#define faimdprintf(l, x...) {if (l >= debug) printf(x); }
+#else
+#define faimdprintf(l, x...)
+#endif
+
 /*
  * Login info.  Passes information from the Authorization
  * stage of login to the service (BOS, etc) connection
@@ -126,6 +132,7 @@ struct command_rx_struct {
   u_char *data;             /* packet data (from 7 byte on) */
   u_int lock;               /* 0 = open, !0 = locked */
   u_int handled;            /* 0 = new, !0 = been handled */
+  u_int nofree;		    /* 0 = free data on purge, 1 = only unlink */
   struct aim_conn_t *conn;  /* the connection it came in on... */
   struct command_rx_struct *next; /* ptr to next struct in list */
 };
@@ -247,7 +254,6 @@ int aim_puttlv_32(u_char *, u_short, u_long);
 int aim_puttlv_str(u_char *buf, u_short t, u_short l, u_char *v);
 int aim_writetlvchain(u_char *buf, int buflen, struct aim_tlvlist_t **list);
 int aim_addtlvtochain16(struct aim_tlvlist_t **list, unsigned short type, unsigned short val);
-int aim_addtlvtochain32(struct aim_tlvlist_t **list, unsigned short type, unsigned long val);
 int aim_addtlvtochain_str(struct aim_tlvlist_t **list, unsigned short type, char *str);
 
 /*
@@ -274,7 +280,7 @@ int aim_send_login (struct aim_session_t *, struct aim_conn_t *, char *, char *,
 int aim_encode_password(const char *, u_char *);
 
 
-struct command_rx_struct *aim_purge_rxqueue(struct command_rx_struct *queue);
+void aim_purge_rxqueue(struct aim_session_t *);
 
 
 int aim_parse_unknown(struct aim_session_t *, struct command_rx_struct *command, ...);
@@ -285,7 +291,7 @@ int aim_tx_enqueue(struct aim_session_t *, struct command_tx_struct *);
 u_int aim_get_next_txseqnum(struct aim_conn_t *);
 int aim_tx_flushqueue(struct aim_session_t *);
 int aim_tx_printqueue(struct aim_session_t *);
-int aim_tx_purgequeue(struct aim_session_t *);
+void aim_tx_purgequeue(struct aim_session_t *);
 
 struct aim_rxcblist_t {
   u_short family;
@@ -325,7 +331,7 @@ void aim_conn_close(struct aim_conn_t *deadconn);
 struct aim_conn_t *aim_getconn_type(struct aim_session_t *, int type);
 struct aim_conn_t *aim_newconn(struct aim_session_t *, int type, char *dest);
 int aim_conngetmaxfd(struct aim_session_t *);
-struct aim_conn_t *aim_select(struct aim_session_t *, struct timeval *);
+struct aim_conn_t *aim_select(struct aim_session_t *, struct timeval *, int *);
 int aim_conn_isready(struct aim_conn_t *);
 int aim_conn_setstatus(struct aim_conn_t *, int);
 void aim_session_init(struct aim_session_t *);

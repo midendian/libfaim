@@ -71,9 +71,10 @@ int main(void)
 {
   struct aim_session_t aimsess;
   struct aim_conn_t *authconn = NULL;
-  int stayconnected = 1;
+  int keepgoing = 1, stayconnected = 1;
   struct client_info_s info = {"FAIMtest (Hi guys!)", 3, 5, 1670, "us", "en"};
-    
+  int selstat = 0;
+
   aim_session_init(&aimsess);
 
   if ( !(screenname = getenv("SCREENNAME")) ||
@@ -120,27 +121,40 @@ int main(void)
 #endif
     }
 
-  while (aim_select(&aimsess, NULL) > (struct aim_conn_t *)0)
-    {
-      if (aimsess.queue_outgoing)
-	aim_tx_flushqueue(&aimsess);
+  while (keepgoing) {
+    aim_select(&aimsess, NULL, &selstat);
 
-      if (aim_get_command(&aimsess) < 0)
-	{
+    switch(selstat) {
+    case -1: /* error */
+      keepgoing = 0;
+      break;
+
+    case 0: /* no events pending */
+      break;
+
+    case 1: /* outgoing data pending */
+      aim_tx_flushqueue(&aimsess);
+      break;
+
+    case 2: /* incoming data pending */
+      if (aim_get_command(&aimsess) < 0) {
 	  printf("\afaimtest: connection error!\n");
-	}
-      else
+      } else
 	aim_rxdispatch(&aimsess);
+      break;
+      
+    default:
+      break; /* invalid */
     }
+  }
 
   /* Close up */
-  printf("AIM just decided we didn't need to be here anymore, closing up.,,\n");
+  printf("AIM just decided we didn't need to be here anymore, closing up...\n");
   
   /* close up all connections, dead or no */
   aim_logoff(&aimsess); 
 
-  if (stayconnected)
-    {
+  if (stayconnected) {
       printf("\nTrying to reconnect in 2 seconds...\n");
       sleep(2);
       goto enter;

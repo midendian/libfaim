@@ -157,12 +157,17 @@ int aim_countconn(struct aim_session_t *sess)
  * Waits for a socket with data or for timeout, whichever comes first.
  * See select(2).
  * 
+ * Return codes in *status:
+ *   -1  error in select() (NULL returned)
+ *    0  no events pending (NULL returned)
+ *    1  outgoing data pending (NULL returned)
+ *    2  incoming data pending (connection with pending data returned)
+ *
  */ 
 struct aim_conn_t *aim_select(struct aim_session_t *sess,
-			      struct timeval *timeout)
+			      struct timeval *timeout, int *status)
 {
   fd_set fds;
-  fd_set errfds;
   int i;
 
   if (aim_countconn(sess) <= 0)
@@ -171,42 +176,32 @@ struct aim_conn_t *aim_select(struct aim_session_t *sess,
   /* 
    * If we have data waiting to be sent, return immediatly
    */
-  if (sess->queue_outgoing)
-    return (struct aim_conn_t *)1;
+  if (sess->queue_outgoing != NULL) {
+    *status = 1;
+    return NULL;
+  } 
 
   FD_ZERO(&fds);
-  FD_ZERO(&errfds);
   
   for(i=0;i<AIM_CONN_MAX;i++)
     if (sess->conns[i].fd>-1)
-      {
-	FD_SET(sess->conns[i].fd, &fds);
-	FD_SET(sess->conns[i].fd, &errfds);
-      }
+      FD_SET(sess->conns[i].fd, &fds);
   
-  i = select(aim_conngetmaxfd(sess)+1, &fds, NULL, &errfds, timeout);
-  if (i>=1)
-    {
-      int j;
-      for (j=0;j<AIM_CONN_MAX;j++)
-	{
-	  if (sess->conns[j].fd > -1)
-	    {
-	      if ((FD_ISSET(sess->conns[j].fd, &errfds)))
-		{
-		  /* got an exception; close whats left of it up */
-		  aim_conn_close(&(sess->conns[j]));
-		  return (struct aim_conn_t *)-1;
-		}
-	      else if ((FD_ISSET(sess->conns[j].fd, &fds)))
-		return &(sess->conns[j]);  /* return the first waiting struct */
+  if ((i = select(aim_conngetmaxfd(sess)+1, &fds, NULL, NULL, timeout))>=1) {
+    int j;
+    for (j=0;j<AIM_CONN_MAX;j++) {
+	if (sess->conns[j].fd > -1) {
+	    if ((FD_ISSET(sess->conns[j].fd, &fds))) {
+	      *status = 2;
+	      return &(sess->conns[j]);  /* return the first waiting struct */
 	    }
-	}
-      /* should never get here */
-    }
-  else
-    return (struct aim_conn_t *)i;  /* no waiting or error, return -- FIXME: return type funnies */
-  return NULL; /* NO REACH */
+	  }	
+	}	
+    /* should never get here */
+  }
+
+  *status = i; /* may be 0 or -1 */
+  return NULL;  /* no waiting or error, return */
 }
 
 int aim_conn_isready(struct aim_conn_t *conn)
