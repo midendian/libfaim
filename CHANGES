@@ -1,6 +1,11 @@
 
 No release numbers
 ------------------
+ - Fri Dec 15 20:41:15 UTC 2000
+  - Revise README
+  - Make aimdebugd compile
+  - Typos
+
  - Fri Dec 15 02:04:12 UTC 2000
   - Parse rate changes *properly*
   - Add sample code to faimtest demonstrating my approximations

@@ -71,7 +71,7 @@ int sendimtoclient(struct aim_session_t *sess, struct aim_conn_t *conn,
   i += aimutil_put16(tx->data+i, 0x0000);
 
   /* class */
-  aim_addtlvtochain16(&tlvlist, 0x0001, AIM_CLASS_FREE | AIM_CLASS_TRIAL);
+  aim_addtlvtochain16(&tlvlist, 0x0001, AIM_FLAG_FREE | AIM_FLAG_UNCONFIRMED);
 
   /* member-since date */
   aim_addtlvtochain32(&tlvlist, 0x0002, 0);

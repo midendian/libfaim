@@ -83,13 +83,15 @@ int debugconn_connect(struct aim_session_t *sess, struct command_rx_struct *comm
 int parsescriptline(struct aim_session_t *sess, struct aim_conn_t **conn); /* file.c */
 
 int handlechild(int fd, char *scriptname)
-{      
-  int stayalive = 1, selstat;
+{     
+  int alive;
+  int selstat;
   client_t client;
   struct aim_conn_t *inconn, *waitingconn;
 
-  aim_session_init(&client.sess);
-  
+  aim_session_init(&client.sess, 0);
+  //client.sess.tx_enqueue = aim_tx_enqueue__immediate;
+
   if (!(inconn = aim_newconn(&client.sess, AIM_CONN_TYPE_BOS, NULL))) {
     printf(RUNPREFIX "unable to allocate client structures\n");
     exit(-1);
@@ -111,12 +113,13 @@ int handlechild(int fd, char *scriptname)
 
   aim_debugconn_sendconnect(&client.sess, inconn);
 
-  while (stayalive) {
+  alive = 1;
+  while (alive) {
     waitingconn = aim_select(&client.sess, NULL, &selstat);
     
     switch(selstat) {
     case -1: /* error */
-      stayalive = 0; /* fall through and hit aim_logoff() */
+      alive = 0; /* fall through and hit aim_logoff() */
       break;
     case 0: /* nothing pending */
       break;
@@ -127,13 +130,13 @@ int handlechild(int fd, char *scriptname)
       if (waitingconn->fd == scriptfd) {
 	if (clientready) {
 	  if (parsescriptline(&client.sess, &waitingconn) < 0) {
-	    stayalive = 0;
+	    alive = 0;
 	  }
 	}
       } else {
 	if (aim_get_command(&client.sess, waitingconn) < 0) {
 	  printf(RUNPREFIX "connection error\n");
-	  stayalive = 0; /* fall through to aim_logoff() */
+	  alive = 0; /* fall through to aim_logoff() */
 	} else {
 	  aim_rxdispatch(&client.sess);
 	}
@@ -146,6 +149,7 @@ int handlechild(int fd, char *scriptname)
 
   printf(RUNPREFIX "client disconnected\n");
 
+  close(fd);
   aim_logoff(&client.sess);
 
   return fd;

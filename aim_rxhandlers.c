@@ -480,7 +480,7 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_DEFAULT, workingPtr);
 	  }
 	  break;
-	case 0x0004: /* Family: Messeging */
+	case 0x0004: /* Family: Messaging */
 	  switch (subtype) {
 	  case 0x0001:
 	    workingPtr->handled = aim_parse_msgerror_middle(sess, workingPtr);
@@ -531,6 +531,10 @@ faim_export int aim_rxdispatch(struct aim_session_t *sess)
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, 0x000b, 0x0002, workingPtr);
 	  else
 	    workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_STS, AIM_CB_STS_DEFAULT, workingPtr);
+	  break;
+	}
+	case 0x0013: {
+	  printf("lalala: 0x%04x/0x%04x\n", family, subtype);
 	  break;
 	}
 	case AIM_CB_FAM_SPECIAL: 
