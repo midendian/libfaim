@@ -12,7 +12,6 @@ conn.lo
 ft.lo
 im.lo
 info.lo
-login.lo
 meta.lo
 misc.lo
 msgcookie.lo
