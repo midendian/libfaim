@@ -259,7 +259,7 @@ int aim_parse_offgoing_middle(struct aim_session_t *sess,
   rxcallback_t userfunc=NULL;
 
   /* Protect against future SN length extensions */
-  strncpy(sn, command->data+11, (strlen(sn)<=MAXSNLEN)?strlen(sn):MAXSNLEN);
+  strncpy(sn, command->data+11, (((int)(command->data+10))<=MAXSNLEN)?(int)command->data+10:MAXSNLEN);
 
   userfunc = aim_callhandler(command->conn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING);
   if (userfunc)
