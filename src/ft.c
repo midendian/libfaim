@@ -314,10 +314,11 @@ faim_export aim_conn_t *aim_directim_initiate(aim_session_t *sess, aim_conn_t *c
 	memcpy(cookie->cookie, ck, 8);
 	cookie->type = AIM_COOKIETYPE_OFTIM;
 
+	/* this one is for the cookie */
 	priv = (struct aim_directim_intdata *)calloc(1, sizeof(struct aim_directim_intdata));
 
 	memcpy(priv->cookie, ck, 8);
-	memcpy(priv->sn, destsn, sizeof(priv->sn));
+	strncpy(priv->sn, destsn, sizeof(priv->sn));
 	cookie->data = priv;
 	aim_cachecookie(sess, cookie);
 
@@ -331,7 +332,7 @@ faim_export aim_conn_t *aim_directim_initiate(aim_session_t *sess, aim_conn_t *c
 	priv = (struct aim_directim_intdata *)calloc(1, sizeof(struct aim_directim_intdata));
 
 	memcpy(priv->cookie, ck, 8);
-	memcpy(priv->sn, destsn, sizeof(priv->sn));
+	strncpy(priv->sn, destsn, sizeof(priv->sn));
 
 	newconn->fd = listenfd;
 	newconn->subtype = AIM_CONN_SUBTYPE_OFT_DIRECTIM;
@@ -430,7 +431,7 @@ faim_export aim_conn_t *aim_directim_connect(aim_session_t *sess, const char *sn
 		return NULL;
 	}
 
-	if (!newconn || (newconn->fd == -1)) {
+	if (!newconn) {
 		free(intdata);
 		return newconn;
 	}
