@@ -1,6 +1,12 @@
 
 No release numbers
 ------------------
+ - Mon Jan  3 04:07:55 UTC 2000
+   - Fixed bug in aim_snac.c
+   - Fixed condition where commands read from connections that have 
+       been closed were still left in the queue.  Now cancelled.
+   - Added some printfs to aim_info to get more informative crahes
+
  - Sun Jan  2 10:31:19 UTC 2000
    - Cleanups in aim_info.c
    - Can compile with -Ddebug=100 again

@@ -311,8 +311,21 @@ int aim_rxdispatch(struct aim_session_t *sess)
       workingPtr = sess->queue_incoming;
       for (i = 0; workingPtr != NULL; i++)
 	{
+	  /*
+	   * XXX: This is still fairly ugly.
+	   */
 	  switch(workingPtr->conn->type)
 	    {
+	    case -1:
+	      /*
+	       * This can happen if we have a queued command
+	       * that was recieved after a connection has 
+	       * been terminated.  In which case, the handler
+	       * list has been cleared, and there's nothing we
+	       * can do for it.  We can only cancel it.
+	       */
+	      workingPtr->handled = 1;
+	      break;
 	    case AIM_CONN_TYPE_AUTH:
 	      {
 		u_long head;
@@ -561,7 +574,7 @@ int aim_rxdispatch(struct aim_session_t *sess)
 	      }
 	      break;
 	    default:
-	      printf("\nAHHHHH! UNKNOWN CONNECTION TYPE! (0x%02x)\n\n", workingPtr->conn->type);
+	      printf("\nAHHHHH! UNKNOWN CONNECTION TYPE! (type = %d, fd = %d, channel = %02x, commandlen = %02x)\n\n", workingPtr->conn->type, workingPtr->conn->fd, workingPtr->type, workingPtr->commandlen);
 	      workingPtr->handled = aim_callhandler_noparam(sess, workingPtr->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_UNKNOWN, workingPtr);
 	      break;
 	    }

@@ -248,7 +248,7 @@ void aim_session_init(struct aim_session_t *sess)
   memset(sess->logininfo.cookie, 0x00, AIM_COOKIELEN);
   sess->logininfo.email = NULL;
   sess->logininfo.regstatus = 0x00;
-  
+
   for (i = 0; i < AIM_CONN_MAX; i++)
     {
       sess->conns[i].fd = -1;
