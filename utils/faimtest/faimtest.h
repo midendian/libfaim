@@ -37,9 +37,6 @@ void cmd_gotkey(void);
 void cmd_uninit(void);
 
 /* faimtest.c */
-int faimtest_parse_connerr(aim_session_t *sess, aim_frame_t *fr, ...);
-int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...);
-int faimtest_serverready(aim_session_t *sess, aim_frame_t *fr, ...);
 int faimtest_conncomplete(aim_session_t *sess, aim_frame_t *fr, ...);
 int faimtest_flapversion(aim_session_t *sess, aim_frame_t *fr, ...);
 int faimtest_init(void);

@@ -167,10 +167,8 @@ static int faimtest_chatnav_info(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int chat_rateinfo(aim_session_t *sess, aim_frame_t *fr, ...)
+static int conninitdone_chat(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-
-	aim_ratesack(sess, fr->conn);
 
 	aim_clientready(sess, fr->conn);
 
@@ -196,32 +194,6 @@ static int chat_rateinfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int chat_serverready(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	int famcount, i;
-	fu16_t *families;
-	va_list ap;
-
-	va_start(ap, fr);
-	famcount = va_arg(ap, int);
-	families = va_arg(ap, fu16_t *);
-	va_end(ap);
-
-	dvprintf("chat: SNAC families supported by this host (type %d): ", fr->conn->type);
-	for (i = 0; i < famcount; i++)
-		dvinlineprintf("0x%04x ", families[i]);
-	dinlineprintf("\n");
-
-	aim_setversions(sess, fr->conn);
-
-	/*
-	 * Never send anything (except versions) until we have rate info.
-	 */
-	aim_reqrates(sess, fr->conn);
-
-	return 1;
-}
-
 void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 {
 	aim_conn_t *tstconn;
@@ -234,9 +206,9 @@ void chatnav_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie)
 		return;
 	}
 
-	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, chat_serverready, 0);
-	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, chat_rateinfo, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_chat, 0);
+
 	aim_auth_sendcookie(sess, tstconn, cookie);
 
 	dprintf("chatnav: connected\n");
@@ -263,9 +235,9 @@ void chat_redirect(aim_session_t *sess, const char *ip, const fu8_t *cookie, con
 	 */
 	aim_chat_attachname(tstconn, roomname);
 
-	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, chat_serverready, 0);
-	aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, chat_rateinfo, 0);
 	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+	aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_chat, 0);
+
 	aim_auth_sendcookie(sess, tstconn, cookie);
 
 	return;	

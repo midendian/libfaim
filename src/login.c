@@ -448,13 +448,18 @@ faim_export int aim_sendredirect(aim_session_t *sess, aim_conn_t *conn, fu16_t s
  *
  * This info probably doesn't even need to make it to the client.
  *
+ * We don't actually call the client here.  This starts off the connection
+ * initialization routine required by all AIM connections.  The next time
+ * the client is called is the CONNINITDONE callback, which should be 
+ * shortly after the rate information is acknowledged.
+ * 
  */
 static int hostonline(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
 	aim_rxcallback_t userfunc;
-	int ret = 0;
 	fu16_t *families;
 	int famcount;
+
 
 	if (!(families = malloc(aim_bstream_empty(bs))))
 		return 0;
@@ -464,12 +469,20 @@ static int hostonline(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, a
 		aim_conn_addgroup(rx->conn, families[famcount]);
 	}
 
-	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		ret = userfunc(sess, rx, famcount, families);
-
 	free(families);
 
-	return ret; 
+
+	/*
+	 * Next step is in the Host Versions handler.
+	 *
+	 * Note that we must send this before we request rates, since
+	 * the format of the rate information depends on the versions we
+	 * give it.
+	 *
+	 */
+	aim_setversions(sess, rx->conn);
+
+	return 1; 
 }
 
 static int redirect(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
@@ -661,8 +674,9 @@ static void rc_addpair(struct rateclass *rc, fu16_t group, fu16_t type)
 static int rateresp(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
 	aim_conn_inside_t *ins = (aim_conn_inside_t *)rx->conn->inside;
-	aim_rxcallback_t userfunc;
 	fu16_t numclasses, i;
+	aim_rxcallback_t userfunc;
+
 
 	/*
 	 * First are the parameters for each rate class.
@@ -725,10 +739,20 @@ static int rateresp(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim
 	 * so that we can do more fun stuff later (not really).
 	 */
 
-	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		return userfunc(sess, rx);
+	/*
+	 * Last step in the conn init procedure is to acknowledge that we
+	 * agree to these draconian limitations.
+	 */
+	aim_ratesack(sess, rx->conn);
 
-	return 0;
+	/*
+	 * Finally, tell the client it's ready to go...
+	 */
+	if ((userfunc = aim_callhandler(sess, rx->conn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE)))
+		userfunc(sess, rx);
+
+
+	return 1;
 }
 
 static int ratechange(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
@@ -932,22 +956,57 @@ static int motd(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_mod
 	return ret;
 }
 
+faim_export int aim_setversions(aim_session_t *sess, aim_conn_t *conn)
+{
+	aim_conn_inside_t *ins = (aim_conn_inside_t *)conn->inside;
+	struct snacgroup *sg;
+	aim_frame_t *fr;
+	aim_snacid_t snacid;
+
+	if (!ins)
+		return -EINVAL;
+
+	if (!(fr = aim_tx_new(sess, conn, AIM_FRAMETYPE_FLAP, 0x02, 1152)))
+		return -ENOMEM;
+
+	snacid = aim_cachesnac(sess, 0x0001, 0x0017, 0x0000, NULL, 0);
+	aim_putsnac(&fr->data, 0x0001, 0x0017, 0x0000, snacid);
+
+	/*
+	 * Send only the versions that the server cares about (that it
+	 * marked as supporting in the server ready SNAC).  
+	 */
+	for (sg = ins->groups; sg; sg = sg->next) {
+		aim_module_t *mod;
+
+		if ((mod = aim__findmodulebygroup(sess, sg->group))) {
+			aimbs_put16(&fr->data, mod->family);
+			aimbs_put16(&fr->data, mod->version);
+		} else
+			faimdprintf(sess, 1, "aim_setversions: server supports group 0x%04x but we don't!\n", sg->group);
+	}
+
+	aim_tx_enqueue(sess, fr);
+
+	return 0;
+}
+
 static int hostversions(aim_session_t *sess, aim_module_t *mod, aim_frame_t *rx, aim_modsnac_t *snac, aim_bstream_t *bs)
 {
-	aim_rxcallback_t userfunc;
 	int vercount;
 	fu8_t *versions;
-	int ret = 0;
 
+	/* This is frivolous. (Thank you SmarterChild.) */
 	vercount = aim_bstream_empty(bs)/4;
 	versions = aimbs_getraw(bs, aim_bstream_empty(bs));
-
-	if ((userfunc = aim_callhandler(sess, rx->conn, snac->family, snac->subtype)))
-		ret = userfunc(sess, rx, vercount, versions);
-
 	free(versions);
 
-	return ret;
+	/*
+	 * Now request rates.
+	 */
+	aim_reqrates(sess, rx->conn);
+
+	return 1;
 }
 
 /*

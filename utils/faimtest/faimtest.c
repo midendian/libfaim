@@ -347,35 +347,48 @@ int main(int argc, char **argv)
 	exit(0);
 }
 
-int faimtest_serverready(aim_session_t *sess, aim_frame_t *fr, ...)
+static int conninitdone_admin(aim_session_t *sess, aim_frame_t *fr, ...)
 {
-	int famcount, i;
-	fu16_t *families;
-	va_list ap;
 
-	va_start(ap, fr);
-	famcount = va_arg(ap, int);
-	families = va_arg(ap, fu16_t *);
-	va_end(ap);
+	aim_clientready(sess, fr->conn);
 
-	dvprintf("faimtest: SNAC families supported by this host (type %d): ", fr->conn->type);
-	for (i = 0; i < famcount; i++)
-		dvinlineprintf("0x%04x ", families[i]);
-	dinlineprintf("\n");
-
-	aim_setversions(sess, fr->conn);
-	aim_reqrates(sess, fr->conn); /* request rate info */
-
-	if (fr->conn->type == AIM_CONN_TYPE_AUTH) {
-		dprintf("done with auth server ready\n");
-	} else if (fr->conn->type == AIM_CONN_TYPE_BOS) {
-		dprintf("done with BOS server ready\n");
-	}
+	dprintf("initialization done for admin connection\n");
 
 	return 1;
 }
 
-int faimtest_parse_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
+static int conninitdone_bos(aim_session_t *sess, aim_frame_t *fr, ...)
+{
+	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
+	char buddies[128]; /* this is the new buddy list */
+	char profile[256]; /* this is the new profile */ 
+	char awaymsg[] = {"blah blah blah Ole! blah blah blah"};
+
+	/* Caution: Buddy1 and Buddy2 are real people! (who I don't know) */
+	snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", priv->ohcaptainmycaptain ? priv->ohcaptainmycaptain : "blah");
+	snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", priv->ohcaptainmycaptain);
+
+	aim_ratesack(sess, fr->conn);  /* ack rate info response */
+
+	aim_bos_reqpersonalinfo(sess, fr->conn);
+	aim_bos_reqlocaterights(sess, fr->conn);
+	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST);
+	aim_bos_reqbuddyrights(sess, fr->conn);
+
+	/* send the buddy list and profile (required, even if empty) */
+	aim_bos_setbuddylist(sess, fr->conn, buddies);
+
+	aim_reqicbmparams(sess);  
+
+	aim_bos_reqrights(sess, fr->conn);  
+	/* set group permissions -- all user classes */
+	aim_bos_setgroupperm(sess, fr->conn, AIM_FLAG_ALLUSERS);
+	aim_bos_setprivacyflags(sess, fr->conn, AIM_PRIVFLAGS_ALLOWIDLE);
+
+	return 1;
+}
+
+static int faimtest_parse_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
 	va_list ap;
@@ -395,18 +408,7 @@ int faimtest_parse_connerr(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int faimtest_rateresp_auth(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-
-	aim_ratesack(sess, fr->conn);
-	aim_clientready(sess, fr->conn);
-
-	dprintf("faimtest: connected to authorization/admin service\n");
-
-	return 1;
-}
-
-int faimtest_accountconfirm(aim_session_t *sess, aim_frame_t *fr, ...)
+static int faimtest_accountconfirm(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	int status;
 	va_list ap;
@@ -468,7 +470,7 @@ static int faimtest_infochange(aim_session_t *sess, aim_frame_t *fr, ...)
 }
 
 
-int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
+static int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	va_list ap;
 	int serviceid;
@@ -490,9 +492,7 @@ int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 		} else {
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
-			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_adverts, 0);
 			aim_auth_sendcookie(sess, tstconn, cookie);
 			dprintf("sent cookie to adverts host\n");
 		}
@@ -506,9 +506,7 @@ int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 		} else {
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_FLAPVER, faimtest_flapversion, 0);
 			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0003, faimtest_serverready, 0);
-			aim_conn_addhandler(sess, tstconn, 0x0001, 0x0007, faimtest_rateresp_auth, 0); /* rate info */
-			//aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
+			aim_conn_addhandler(sess, tstconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_admin, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0007, faimtest_accountconfirm, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0003, faimtest_infochange, 0);
 			aim_conn_addhandler(sess, tstconn, 0x0007, 0x0005, faimtest_infochange, 0);
@@ -538,37 +536,6 @@ int faimtest_handleredirect(aim_session_t *sess, aim_frame_t *fr, ...)
 	return 1;
 }
 
-static int faimtest_rateresp_bos(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	struct faimtest_priv *priv = (struct faimtest_priv *)sess->aux_data;
-	char buddies[128]; /* this is the new buddy list */
-	char profile[256]; /* this is the new profile */ 
-	char awaymsg[] = {"blah blah blah Ole! blah blah blah"};
-
-	/* Caution: Buddy1 and Buddy2 are real people! (who I don't know) */
-	snprintf(buddies, sizeof(buddies), "Buddy1&Buddy2&%s&", priv->ohcaptainmycaptain ? priv->ohcaptainmycaptain : "blah");
-	snprintf(profile, sizeof(profile), "Hello.<br>My captain is %s.  They were dumb enough to leave this message in their client, or they are using faimtest.  Shame on them.", priv->ohcaptainmycaptain);
-
-	aim_ratesack(sess, fr->conn);  /* ack rate info response */
-
-	aim_bos_reqpersonalinfo(sess, fr->conn);
-	aim_bos_reqlocaterights(sess, fr->conn);
-	aim_bos_setprofile(sess, fr->conn, profile, awaymsg, AIM_CAPS_BUDDYICON | AIM_CAPS_CHAT | AIM_CAPS_GETFILE | AIM_CAPS_SENDFILE | AIM_CAPS_IMIMAGE | AIM_CAPS_GAMES | AIM_CAPS_SAVESTOCKS | AIM_CAPS_SENDBUDDYLIST);
-	aim_bos_reqbuddyrights(sess, fr->conn);
-
-	/* send the buddy list and profile (required, even if empty) */
-	aim_bos_setbuddylist(sess, fr->conn, buddies);
-
-	aim_reqicbmparams(sess);  
-
-	aim_bos_reqrights(sess, fr->conn);  
-	/* set group permissions -- all user classes */
-	aim_bos_setgroupperm(sess, fr->conn, AIM_FLAG_ALLUSERS);
-	aim_bos_setprivacyflags(sess, fr->conn, AIM_PRIVFLAGS_ALLOWIDLE);
-
-	return 1;
-}
-
 static int faimtest_icbmparaminfo(aim_session_t *sess, aim_frame_t *fr, ...)
 {
 	struct aim_icbmparameters *params;
@@ -590,28 +557,6 @@ static int faimtest_icbmparaminfo(aim_session_t *sess, aim_frame_t *fr, ...)
 	params->minmsginterval = 0; /* in milliseconds */
 
 	aim_seticbmparam(sess, params);
-
-	return 1;
-}
-
-static int faimtest_hostversions(aim_session_t *sess, aim_frame_t *fr, ...)
-{
-	int vercount, i;
-	fu8_t *versions;
-	va_list ap;
-
-	va_start(ap, fr);
-	vercount = va_arg(ap, int); /* number of family/version pairs */
-	versions = va_arg(ap, fu8_t *);
-	va_end(ap);
-
-	dprintf("faimtest: SNAC versions supported by this host: ");
-	for (i = 0; i < vercount*4; i += 4) {
-		dvinlineprintf("0x%04x:0x%04x ", 
-			aimutil_get16(versions+i),  /* SNAC family */
-			aimutil_get16(versions+i+2) /* Version number */);
-	}
-	dinlineprintf("\n");
 
 	return 1;
 }
@@ -1862,16 +1807,13 @@ void addcb_bos(aim_session_t *sess, aim_conn_t *bosconn)
 {
 
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNINITDONE, conninitdone_bos, 0);
 
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0003, ssirights, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x0006, ssidata, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0013, 0x000f, ssidatanochange, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0008, 0x0002, handlepopup, 0);
 	aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
-	aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp_bos, 0); /* rate info */
-	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, 0x0018, faimtest_hostversions, 0);
-	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
-	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, faimtest_reportinterval, 0);
 	aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_RIGHTSINFO, faimtest_parse_buddyrights, 0);
