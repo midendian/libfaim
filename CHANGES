@@ -1,6 +1,23 @@
 
 No release numbers
 ------------------
+ - Tue Jun  6 01:36:48 UTC 2000
+   - Inverted gethostbyname2() check.  Not sure how that ended up 
+       in that state.
+   - Added some of the initial framework to support file transfers
+   - Added in a few checks for that
+     - Can currently parse and send a denial message.
+   - Added cookie caching.  (Sorry, I just like saying that.)
+   - Rearranged channel 2 ICBM parsing (detects the different
+       rendezvous types better and hopefully accuratly).
+   - Killed the connection array.  Now a list.  (Suits the
+       upcoming features better.)  --- REQUIRES CLIENT CHANGES...
+     - In most cases, you need to change aim_conn_close() calls
+         to aim_conn_kill().  This will free them as well as 
+         close them.  If you don't do this, you'll pollute the
+         connection list and leak memory.
+   - Possibly a few other minor things (some cleanups to faimtest for one)
+
  - Fri Jun  2 23:27:28 UTC 2000
    - Cleaned up aim_send_login slightly
    - Added aimicq_encode_password to support the new hash

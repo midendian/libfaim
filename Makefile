@@ -22,7 +22,8 @@ LIBFAIM_OBJECTS = \
 	aim_chat.o \
 	aim_chatnav.o \
 	aim_util.o \
-	aim_meta.o
+	aim_meta.o \
+	aim_msgcookie.o
 
 all: libfaim allutils
 
