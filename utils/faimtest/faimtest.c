@@ -570,8 +570,6 @@ static int faimtest_icbmparaminfo(struct aim_session_t *sess, struct command_rx_
 
 	dvprintf("ICBM Parameters: maxchannel = %d, default flags = 0x%08lx, max msg len = %d, max sender evil = %f, max reciever evil = %f, min msg interval = %ld\n", params->maxchan, params->flags, params->maxmsglen, ((float)params->maxsenderwarn)/10.0, ((float)params->maxrecverwarn)/10.0, params->minmsginterval);
 
-	params->maxchan = 0; /* this has to be set to zero in the response */
-	//params->flags = 0;
 	params->maxmsglen = 8000;
 	params->minmsginterval = 0;
 
