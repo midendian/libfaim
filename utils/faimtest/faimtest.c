@@ -546,63 +546,77 @@ int faimtest_handleredirect(struct aim_session_t *sess, struct command_rx_struct
 
 int faimtest_parse_authresp(struct aim_session_t *sess, struct command_rx_struct *command, ...)
 {
+  va_list ap;
   struct aim_conn_t *bosconn = NULL;
+  char *sn = NULL, *bosip = NULL, *errurl = NULL, *email = NULL;
+  unsigned char *cookie = NULL;
+  int errorcode = 0, regstatus = 0;
   
+  va_start(ap, command);
+  sn = va_arg(ap, char *);
+  errorcode = va_arg(ap, int);
+  errurl = va_arg(ap, char *);
+  regstatus = va_arg(ap, int);
+  email = va_arg(ap, char *);
+  bosip = va_arg(ap, char *);
+  cookie = va_arg(ap, unsigned char *);
+  va_end(ap);
 
-  printf("Screen name: %s\n", sess->logininfo.screen_name);
+  printf("Screen name: %s\n", sn);
 
   /*
    * Check for error.
    */
-  if (sess->logininfo.errorcode)
-    {
-      printf("Login Error Code 0x%04x\n", sess->logininfo.errorcode);
-      printf("Error URL: %s\n", sess->logininfo.errorurl);
-      aim_conn_kill(sess, &command->conn);
-      exit(0); /* XXX: should return in order to let the above things get free()'d. */
-    }
+  if (errorcode || !bosip || !cookie) {
+    printf("Login Error Code 0x%04x\n", errorcode);
+    printf("Error URL: %s\n", errurl);
+    aim_conn_kill(sess, &command->conn); 
+    return 1;
+  }
 
-  printf("Reg status: %2d\n", sess->logininfo.regstatus);
-  printf("Email: %s\n", sess->logininfo.email);
-  printf("BOS IP: %s\n", sess->logininfo.BOSIP);
+  printf("Reg status: %2d\n", regstatus);
+  printf("Email: %s\n", email);
+  printf("BOS IP: %s\n", bosip);
 
   printf("Closing auth connection...\n");
   aim_conn_kill(sess, &command->conn);
-  bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, sess->logininfo.BOSIP);
-  if (bosconn == NULL) {
+  if (!(bosconn = aim_newconn(sess, AIM_CONN_TYPE_BOS, bosip))) {
     fprintf(stderr, "faimtest: could not connect to BOS: internal error\n");
+    return 1;
   } else if (bosconn->status & AIM_CONN_STATUS_CONNERR) {	
     fprintf(stderr, "faimtest: could not connect to BOS\n");
     aim_conn_kill(sess, &bosconn);
-  } else {
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
-    aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
-    aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, faimtest_reportinterval, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_RIGHTSINFO, faimtest_parse_buddyrights, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_locerr, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_ratechange, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_EVIL, faimtest_parse_evilnotify, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_msgerr, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
-
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
-    
-    aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, faimtest_parse_connerr, 0);
-    
-    aim_auth_sendcookie(sess, bosconn, sess->logininfo.cookie);
+    return 1;
   }
+
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNCOMPLETE, faimtest_conncomplete, 0);
+  aim_conn_addhandler(sess, bosconn, 0x0009, 0x0003, faimtest_bosrights, 0);
+  aim_conn_addhandler(sess, bosconn, 0x0001, 0x0007, faimtest_rateresp, 0); /* rate info */
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_ACK, AIM_CB_ACK_ACK, NULL, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_SERVERREADY, faimtest_serverready, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATEINFO, NULL, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_REDIRECT, faimtest_handleredirect, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_STS, AIM_CB_STS_SETREPORTINTERVAL, faimtest_reportinterval, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_RIGHTSINFO, faimtest_parse_buddyrights, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_ONCOMING, faimtest_parse_oncoming, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_BUD, AIM_CB_BUD_OFFGOING, faimtest_parse_offgoing, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_INCOMING, faimtest_parse_incoming_im, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_ERROR, faimtest_parse_locerr, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_MISSEDCALL, faimtest_parse_misses, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_RATECHANGE, faimtest_parse_ratechange, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_EVIL, faimtest_parse_evilnotify, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ERROR, faimtest_parse_msgerr, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_LOC, AIM_CB_LOC_USERINFO, faimtest_parse_userinfo, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_MSG, AIM_CB_MSG_ACK, faimtest_parse_msgack, 0);
+
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_CTN, AIM_CB_CTN_DEFAULT, aim_parse_unknown, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_DEFAULT, aim_parse_unknown, 0);
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_GEN, AIM_CB_GEN_MOTD, faimtest_parse_motd, 0);
+    
+  aim_conn_addhandler(sess, bosconn, AIM_CB_FAM_SPECIAL, AIM_CB_SPECIAL_CONNERR, faimtest_parse_connerr, 0);
+    
+  aim_auth_sendcookie(sess, bosconn, cookie);
+
   return 1;
 }
 
@@ -1299,7 +1313,7 @@ int faimtest_chat_incomingmsg(struct aim_session_t *sess, struct command_rx_stru
   /*
    * Do an echo for testing purposes.  But not for ourselves ("oops!")
    */
-  if (strcmp(userinfo->sn, sess->logininfo.screen_name) != 0)
+  if (strcmp(userinfo->sn, sess->sn) != 0)
     {
       sprintf(tmpbuf, "(%s said \"%s\")", userinfo->sn, msg);
       aim_chat_send_im(sess, command->conn, tmpbuf);
