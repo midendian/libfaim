@@ -1,6 +1,10 @@
 
 No release numbers
 ------------------
+ - Sat May 26 03:58:27 PDT 2001
+  - Aha! This is why I could never get icons to work before.
+  - Luckily the checksum is painfully simple.
+
  - Sat May 26 01:37:39 PDT 2001
   - So this is my big merge with the ActiveBuddy version...
     - Remove use of tlvchains from IM parsing for better performance

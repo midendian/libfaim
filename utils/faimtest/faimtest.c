@@ -164,6 +164,7 @@ static char *listingpath;
 static unsigned char *buddyicon = NULL;
 static int buddyiconlen = 0;
 static time_t buddyiconstamp = 0;
+static unsigned short buddyiconsum = 0;
 
 static void faimtest_debugcb(struct aim_session_t *sess, int level, const char *format, va_list va)
 {
@@ -408,7 +409,9 @@ int main(int argc, char **argv)
       buddyicon = malloc(buddyiconlen);
       fread(buddyicon, 1, st.st_size, f);
 
-      dvprintf("read %d bytes of %s for buddy icon\n", buddyiconlen, buddyiconpath);
+      buddyiconsum = aim_iconsum(buddyicon, buddyiconlen);
+
+      dvprintf("read %d bytes of %s for buddy icon (sum 0x%08x)\n", buddyiconlen, buddyiconpath, buddyiconsum);
 
       fclose(f);
 
@@ -1214,12 +1217,13 @@ static int faimtest_handlecmd(struct aim_session_t *sess, struct command_rx_stru
     args.msglen = strlen(iconmsg);
     args.iconlen = buddyiconlen;
     args.iconstamp = buddyiconstamp;
+    args.iconsum = buddyiconsum;
 
     aim_send_im_ext(sess, command->conn, &args);
 
   } else if (strstr(tmpstr, "sendicon") && buddyicon) {
 
-    aim_send_icon(sess, command->conn, userinfo->sn, buddyicon, buddyiconlen, buddyiconstamp);
+    aim_send_icon(sess, command->conn, userinfo->sn, buddyicon, buddyiconlen, buddyiconstamp, buddyiconsum);
 
   } else if (strstr(tmpstr, "warnme")) {
 

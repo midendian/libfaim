@@ -475,10 +475,10 @@ faim_export unsigned long aim_debugconn_sendconnect(struct aim_session_t *sess, 
 
 faim_export int aim_logoff(struct aim_session_t *);
 
-#ifndef FAIM_INTERNAL
+#if !defined(FAIM_INTERNAL) || defined(FAIM_INTERNAL_INSANE)
 /* the library should never call aim_conn_kill */
 faim_export void aim_conn_kill(struct aim_session_t *sess, struct aim_conn_t **deadconn);
-#endif /* ndef FAIM_INTERNAL */
+#endif
 
 typedef int (*aim_rxcallback_t)(struct aim_session_t *, struct command_rx_struct *, ...);
 
@@ -659,6 +659,7 @@ struct aim_sendimext_args {
   int msglen;
   int iconlen;
   time_t iconstamp;
+  unsigned short iconsum;
 };
 
 struct aim_incomingim_ch1_args {
@@ -701,7 +702,8 @@ struct aim_incomingim_ch2_args {
 
 faim_export unsigned long aim_send_im_ext(struct aim_session_t *sess, struct aim_conn_t *conn, struct aim_sendimext_args *args);
 faim_export unsigned long aim_send_im(struct aim_session_t *, struct aim_conn_t *, const char *destsn, unsigned short flags, const char *msg);
-faim_export int aim_send_icon(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn, const unsigned char *icon, int iconlen, time_t stamp);
+faim_export int aim_send_icon(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn, const unsigned char *icon, int iconlen, time_t stamp, unsigned short iconsum);
+faim_export unsigned short aim_iconsum(const unsigned char *buf, int buflen);
 faim_export int aim_send_im_direct(struct aim_session_t *, struct aim_conn_t *, char *);
 faim_export struct aim_conn_t * aim_directim_initiate(struct aim_session_t *, struct aim_conn_t *, struct aim_directim_priv *, char *destsn);
 faim_export struct aim_conn_t *aim_directim_connect(struct aim_session_t *, struct aim_conn_t *, struct aim_directim_priv *);

@@ -65,6 +65,20 @@ faim_export unsigned short aim_fingerprintclient(unsigned char *msghdr, int len)
   return AIM_CLIENTTYPE_UNKNOWN;
 }
 
+/* This should be endian-safe now... but who knows... */
+faim_export unsigned short aim_iconsum(const unsigned char *buf, int buflen)
+{
+  unsigned long sum;
+  int i;
+
+  for (i = 0, sum = 0; i < buflen; i += 2)
+    sum += (buf[i+1] << 8) + buf[i];
+
+  sum = ((sum & 0xffff0000) >> 16) + (sum & 0x0000ffff);
+
+  return sum & 0xffff;
+}
+
 /*
  * Send an ICBM (instant message).  
  *
@@ -224,7 +238,8 @@ faim_export unsigned long aim_send_im_ext(struct aim_session_t *sess, struct aim
     curbyte += aimutil_put16(newpacket->data+curbyte, 0x0008);
     curbyte += aimutil_put16(newpacket->data+curbyte, 0x000c);
     curbyte += aimutil_put32(newpacket->data+curbyte, args->iconlen);
-    curbyte += aimutil_put32(newpacket->data+curbyte, 0x00000001);
+    curbyte += aimutil_put16(newpacket->data+curbyte, 0x0001);
+    curbyte += aimutil_put16(newpacket->data+curbyte, args->iconsum);
     curbyte += aimutil_put32(newpacket->data+curbyte, args->iconstamp);
   }
 
@@ -263,7 +278,7 @@ faim_export unsigned long aim_send_im(struct aim_session_t *sess, struct aim_con
   return aim_send_im_ext(sess, conn, &args);
 }
 
-faim_export int aim_send_icon(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn, const unsigned char *icon, int iconlen, time_t stamp)
+faim_export int aim_send_icon(struct aim_session_t *sess, struct aim_conn_t *conn, const char *sn, const unsigned char *icon, int iconlen, time_t stamp, unsigned short iconsum)
 {
   struct command_tx_struct *np;
   int i,curbyte = 0;
@@ -327,7 +342,8 @@ faim_export int aim_send_icon(struct aim_session_t *sess, struct aim_conn_t *con
   /* TLV t(2711) */
   curbyte += aimutil_put16(np->data+curbyte, 0x2711);
   curbyte += aimutil_put16(np->data+curbyte, 4+4+4+iconlen+strlen(AIM_ICONIDENT));
-  curbyte += aimutil_put32(np->data+curbyte, 0x00000000/*0x0000d92c*/);
+  curbyte += aimutil_put16(np->data+curbyte, 0x0000);
+  curbyte += aimutil_put16(np->data+curbyte, iconsum);
   curbyte += aimutil_put32(np->data+curbyte, iconlen);
   curbyte += aimutil_put32(np->data+curbyte, stamp);
   memcpy(np->data+curbyte, icon, iconlen);
